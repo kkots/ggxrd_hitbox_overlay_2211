@@ -21,7 +21,7 @@ struct DrawData {
 	std::vector<DrawCircleCallParams> circles;
 	std::vector<DrawLineCallParams> lines;
 	std::vector<DrawBoxCallParams> throwBoxes;
-	std::vector<InputsDrawingCommandRow> inputs[2] { };
+	std::vector<InputsDrawingCommandRow> inputs[2] { std::vector<InputsDrawingCommandRow>{}, std::vector<InputsDrawingCommandRow>{} };
 	bool inputsContainsDurations = false;
 	size_t inputsSize[2] { 0 };
 	GameModeFast gameModeFast;

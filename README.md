@@ -17,6 +17,7 @@ Also it can display a "PUNISH" message when landing a hit on an opponent either 
 Also it can change the FPS in Training Mode.
 The mod can optionally hide its output from OBS recording (can be turned on in 'UI - Settings - General Settings - Dodge OBS Recording').
 Includes Hitbox Editor that can save/load edited hitboxes to/from .collision and .json files.
+Can speed up replay playback.
 
 ## Credits
 
@@ -624,6 +625,11 @@ displayInputHistoryWhenObserving = true
 ; Tutorial, offline MOM and Mission.
 ; The associated hotkey setting for this setting is "toggleShowInputHistory".
 displayInputHistoryInSomeOfflineModes = false
+
+; Specify true or false.
+; Setting this to true will display only your input history when playing online.
+; In online training mode, both players' input history is shown.; The associated hotkey setting for this setting is "toggleShowInputHistory".
+displayInputHistoryInOnline = false
 
 ; Specify true or false.
 ; Setting this to true will display the duration of each input, in frames, in the input history.
@@ -1476,6 +1482,17 @@ hitboxEditArrangeHitboxesToFront =
 ; will be loaded on battle initialization from the game's Mods folder
 ; (GUILTY GEAR Xrd -REVELATOR-\Mods).
 enableScriptMods = false
+
+; A keyboard shortcut.
+; Holding down this key during a replay will speed up the playback by a factor specified in
+; "fastForwardReplayFactor".
+; This feature causes danger time entry countdown to go out of sync.
+fastForwardReplay = 
+
+; Specify a positive whole number. Default value is 2.
+; When holding the "fastForwardReplay" hotkey during a replay,
+; this is by how many times to speed up the replay.
+fastForwardReplayFactor = 2
 ```
 
 </details>
@@ -1992,3 +2009,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2025 November 13: Version 7.13: Prevent loss of imgui settings and sigscan cache caused by navigating folders when saving .collision or .json hitbox data from the Hitbox Editor. Fix exported .collision file causing Xrd to crash when loaded through Pangaea's mod, which was caused by an error in this mod's Hitbox Editor when adding too many new sprites.
 - 2025 November 14: Version 7.14: Added a checkbox to enable BBScript (.bbscript files) and Collision (.collision files) mods. They get loaded from the 'Mods' folder in the game's installation directory, if one is present.
 - 2025 November 15: Version 7.15: Fix a crash when using the key Up to scroll the 'Anim sequence' list in the Hitbox Editor and running into the very top "None" element.
+- 2025 December ??: Version 7.16: Framebars and framedata display correct information now when catching up in observer mode and when participating directly as one of the players in an online match. Added a hotkey to speed up replay playback. Fixed a problem with clearing input history when it's with durations (after clearing it would display the first few inputs incorrectly, but work fine afterwards).

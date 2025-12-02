@@ -2198,8 +2198,8 @@ public:
 		int tensionPulse,
 		int* distanceModifier,
 		int* tensionPulseModifier);
-	int calculateReceivedComboCountTensionGainModifier(bool inHitstun, int comboCount);
-	int calculateDealtComboCountTensionGainModifier(bool inHitstun, int comboCount);
+	static int calculateReceivedComboCountTensionGainModifier(bool inHitstun, int comboCount);
+	static int calculateDealtComboCountTensionGainModifier(bool inHitstun, int comboCount);
 	void calculatePushback(
 		int attackLevel,
 		int comboTimer,

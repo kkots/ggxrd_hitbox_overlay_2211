@@ -596,7 +596,7 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 	team = ent.team();
 	CharacterType ownerType = (CharacterType)-1;
 	if (team == 0 || team == 1) {
-		ownerType = endScene.players[team].charType;
+		ownerType = endScene.currentState->players[team].charType;
 	}
 	animFrame = ent.currentAnimDuration();
 	int prevLifetimeCounter = lifeTimeCounter;
@@ -615,7 +615,7 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 		titleIsFromAFrameThatHitSomething = false;
 	}
 	if (ownerType == CHARACTER_TYPE_RAMLETHAL) {
-		Entity owner = endScene.players[team].pawn;
+		Entity owner = endScene.currentState->players[team].pawn;
 		isRamlethalSword = owner && (
 				owner.stackEntity(0) == ent
 				|| owner.stackEntity(1) == ent
@@ -1378,9 +1378,9 @@ void EntityFramebar::utf8len(const char* txt, int* byteLen, int* cpCountTotal, i
 
 int EntityFramebar::confinePos(int pos) {
 	if (pos < 0) {
-		return (int)_countof(Framebar::frames) + (pos + 1) % (int)_countof(Framebar::frames) - 1;  // (int) very important x_x (all covered in bruises) (written in blood)
+		return (int)_countof(PlayerFramebar::frames) + (pos + 1) % (int)_countof(PlayerFramebar::frames) - 1;  // (int) very important x_x (all covered in bruises) (written in blood)
 	} else {
-		return pos % _countof(Framebar::frames);
+		return pos % _countof(PlayerFramebar::frames);
 	}
 }
 
@@ -1405,29 +1405,49 @@ inline int findTickNoGreaterThan(const FramebarT* framebar, int startingPos, DWO
 	return -1;
 }
 
+// returns relative pos
 int Framebar::findTickNoGreaterThan(int startingPos, DWORD tick) const {
-	return ::findTickNoGreaterThan<Framebar>(this, startingPos, tick);
+	int curPos = toRelative(startingPos);
+	if (curPos >= (int)frames.size()) return -1;
+	
+	for (int i = 0; i < (int)frames.size(); ++i) {
+		if (frames[curPos].type == FT_NONE) return -1;
+		DWORD curTick = frames[curPos].aswEngineTick;
+		if (curTick <= tick) {
+			return curPos;
+		}
+		--curPos;
+		if (curPos < 0) {
+			curPos += (int)_countof(PlayerFramebar::frames);
+			if (curPos >= (int)frames.size()) return -1;
+		}
+	}
+	return -1;
 }
 
 int PlayerFramebar::findTickNoGreaterThan(int startingPos, DWORD tick) const {
 	return ::findTickNoGreaterThan<PlayerFramebar>(this, startingPos, tick);
 }
 
-template<typename EntFramebarT, typename FramebarT, typename FrameT>
-static inline void changePreviousFrames_piece(EntFramebarT* framebars,
+static inline void changePreviousFrames_piece(PlayerFramebars* framebars,
 			FrameType* prevTypes,
 			int prevTypesCount,
 			int& pos,
-			FramebarT& bar,
+			PlayerFramebar& bar,
 			DWORD aswEngineTick,
-			FrameType newType) {
+			FrameType newType,
+			int& reachedPreFrame,
+			int preFrameStart) {
 	
 	if (pos != -1) {
-		FrameT& otherFrame = bar[pos];
+		PlayerFrame& otherFrame = bar[pos];
 		if (otherFrame.aswEngineTick == aswEngineTick) {
 			int j;
 			for (j = 0; j < prevTypesCount; ++j) {
 				if (otherFrame.type == prevTypes[j]) {
+					if (reachedPreFrame || pos == preFrameStart) {
+						++reachedPreFrame;
+					}
 					otherFrame.type = newType;
 					framebars->decrementPos(pos);
 					break;
@@ -1442,61 +1462,40 @@ static inline void changePreviousFrames_piece(EntFramebarT* framebars,
 	}
 }
 
-template<typename EntFramebarT, typename FramebarT, typename FrameT>
-inline void changePreviousFrames(EntFramebarT* framebars,
-		FrameType* prevTypes,
-		int prevTypesCount,
-		FrameType newType,
-		int positionHitstopIdle,
-		int positionHitstop,
-		int positionIdle,
-		int position,
-		int maxCount,
-		bool stopAtFirstFrame) {
-	if (maxCount <= 0 || prevTypesCount <= 0) return;
+static inline void changePreviousFrames_piece_projectile(ProjectileFramebar* framebars,
+			FrameType* prevTypes,
+			int prevTypesCount,
+			int& pos,  // must be relative
+			Framebar& bar,
+			DWORD aswEngineTick,
+			FrameType newType,
+			int& reachedPreFrame,
+			int preFrameStart) {
 	
-	positionHitstopIdle = EntityFramebar::confinePos(positionHitstopIdle);
-	
-	DWORD aswEngineTick = framebars->idleHitstop[positionHitstopIdle].aswEngineTick;
-	
-	int hitstopPos = framebars->hitstop.findTickNoGreaterThan(EntityFramebar::confinePos(positionHitstop), aswEngineTick);
-	int idlePos = framebars->idle.findTickNoGreaterThan(EntityFramebar::confinePos(positionIdle), aswEngineTick);
-	int mainPos = framebars->main.findTickNoGreaterThan(EntityFramebar::confinePos(position), aswEngineTick);
-	
-	while (maxCount) {
-		FrameT& frame = framebars->idleHitstop[positionHitstopIdle];
-		
-		if (stopAtFirstFrame && frame.isFirst) break;
-		
-		int i;
-		for (i = 0; i < prevTypesCount; ++i) {
-			if (frame.type == prevTypes[i]) {
-				frame.type = newType;
-				
-				#define piece(pos, bar) \
-					changePreviousFrames_piece<EntFramebarT, FramebarT, FrameT>( \
-						framebars, \
-						prevTypes, \
-						prevTypesCount, \
-						pos, \
-						bar, \
-						frame.aswEngineTick, \
-						newType);
-				
-				piece(hitstopPos, framebars->hitstop)
-				piece(idlePos, framebars->idle)
-				piece(mainPos, framebars->main)
-				
-				#undef piece
-				break;
+	if (pos != -1) {
+		if (pos >= (int)bar.frames.size()) {
+			pos = -1;
+			return;
+		}
+		Frame& otherFrame = bar[pos];
+		if (otherFrame.aswEngineTick == aswEngineTick) {
+			int j;
+			for (j = 0; j < prevTypesCount; ++j) {
+				if (otherFrame.type == prevTypes[j]) {
+					if (reachedPreFrame || pos == preFrameStart) {
+						++reachedPreFrame;
+					}
+					otherFrame.type = newType;
+					framebars->decrementPos(pos);
+					break;
+				}
 			}
+			if (j == prevTypesCount) {
+				pos = -1;
+			}
+		} else if (otherFrame.aswEngineTick > aswEngineTick) {
+			framebars->decrementPos(pos);
 		}
-		if (i == prevTypesCount) {
-			break;
-		}
-		
-		--maxCount;
-		framebars->decrementPos(positionHitstopIdle);
 	}
 }
 
@@ -1508,17 +1507,134 @@ void ProjectileFramebar::changePreviousFrames(FrameType* prevTypes,
 		int positionIdle,
 		int position,
 		int maxCount,
+		int framebarPositionHitstopIdle,
+		int framebarPositionHitstop,
+		int framebarPositionIdle,
+		int framebarPosition,
+		int framesTotalHitstopIdle,
+		int framesTotalHitstop,
+		int framesTotalIdle,
+		int framesTotal,
 		bool stopAtFirstFrame) {
-	::changePreviousFrames<ProjectileFramebar, Framebar, Frame>(this,
-		prevTypes,
-		prevTypesCount,
-		newType,
-		positionHitstopIdle,
-		positionHitstop,
-		positionIdle,
-		position,
-		maxCount,
-		stopAtFirstFrame);
+	if (maxCount <= 0 || prevTypesCount <= 0) return;
+	
+	positionHitstopIdle = idleHitstop.toRelative(EntityFramebar::confinePos(positionHitstopIdle));
+	
+	size_t idleHitstopSize = idleHitstop.frames.size();
+	if (positionHitstopIdle >= (int)idleHitstopSize) return;
+	DWORD aswEngineTick = idleHitstop[positionHitstopIdle].aswEngineTick;
+	
+	// relative
+	int hitstopPos = hitstop.findTickNoGreaterThan(EntityFramebar::confinePos(positionHitstop), aswEngineTick);
+	// relative
+	int idlePos = idle.findTickNoGreaterThan(EntityFramebar::confinePos(positionIdle), aswEngineTick);
+	// relative
+	int mainPos = main.findTickNoGreaterThan(EntityFramebar::confinePos(position), aswEngineTick);
+	
+	if (maxCount > idleHitstop.stateHead->framesCount) {
+		maxCount = idleHitstop.stateHead->framesCount;
+	}
+	
+	// relative
+	int preFrameStartHitstopIdle = framesTotalHitstopIdle > FRAMES_MAX
+		? EntityFramebar::confinePos(framebarPositionHitstopIdle - FRAMES_MAX)
+		: -1;
+	
+	// relative
+	int preFrameStartHitstop = framesTotalHitstop > FRAMES_MAX
+		? EntityFramebar::confinePos(framebarPositionHitstop - FRAMES_MAX)
+		: -1;
+	
+	// relative
+	int preFrameStartIdle = framesTotalIdle > FRAMES_MAX
+		? EntityFramebar::confinePos(framebarPositionIdle - FRAMES_MAX)
+		: -1;
+	
+	// relative
+	int preFrameStart = framesTotal > FRAMES_MAX
+		? EntityFramebar::confinePos(framebarPosition - FRAMES_MAX)
+		: -1;
+	
+	int reachedPreFrameHitstopIdle = 0;
+	int reachedPreFrameHitstop = 0;
+	int reachedPreFrameIdle = 0;
+	int reachedPreFrame = 0;
+	
+	while (maxCount) {
+		if (positionHitstopIdle >= (int)idleHitstopSize) return;
+		Frame& frame = idleHitstop[positionHitstopIdle];
+		
+		if (stopAtFirstFrame && frame.isFirst) break;
+		
+		int i;
+		for (i = 0; i < prevTypesCount; ++i) {
+			if (frame.type == prevTypes[i]) {
+				if (reachedPreFrameHitstopIdle || positionHitstopIdle == preFrameStartHitstopIdle) {
+					++reachedPreFrameHitstopIdle;
+				}
+				frame.type = newType;
+				changePreviousFrames_piece_projectile(
+					this,
+					prevTypes,
+					prevTypesCount,
+					hitstopPos,
+					hitstop,
+					frame.aswEngineTick,
+					newType,
+					reachedPreFrameHitstop,
+					preFrameStartHitstop);
+				changePreviousFrames_piece_projectile(
+					this,
+					prevTypes,
+					prevTypesCount,
+					idlePos,
+					idle,
+					frame.aswEngineTick,
+					newType,
+					reachedPreFrameIdle,
+					preFrameStartIdle);
+				changePreviousFrames_piece_projectile(
+					this,
+					prevTypes,
+					prevTypesCount,
+					mainPos,
+					main,
+					frame.aswEngineTick,
+					newType,
+					reachedPreFrame,
+					preFrameStart);
+				break;
+			}
+		}
+		if (i == prevTypesCount) {
+			break;
+		}
+		
+		--maxCount;
+		decrementPos(positionHitstopIdle);
+	}
+	
+	#define piece(reached, framebarName) \
+	if (reached) { \
+		framebarName.stateHead->preFrame = newType; \
+		framebarName.stateHead->preFrameLength = reached; \
+		FrameType type = frameMap(newType); \
+		if (type != framebarName.stateHead->preFrameMapped) { \
+			framebarName.stateHead->preFrameMapped = type; \
+			framebarName.stateHead->preFrameMappedLength = reached; \
+		} \
+		type = frameMapNoIdle(newType); \
+		if (type != framebarName.stateHead->preFrameMappedNoIdle) { \
+			framebarName.stateHead->preFrameMappedNoIdle = type; \
+			framebarName.stateHead->preFrameMappedNoIdleLength = reached; \
+		} \
+	}
+	piece(reachedPreFrameHitstopIdle, idleHitstop)
+	piece(reachedPreFrameHitstop, hitstop)
+	piece(reachedPreFrameIdle, idle)
+	piece(reachedPreFrame, main)
+	#undef piece
+	
 }
 
 void CombinedProjectileFramebar::changePreviousFrames(FrameType* prevTypes,
@@ -1529,7 +1645,16 @@ void CombinedProjectileFramebar::changePreviousFrames(FrameType* prevTypes,
 		int positionIdle,
 		int position,
 		int maxCount,
+		int framebarPositionHitstopIdle,
+		int framebarPositionHitstop,
+		int framebarPositionIdle,
+		int framebarPosition,
+		int framesTotalHitstopIdle,
+		int framesTotalHitstop,
+		int framesTotalIdle,
+		int framesTotal,
 		bool stopAtFirstFrame) {
+	throw std::logic_error("Called changePreviousFrames on a CombinedProjectileFramebar");
 }
 
 void PlayerFramebars::changePreviousFrames(FrameType* prevTypes,
@@ -1540,17 +1665,114 @@ void PlayerFramebars::changePreviousFrames(FrameType* prevTypes,
 		int positionIdle,
 		int position,
 		int maxCount,
+		int framebarPositionHitstopIdle,
+		int framebarPositionHitstop,
+		int framebarPositionIdle,
+		int framebarPosition,
+		int framesTotalHitstopIdle,
+		int framesTotalHitstop,
+		int framesTotalIdle,
+		int framesTotal,
 		bool stopAtFirstFrame) {
-	::changePreviousFrames<PlayerFramebars, PlayerFramebar, PlayerFrame>(this,
-		prevTypes,
-		prevTypesCount,
-		newType,
-		positionHitstopIdle,
-		positionHitstop,
-		positionIdle,
-		position,
-		maxCount,
-		stopAtFirstFrame);
+	
+	if (maxCount <= 0 || prevTypesCount <= 0) return;
+	
+	positionHitstopIdle = EntityFramebar::confinePos(positionHitstopIdle);
+	
+	DWORD aswEngineTick = idleHitstop[positionHitstopIdle].aswEngineTick;
+	
+	int hitstopPos = hitstop.findTickNoGreaterThan(EntityFramebar::confinePos(positionHitstop), aswEngineTick);
+	int idlePos = idle.findTickNoGreaterThan(EntityFramebar::confinePos(positionIdle), aswEngineTick);
+	int mainPos = main.findTickNoGreaterThan(EntityFramebar::confinePos(position), aswEngineTick);
+	
+	if (maxCount > (int)_countof(PlayerFramebar::frames)) {
+		maxCount = _countof(PlayerFramebar::frames);
+	}
+	
+	int preFrameStartHitstopIdle = framesTotalHitstopIdle > FRAMES_MAX
+		? EntityFramebar::confinePos(framebarPositionHitstopIdle - FRAMES_MAX)
+		: -1;
+	
+	int preFrameStartHitstop = framesTotalHitstop > FRAMES_MAX
+		? EntityFramebar::confinePos(framebarPositionHitstop - FRAMES_MAX)
+		: -1;
+	
+	int preFrameStartIdle = framesTotalIdle > FRAMES_MAX
+		? EntityFramebar::confinePos(framebarPositionIdle - FRAMES_MAX)
+		: -1;
+	
+	int preFrameStart = framesTotal > FRAMES_MAX
+		? EntityFramebar::confinePos(framebarPosition - FRAMES_MAX)
+		: -1;
+	
+	int reachedPreFrameHitstopIdle = 0;
+	int reachedPreFrameHitstop = 0;
+	int reachedPreFrameIdle = 0;
+	int reachedPreFrame = 0;
+	
+	while (maxCount) {
+		PlayerFrame& frame = idleHitstop[positionHitstopIdle];
+		
+		if (stopAtFirstFrame && frame.isFirst) break;
+		
+		int i;
+		for (i = 0; i < prevTypesCount; ++i) {
+			if (frame.type == prevTypes[i]) {
+				frame.type = newType;
+				
+				if (reachedPreFrameHitstopIdle || preFrameStartHitstopIdle == positionHitstopIdle) {
+					++reachedPreFrameHitstopIdle;
+				}
+				
+				#define piece(pos, bar, reachedName, preFrameStartName) \
+					changePreviousFrames_piece( \
+						this, \
+						prevTypes, \
+						prevTypesCount, \
+						pos, \
+						bar, \
+						frame.aswEngineTick, \
+						newType, \
+						reachedName, \
+						preFrameStartName);
+				
+				piece(hitstopPos, hitstop, reachedPreFrameHitstop, preFrameStartHitstop)
+				piece(idlePos, idle, reachedPreFrameIdle, preFrameStartIdle)
+				piece(mainPos, main, reachedPreFrame, preFrameStart)
+				
+				#undef piece
+				break;
+			}
+		}
+		if (i == prevTypesCount) {
+			break;
+		}
+		
+		--maxCount;
+		decrementPos(positionHitstopIdle);
+	}
+	
+	#define piece(reached, framebarName) \
+	if (reached) { \
+		framebarName.stateHead->preFrame = newType; \
+		framebarName.stateHead->preFrameLength = reached; \
+		FrameType type = frameMap(newType); \
+		if (type != framebarName.stateHead->preFrameMapped) { \
+			framebarName.stateHead->preFrameMapped = type; \
+			framebarName.stateHead->preFrameMappedLength = reached; \
+		} \
+		type = frameMapNoIdle(newType); \
+		if (type != framebarName.stateHead->preFrameMappedNoIdle) { \
+			framebarName.stateHead->preFrameMappedNoIdle = type; \
+			framebarName.stateHead->preFrameMappedNoIdleLength = reached; \
+		} \
+	}
+	piece(reachedPreFrameHitstopIdle, idleHitstop)
+	piece(reachedPreFrameHitstop, hitstop)
+	piece(reachedPreFrameIdle, idle)
+	piece(reachedPreFrame, main)
+	#undef piece
+	
 }
 
 template<typename FramebarT, typename FrameT>
@@ -1578,12 +1800,41 @@ inline void soakUpIntoPreFrame(FramebarT* framebar, const FrameT& srcFrame) {
 	}
 }
 
+template<typename FramebarT>
+inline void soakUpIntoPreFrame(FramebarT* framebar, FrameType type, int count) {
+	if (framebar->preFrame == type) {
+		framebar->preFrameLength += count;
+	} else {
+		framebar->preFrame = type;
+		framebar->preFrameLength = count;
+	}
+	// I was so naive (discovered that I have to do this purely by accident)
+	FrameType typeMapped = frameMap(type);
+	if (framebar->preFrameMapped == typeMapped) {
+		framebar->preFrameMappedLength += count;
+	} else {
+		framebar->preFrameMapped = typeMapped;
+		framebar->preFrameMappedLength = count;
+	}
+	typeMapped = frameMapNoIdle(type);
+	if (framebar->preFrameMappedNoIdle == typeMapped) {
+		framebar->preFrameMappedNoIdleLength += count;
+	} else {
+		framebar->preFrameMappedNoIdle = typeMapped;
+		framebar->preFrameMappedNoIdleLength = count;
+	}
+}
+
 void Framebar::soakUpIntoPreFrame(const FrameBase& srcFrame) {
-	::soakUpIntoPreFrame<Framebar, Frame>(this, (Frame&)srcFrame);
+	::soakUpIntoPreFrame<FramebarState, Frame>(stateHead, (Frame&)srcFrame);
 }
 
 void PlayerFramebar::soakUpIntoPreFrame(const FrameBase& srcFrame) {
-	::soakUpIntoPreFrame<PlayerFramebar, PlayerFrame>(this, (PlayerFrame&)srcFrame);
+	::soakUpIntoPreFrame<PlayerFramebarState, PlayerFrame>(stateHead, (PlayerFrame&)srcFrame);
+}
+
+void CombinedProjectileFramebar::soakUpIntoPreFrame(JustThePreFrameStuff* holder, const Frame& srcFrame) {
+	::soakUpIntoPreFrame<JustThePreFrameStuff, Frame>(holder, srcFrame);
 }
 
 static inline int determineFrameLevel(FrameType type) {
@@ -2148,23 +2399,29 @@ inline void processRequests(FramebarT* framebar, FrameT& destinationFrame) {
 	}
 }
 
+template<typename FramebarT>
+inline void clearRequests(FramebarT* framebar) {
+	framebar->requestFirstFrame = false;
+	framebar->requestNextHit = false;
+}
+
 void Framebar::processRequests(FrameBase& destinationFrame) {
-	::processRequests<Framebar, Frame>(this, (Frame&)destinationFrame);
+	::processRequests<FramebarState, Frame>(stateHead, (Frame&)destinationFrame);
 }
 
 void PlayerFramebar::processRequests(FrameBase& destinationFrame) {
 	PlayerFrame& frame = (PlayerFrame&)destinationFrame;
-	::processRequests<PlayerFramebar, PlayerFrame>(this, frame);
-	if (!inputs.empty()) {
+	::processRequests<PlayerFramebarState, PlayerFrame>(stateHead, frame);
+	if (!stateHead->inputs.empty()) {
 		bool overflow = false;
 		bool newMultipleInputs = PlayerFrame::shoveMoreInputsAtTheStart(frame.prevInput, frame.multipleInputs, frame.input,
-				frame.inputs, prevInput,
-				inputs, &overflow);
+				frame.inputs, stateHead->prevInput,
+				stateHead->inputs, &overflow);
 		frame.multipleInputs = newMultipleInputs;
-		frame.inputsOverflow |= inputsOverflow | overflow;
-		inputs.clear();
+		frame.inputsOverflow |= stateHead->inputsOverflow | overflow;
+		stateHead->inputs.clear();
 	}
-	if (!createdProjectiles.empty()) {
+	if (!stateHead->createdProjectiles.empty()) {
 		if (!frame.createdProjectiles || frame.createdProjectiles.use_count() != 1) {
 			const std::vector<CreatedProjectileStruct>* oldCreatedProjectiles = nullptr;
 			if (frame.createdProjectiles) {
@@ -2173,20 +2430,20 @@ void PlayerFramebar::processRequests(FrameBase& destinationFrame) {
 			frame.createdProjectiles = new ThreadUnsafeSharedResource<std::vector<CreatedProjectileStruct>>();
 			frame.createdProjectiles->reserve(
 				(oldCreatedProjectiles ? oldCreatedProjectiles->size() : 0)
-				+ createdProjectiles.size()
+				+ stateHead->createdProjectiles.size()
 			);
-			frame.createdProjectiles->insert(frame.createdProjectiles->end(), createdProjectiles.begin(), createdProjectiles.end());
+			frame.createdProjectiles->insert(frame.createdProjectiles->end(), stateHead->createdProjectiles.begin(), stateHead->createdProjectiles.end());
 			if (oldCreatedProjectiles) {
 				frame.createdProjectiles->insert(frame.createdProjectiles->end(), oldCreatedProjectiles->begin(), oldCreatedProjectiles->end());
 			}
 		} else {
-			frame.createdProjectiles->insert(frame.createdProjectiles->begin(), createdProjectiles.begin(), createdProjectiles.end());
+			frame.createdProjectiles->insert(frame.createdProjectiles->begin(), stateHead->createdProjectiles.begin(), stateHead->createdProjectiles.end());
 		}
-		createdProjectiles.clear();
+		stateHead->createdProjectiles.clear();
 	}
-	inputsOverflow = false;
-	prevInputCopied = false;
-	prevInput = Input{0x0000};
+	stateHead->inputsOverflow = false;
+	stateHead->prevInputCopied = false;
+	stateHead->prevInput = Input{0x0000};
 }
 
 void Framebar::processRequests(int destinationPosition) {
@@ -2197,6 +2454,13 @@ void PlayerFramebar::processRequests(int destinationPosition) {
 	processRequests(frames[destinationPosition]);
 }
 
+void Framebar::clearRequests() {
+	::clearRequests<FramebarState>(stateHead);
+}
+void PlayerFramebar::clearRequests() {
+	::clearRequests<PlayerFramebarState>(stateHead);
+}
+
 template<typename FramebarT>
 inline void collectRequests(FramebarT* destination, FramebarT& source) {
 	destination->requestFirstFrame |= source.requestFirstFrame;
@@ -2205,8 +2469,8 @@ inline void collectRequests(FramebarT* destination, FramebarT& source) {
 
 template<typename FramebarT>
 inline void cloneRequests(FramebarT* destination, FramebarT& source) {
-	destination->requestFirstFrame = source.requestFirstFrame;
-	destination->requestNextHit = source.requestNextHit;
+	destination->stateHead->requestFirstFrame = source.stateHead->requestFirstFrame;
+	destination->stateHead->requestNextHit = source.stateHead->requestNextHit;
 }
 
 
@@ -2217,53 +2481,34 @@ void Framebar::cloneRequests(FramebarBase& source) {
 void PlayerFramebar::cloneRequests(FramebarBase& source) {
 	PlayerFramebar& cast = (PlayerFramebar&)source;
 	::cloneRequests<PlayerFramebar>(this, cast);
-	inputs = cast.inputs;
-	createdProjectiles = cast.createdProjectiles;
-	inputsOverflow = cast.inputsOverflow;
-	prevInputCopied = cast.prevInputCopied;
-	prevInput = cast.prevInput;
+	stateHead->inputs = cast.stateHead->inputs;
+	stateHead->createdProjectiles = cast.stateHead->createdProjectiles;
+	stateHead->inputsOverflow = cast.stateHead->inputsOverflow;
+	stateHead->prevInputCopied = cast.stateHead->prevInputCopied;
+	stateHead->prevInput = cast.stateHead->prevInput;
 }
 
 void Framebar::collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) {
-	::collectRequests<Framebar>(this, (Framebar&)source);
+	::collectRequests<FramebarState>(stateHead, *((Framebar&)source).stateHead);
 }
 
 void PlayerFramebar::collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) {
-	::collectRequests<PlayerFramebar>(this, (PlayerFramebar&)source);
+	::collectRequests<PlayerFramebarState>(stateHead, *((PlayerFramebar&)source).stateHead);
 	if (framebarAdvancedIdleHitstop) {
 		const PlayerFrame& frame = (const PlayerFrame&)sourceFrame;
 		if (frame.type != FT_NONE && !(frame.multipleInputs && frame.inputs->empty())) {
 			bool overflow = false;
 			if (frame.multipleInputs) {
-				PlayerFrame::shoveMoreInputs(prevInput, inputs, frame.prevInput, *frame.inputs, &overflow);
+				PlayerFrame::shoveMoreInputs(stateHead->prevInput, stateHead->inputs, frame.prevInput, *frame.inputs, &overflow);
 			} else {
-				PlayerFrame::shoveMoreInputs(prevInput, inputs, frame.prevInput, frame.input, &overflow);
+				PlayerFrame::shoveMoreInputs(stateHead->prevInput, stateHead->inputs, frame.prevInput, frame.input, &overflow);
 			}
-			if (overflow || frame.inputsOverflow) inputsOverflow = true;
+			if (overflow || frame.inputsOverflow) stateHead->inputsOverflow = true;
 		}
 		if (frame.createdProjectiles && !frame.createdProjectiles->empty()) {
-			createdProjectiles.insert(createdProjectiles.end(), frame.createdProjectiles->begin(), frame.createdProjectiles->end());
+			stateHead->createdProjectiles.insert(stateHead->createdProjectiles.end(), frame.createdProjectiles->begin(), frame.createdProjectiles->end());
 		}
 	}
-}
-
-template<typename FramebarT>
-inline void clearRequests(FramebarT* framebar) {
-	framebar->requestFirstFrame = false;
-	framebar->requestNextHit = false;
-}
-
-void Framebar::clearRequests() {
-	::clearRequests<Framebar>(this);
-}
-
-void PlayerFramebar::clearRequests() {
-	::clearRequests<PlayerFramebar>(this);
-	inputsOverflow = false;
-	inputs.clear();
-	createdProjectiles.clear();
-	prevInputCopied = false;
-	prevInput = Input{0x0000};
 }
 
 void PlayerInfo::setMoveName(char* destination, Entity ent) {
@@ -2282,7 +2527,7 @@ void PlayerInfo::addActiveFrame(Entity ent, PlayerFramebar& framebar) {
 			&& !actives.data[actives.count - 1].nonActives
 			&& hitNumber != actives.prevHitNum
 			&& !pawn.isRCFrozen()) {
-		framebar.requestNextHit = true;
+		framebar.stateHead->requestNextHit = true;
 	}
 	actives.addActive(hitNumber);
 	if (!hitOnFrame && pawn.hitSomethingOnThisFrame()) {
@@ -2337,10 +2582,10 @@ FramebarBase& ProjectileFramebar::getHitstop() { return hitstop; }
 FramebarBase& ProjectileFramebar::getIdle() { return idle; }
 FramebarBase& ProjectileFramebar::getIdleHitstop() { return idleHitstop; }
 
-FramebarBase& CombinedProjectileFramebar::getMain() { return main; }
-FramebarBase& CombinedProjectileFramebar::getHitstop() { return main; }
-FramebarBase& CombinedProjectileFramebar::getIdle() { return main; }
-FramebarBase& CombinedProjectileFramebar::getIdleHitstop() { return main; }
+FramebarBase& CombinedProjectileFramebar::getMain() { throw std::logic_error("Don't call getMain() on CombinedProjectileFramebar"); }
+FramebarBase& CombinedProjectileFramebar::getHitstop() { throw std::logic_error("Don't call getHitstop() on CombinedProjectileFramebar"); }
+FramebarBase& CombinedProjectileFramebar::getIdle() { throw std::logic_error("Don't call getIdle() on CombinedProjectileFramebar"); }
+FramebarBase& CombinedProjectileFramebar::getIdleHitstop() { throw std::logic_error("Don't call getIdleHitstop() on CombinedProjectileFramebar"); }
 
 const FramebarBase& PlayerFramebars::getMain() const { return main; }
 const FramebarBase& PlayerFramebars::getHitstop() const { return hitstop; }
@@ -2352,18 +2597,10 @@ const FramebarBase& ProjectileFramebar::getHitstop() const { return hitstop; }
 const FramebarBase& ProjectileFramebar::getIdle() const { return idle; }
 const FramebarBase& ProjectileFramebar::getIdleHitstop() const { return idleHitstop; }
 
-const FramebarBase& CombinedProjectileFramebar::getMain() const { return main; }
-const FramebarBase& CombinedProjectileFramebar::getHitstop() const { return main; }
-const FramebarBase& CombinedProjectileFramebar::getIdle() const { return main; }
-const FramebarBase& CombinedProjectileFramebar::getIdleHitstop() const { return main; }
-
-void Framebar::clear() { memset((BYTE*)this + sizeof(uintptr_t), 0, sizeof *this - sizeof(uintptr_t)); }
-
-void PlayerFramebar::clear() {
-	for (int i = 0; i < _countof(frames); ++i) {
-		frames[i].clear();
-	}
-}
+const FramebarBase& CombinedProjectileFramebar::getMain() const { throw std::logic_error("Don't call getMain() const on CombinedProjectileFramebar"); }
+const FramebarBase& CombinedProjectileFramebar::getHitstop() const { throw std::logic_error("Don't call getHitstop() const on CombinedProjectileFramebar"); }
+const FramebarBase& CombinedProjectileFramebar::getIdle() const { throw std::logic_error("Don't call getIdle() const on CombinedProjectileFramebar"); }
+const FramebarBase& CombinedProjectileFramebar::getIdleHitstop() const { throw std::logic_error("Don't call getIdleHitstop() const on CombinedProjectileFramebar"); }
 
 void PlayerFrame::clear() {
 	DWORD pos = offsetof(PlayerFrame, cancels);
@@ -2389,29 +2626,87 @@ void PlayerFrame::clear() {
 	memset((BYTE*)this + pos, 0, sizeof *this - pos);
 }
 
-void Framebar::catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) {
+// position points to past the source framebar's last idle or filled frame
+// framesTotal tells the current number of idle + filled frames in the destination framebar
+void Framebar::catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor, int framesTotal) {
 	Framebar& cast = (Framebar&)source;
-	for (int i = 1; i <= framesToCatchUpFor; ++i) {
-		int ind = (destinationStartingPosition + i) % _countof(Framebar::frames);
-		soakUpIntoPreFrame(frames[ind]);
-		frames[ind] = cast[ind];
+	int actualFramesToMoveOver;
+	int idleFramesToMoveOver;
+	if (cast.stateHead->idleTime >= framesToCatchUpFor) {
+		actualFramesToMoveOver = 0;
+		idleFramesToMoveOver = framesToCatchUpFor;
+	} else {
+		actualFramesToMoveOver = framesToCatchUpFor - cast.stateHead->idleTime;
+		if (actualFramesToMoveOver > cast.stateHead->framesCount) {
+			actualFramesToMoveOver = cast.stateHead->framesCount;
+		}
+		idleFramesToMoveOver = cast.stateHead->idleTime;
+	}
+	if (actualFramesToMoveOver) {
+		if (stateHead->idleTime) {
+			convertIdleTimeToFrames(destinationStartingPosition, framesTotal);
+		}
+		int realUse = stateHead->framesCount;
+		if (framesTotal < realUse) {
+			realUse = framesTotal;
+		}
+		addFrames(actualFramesToMoveOver);
+		int posDestNext = toRelative(destinationStartingPosition);
+		int posDest;
+		int posSrcNext = cast.toRelative(destinationStartingPosition);
+		int posSrc;
+		for (int i = 0; i < actualFramesToMoveOver; ++i) {
+			posDest = posDestNext;
+			posDestNext = EntityFramebar::posPlusOne(posDestNext);
+			posSrc = posSrcNext;
+			posSrcNext = EntityFramebar::posPlusOne(posSrcNext);
+			if (realUse >= FRAMES_MAX) {
+				int preFramePos = EntityFramebar::confinePos(posDest - FRAMES_MAX);
+				soakUpIntoPreFrame(frames[preFramePos]);
+			} else {
+				++realUse;
+			}
+			frames[posDest] = cast[posSrc];
+		}
+	}
+	if (idleFramesToMoveOver) {
+		stateHead->idleTime += idleFramesToMoveOver;  // +=, in case if (actualFramesToMoveOver) above doesn't proc
 	}
 	cloneRequests(source);
 }
 
-void PlayerFramebar::catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) {
+// position points to past the last filled frame
+// framesTotal tells the current number of filled frames in the destination framebar
+void PlayerFramebar::catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor, int framesTotal) {
 	PlayerFramebar& cast = (PlayerFramebar&) source;
-	int ind = EntityFramebar::posPlusOne(destinationStartingPosition);
+	int ind = destinationStartingPosition;
+	int preFrameInd = EntityFramebar::confinePos(ind + (_countof(PlayerFramebar::frames) - FRAMES_MAX));
 	for (int i = 1; i <= framesToCatchUpFor; ++i) {
-		soakUpIntoPreFrame(frames[ind]);
+		if (framesTotal >= FRAMES_MAX) {
+			soakUpIntoPreFrame(frames[preFrameInd]);
+		}
 		frames[ind] = cast[ind];
 		frames[ind].cancels = cast[ind].cancels;
 		EntityFramebar::incrementPos(ind);
+		EntityFramebar::incrementPos(preFrameInd);
 	}
 	cloneRequests(source);
 }
 
-FrameBase& Framebar::getFrame(int index) { return (FrameBase&)frames[index]; }
+FrameBase& Framebar::getFrame(int index) {
+	int indexRelative = index - positionStart;
+	if (indexRelative < 0) {
+		indexRelative += _countof(PlayerFramebar::frames);
+	}
+	if (indexRelative < (int)frames.size()) {
+		return (FrameBase&)frames[indexRelative];
+	} else {
+		char buf[1024];
+		sprintf_s(buf, "Accessing a projectile framebar frame out of bounds: requested index %d, positionStart %d, frames.size %u",
+			index, positionStart, frames.size());
+		throw std::logic_error(buf);
+	}
+}
 FrameBase& PlayerFramebar::getFrame(int index) { return (FrameBase&)frames[index]; }
 const FrameBase& Framebar::getFrame(int index) const { return (const FrameBase&)frames[index]; }
 const FrameBase& PlayerFramebar::getFrame(int index) const { return (const FrameBase&)frames[index]; }
@@ -2424,21 +2719,72 @@ bool lastNFramesCompletelyEmpty(const T* framebar, int framebarPosition, int n) 
 	return true;
 }
 
+// pacing around the room: the function
 bool Framebar::lastNFramesCompletelyEmpty(int framebarPosition, int n) const {
-	return ::lastNFramesCompletelyEmpty<Framebar>(this, framebarPosition, n);
+	iterateFramesBeginProjectile(framebarPosition, n)
+	if (!frameTypeDiscardable(frames[relPos].type)) return false;
+	iterateFramesEndProjectile
+	return true;
 }
 
 bool PlayerFramebar::lastNFramesCompletelyEmpty(int framebarPosition, int n) const {
 	return ::lastNFramesCompletelyEmpty<PlayerFramebar>(this, framebarPosition, n);
 }
 
-bool Framebar::lastNFramesHaveMarker(int framebarPosition, int n) const {
-	iterateFramesBegin(framebarPosition, n)
-	const Frame& frame = frames[iterateFrames_pos];
+bool Framebar::lastNFramesHaveMarker(int framebarPosition, int scrollXInFrames, int n) const {
+	iterateFramesBeginProjectile(framebarPosition, n)
+	const Frame& frame = frames[relPos];
 	if (frame.type == FT_NONE) return false;
 	if (frame.marker) return true;
-	iterateFramesEnd
+	iterateFramesEndProjectile
 	return false;
+}
+
+bool CombinedProjectileFramebar::lastNFramesHaveMarker(int framebarPosition, int scrollXInFrames, int n) const {
+	int posNext = scrollXInFrames == 0 ? 0 : FRAMES_MAX - scrollXInFrames;
+	int pos;
+	while (n > 0) {
+		pos = posNext;
+		posNext = posNext == FRAMES_MAX - 1 ? 0 : posNext + 1;
+		const Frame& frame = frames[pos];
+		if (frame.type == FT_NONE) return false;
+		if (frame.marker) return true;
+	}
+	return false;
+}
+
+void PlayerFramebar::clear() {
+	stateHead->clear();
+}
+
+void Framebar::clear() {
+	stateHead->clear();
+	stateHead->completelyEmpty = false;
+}
+
+void FramebarBaseState::clear() {
+	preFrame = FT_NONE;
+	preFrameMapped = FT_NONE;
+	preFrameMappedNoIdle = FT_NONE;
+	preFrameLength = 0;
+	preFrameMappedLength = 0;
+	preFrameMappedNoIdleLength = 0;
+	requestFirstFrame = false;
+	requestNextHit = false;
+}
+
+void PlayerFramebars::clear() {
+	main.clear();
+	idle.clear();
+	hitstop.clear();
+	idleHitstop.clear();
+}
+
+void ProjectileFramebar::clear() {
+	main.clear();
+	idle.clear();
+	hitstop.clear();
+	idleHitstop.clear();
 }
 
 void PlayerFramebar::clearCancels() {
@@ -2560,144 +2906,398 @@ void MaxHitInfo::fill(Entity ent, int currentHitNum) {
 	}
 }
 
-bool CombinedProjectileFramebar::canBeCombined(const Framebar& source, int sourceId) const {
-	for (int i = 0; i < (int)_countof(Framebar::frames); ++i) {
-		if (!frameTypeDiscardable(main[i].type) && !frameTypeDiscardable(source[i].type)
-				&& (sources[i] == nullptr || sourceId != sources[i]->idForCombinedFramebar())) return false;
+// framebarPosition and framesTotal are with scroll
+bool CombinedProjectileFramebar::canBeCombined(const Framebar& source, int sourceId, int scrollX, int framebarPosition, int framesTotal) const {
+	
+	int posDestNext = 1;
+	int posDest;
+	
+	int posSrcNext = source.toRelative(EntityFramebar::confinePos(framebarPosition - framesTotal + 1));
+	int posSrc;
+	
+	// all these are relative, ends are inclusive
+	int idleStart;
+	int idleEnd;
+	int undefinedStart;
+	int undefinedEnd;
+	
+	int idleUse;
+	int realUse;
+	if (source.stateHead->idleTime >= scrollX) {
+		idleUse = source.stateHead->idleTime - scrollX;
+		realUse = source.stateHead->framesCount;
+	} else {
+		idleUse = 0;
+		realUse = source.stateHead->framesCount - (scrollX - source.stateHead->idleTime);
+		if (realUse <= 0) return true;
+	}
+	if (framesTotal < idleUse + realUse) {
+		if (framesTotal >= idleUse) {
+			realUse = framesTotal - idleUse;
+		} else {
+			realUse = 0;
+			idleUse = framesTotal;
+		}
+	}
+	if (idleUse) {
+		if (idleUse >= (int)_countof(PlayerFramebar::frames)) {
+			idleStart = 0;
+			idleEnd = _countof(PlayerFramebar::frames) - 1;
+			// some obviously impossible position
+			undefinedStart = _countof(PlayerFramebar::frames);
+			undefinedEnd = _countof(PlayerFramebar::frames);
+		} else {
+			idleStart = realUse;
+			idleEnd = EntityFramebar::confinePos(idleStart + idleUse - 1);
+			if (realUse + idleUse < (int)_countof(PlayerFramebar::frames)) {
+				undefinedStart = idleEnd + 1;
+				undefinedEnd = _countof(PlayerFramebar::frames) - 1;
+			} else {
+				// some obviously impossible position
+				undefinedStart = _countof(PlayerFramebar::frames);
+				undefinedEnd = _countof(PlayerFramebar::frames);
+			}
+		}
+	} else {
+		// some obviously impossible position
+		idleStart = _countof(PlayerFramebar::frames);
+		idleEnd = _countof(PlayerFramebar::frames);
+		if (realUse < (int)_countof(PlayerFramebar::frames)) {
+			undefinedStart = realUse;
+			undefinedEnd = _countof(PlayerFramebar::frames) - 1;
+		} else {
+			// some obviously impossible position
+			undefinedStart = _countof(PlayerFramebar::frames);
+			undefinedEnd = _countof(PlayerFramebar::frames);
+		}
+	}
+	
+	for (int i = 0; i < (int)framesTotal; ++i) {
+		
+		posDest = posDestNext;
+		posDestNext = posDestNext == FRAMES_MAX - 1 ? 0 : posDestNext + 1;
+		
+		posSrc = posSrcNext;
+		posSrcNext = posSrcNext == _countof(PlayerFramebar::frames) - 1 ? 0 : posSrcNext + 1;
+		
+		if (!frameTypeDiscardable(frames[posDest].type) && !(
+				(
+					idleStart <= idleEnd
+						? posSrc >= idleStart && posSrc <= idleEnd
+						: posSrc >= idleStart || posSrc <= idleEnd
+				) || (
+					undefinedStart <= undefinedEnd
+						? posSrc >= undefinedStart && posSrc <= undefinedEnd
+						: posSrc >= undefinedStart || posSrc <= undefinedEnd
+				) || frameTypeDiscardable(source[posSrc].type)
+			) && (sources[posDest] == nullptr || sourceId != sources[posDest]->idForCombinedFramebar())) return false;
 	}
 	return true;
 }
 
-void CombinedProjectileFramebar::combineFramebar(int framebarPosition, Framebar& source, const ProjectileFramebar* dad) {
+// framesTotal has scroll applied to it
+void CombinedProjectileFramebar::combineFramebar(int framebarPosition, int framebarPositionWithoutScroll, int scrollX, int framesTotal,
+				Framebar& source, const ProjectileFramebar* dad) {
+	if (source.stateHead->framesCount == 0 /* I'm not handling this in every function I wrote. It has to go */) return;
 	const ProjectileFramebar* lastConnectedSource = nullptr;
 	const NamePair* lastConnectedAnimName = nullptr;
 	
-	int posNext = framebarPosition == _countof(Framebar::frames) - 1
-		? 0
-		: framebarPosition + 1;
-	int pos;
+	int posDestNext = -(endScene.framesCount - 1);
+	if (posDestNext < 0) {
+		posDestNext += FRAMES_MAX;  // combined projectile framebar's frames array is limited to FRAMES_MAX elements
+	}
+	int posDest;
 	
-	for (int i = 0; i < (int)_countof(Framebar::frames); ++i) {
+	int posSrcNext = framebarPosition - endScene.framesCount + 1;
+	if (posSrcNext < 0) posSrcNext += _countof(PlayerFramebar::frames);
+	posSrcNext = source.toRelative(posSrcNext);
+	int posSrc;
+	
+	bool canSpamTheShitOutOfTheMemory = endScene.projectileFramebars.size() < 10;
+	if (canSpamTheShitOutOfTheMemory && source.stateHead->idleTime) {
+		// make idle time real, so we can refer to each idle frame
+		source.convertIdleTimeToFrames(EntityFramebar::posPlusOne(framebarPositionWithoutScroll), framesTotal);
+	}
+	
+	// all these are relative, ends are inclusive
+	int idleStart;
+	int idleEnd;
+	int undefinedStart;
+	int undefinedEnd;
+	
+	int idleUse;
+	int realUse;
+	if (source.stateHead->idleTime >= scrollX) {
+		idleUse = source.stateHead->idleTime - scrollX;
+		realUse = source.stateHead->framesCount;
+	} else {
+		idleUse = 0;
+		realUse = source.stateHead->framesCount - (scrollX - source.stateHead->idleTime);
+		if (realUse <= 0) return;
+	}
+	if (framesTotal < idleUse + realUse) {
+		if (framesTotal >= idleUse) {
+			realUse = framesTotal - idleUse;
+		} else {
+			realUse = 0;
+			idleUse = framesTotal;
+		}
+	}
+	if (idleUse) {
+		if (idleUse >= (int)_countof(PlayerFramebar::frames)) {
+			idleStart = 0;
+			idleEnd = _countof(PlayerFramebar::frames) - 1;
+			// some obviously impossible position
+			undefinedStart = _countof(PlayerFramebar::frames);
+			undefinedEnd = _countof(PlayerFramebar::frames);
+		} else {
+			idleStart = realUse;
+			idleEnd = EntityFramebar::confinePos(idleStart + idleUse - 1);
+			if (realUse + idleUse < (int)_countof(PlayerFramebar::frames)) {
+				undefinedStart = idleEnd + 1;
+				undefinedEnd = _countof(PlayerFramebar::frames) - 1;
+			} else {
+				// some obviously impossible position
+				undefinedStart = _countof(PlayerFramebar::frames);
+				undefinedEnd = _countof(PlayerFramebar::frames);
+			}
+		}
+	} else {
+		// some obviously impossible position
+		idleStart = _countof(PlayerFramebar::frames);
+		idleEnd = _countof(PlayerFramebar::frames);
+		if (realUse < (int)_countof(PlayerFramebar::frames)) {
+			undefinedStart = realUse;
+			undefinedEnd = _countof(PlayerFramebar::frames) - 1;
+		} else {
+			// some obviously impossible position
+			undefinedStart = _countof(PlayerFramebar::frames);
+			undefinedEnd = _countof(PlayerFramebar::frames);
+		}
+	}
+	
+	FramebarTitle prevTitle;
+	source.getLastTitle(framebarPositionWithoutScroll, &prevTitle);
+	
+	int framesCountButLocal = endScene.framesCount;
+	for (int i = 0; i < framesCountButLocal; ++i) {
 		
-		pos = posNext;
-		posNext = posNext == _countof(Framebar::frames) - 1
+		posDest = posDestNext;
+		posDestNext = posDestNext == FRAMES_MAX - 1
 			? 0
-			: posNext + 1;
+			: posDestNext + 1;
 		
-		Frame& sf = source[pos];
-		if (sf.type != FT_NONE) {
-			Frame& df = main[pos];
+		posSrc = posSrcNext;
+		posSrcNext = posSrcNext == _countof(PlayerFramebar::frames) - 1
+			? 0
+			: posSrcNext + 1;
+		
+		Frame& df = frames[posDest];
+		
+		bool onlyCopyTitle = true;
+		if (!(
+			undefinedStart <= undefinedEnd
+				? posSrc >= undefinedStart && posSrc <= undefinedEnd
+				: posSrc >= undefinedStart || posSrc <= undefinedEnd
+			) && !(  // we can't link to idle frames, they're not real, skip them to sacrifice that information
+				idleStart <= idleEnd
+					? posSrc >= idleStart && posSrc <= idleEnd
+					: posSrc >= idleStart || posSrc <= idleEnd
+			)
+		) {
 			
-			int sfLvl = determineFrameLevel(sf.type);
-			int dfLvl = determineFrameLevel(df.type);
-			bool repeatLast = !df.hitConnected && !sf.hitConnected && df.type == FT_IDLE_PROJECTILE && sf.type == FT_IDLE_PROJECTILE;
-			bool sWin = sfLvl > dfLvl || sfLvl == dfLvl && !(df.hitConnected && !sf.hitConnected);
-			if (repeatLast && lastConnectedSource) {
-				sources[pos] = lastConnectedSource;
-			} else if (sWin) {
-				sources[pos] = dad;
-			}
-			if (repeatLast && lastConnectedAnimName) {
-				df.animName = lastConnectedAnimName;
-			} else if (sWin) {
-				df.animName = sf.animName;
-			}
-			if (sWin) {
-				df.type = sf.type;
-			}
-			if (!df.hitstopConflict) {
-				if (df.hitstop != sf.hitstop || df.hitstopMax != sf.hitstopMax) {
-					if (df.hitstop || df.hitstopMax) {
-						df.hitstopConflict = true;
-						df.hitstop = 0;
-						df.hitstopMax = 0;
-					} else {
-						df.hitstop = sf.hitstop;
-						df.hitstopMax = sf.hitstopMax;
+			Frame& sf = source[posSrc];
+			
+			if (sf.type != FT_NONE) {
+				onlyCopyTitle = false;
+				
+				int sfLvl = determineFrameLevel(sf.type);
+				int dfLvl = determineFrameLevel(df.type);
+				bool repeatLast = !df.hitConnected && !sf.hitConnected && df.type == FT_IDLE_PROJECTILE && sf.type == FT_IDLE_PROJECTILE;
+				bool sWin = sfLvl > dfLvl || sfLvl == dfLvl && !(df.hitConnected && !sf.hitConnected);
+				if (repeatLast && lastConnectedSource) {
+					sources[posDest] = lastConnectedSource;
+				} else if (sWin) {
+					sources[posDest] = dad;
+				}
+				if (repeatLast && lastConnectedAnimName) {
+					df.animName = lastConnectedAnimName;
+				} else if (sWin) {
+					df.animName = sf.animName;
+				}
+				if (sWin) {
+					df.type = sf.type;
+				}
+				if (!df.hitstopConflict) {
+					if (df.hitstop != sf.hitstop || df.hitstopMax != sf.hitstopMax) {
+						if (df.hitstop || df.hitstopMax) {
+							df.hitstopConflict = true;
+							df.hitstop = 0;
+							df.hitstopMax = 0;
+						} else {
+							df.hitstop = sf.hitstop;
+							df.hitstopMax = sf.hitstopMax;
+						}
 					}
 				}
+				df.hitConnected |= sf.hitConnected;
+				if (sf.hitConnected) {
+					lastConnectedSource = sources[posDest];
+					lastConnectedAnimName = df.animName;
+				} else {
+					if (sources[posDest] != lastConnectedSource) lastConnectedSource = nullptr;
+					if (df.animName != lastConnectedAnimName) lastConnectedAnimName = nullptr;
+				}
+				df.newHit |= sf.newHit;
+				df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
+				df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
+				df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
+				df.powerup |= sf.powerup;
+				df.marker |= sf.marker;
+				df.charSpecific1 = sf.charSpecific1;
+				df.charSpecific2 = sf.charSpecific2;
+				df.title = sf.title;  // will get corrected in determineName
+				sf.next = df.next;
+				df.next = &sf;  // this is where we would have problems if we linked to idle time that isn't in the actual std::vector<Frame> frames
 			}
-			df.hitConnected |= sf.hitConnected;
-			if (df.hitConnected) {
-				lastConnectedSource = sources[pos];
-				lastConnectedAnimName = df.animName;
-			} else {
-				if (sources[pos] != lastConnectedSource) lastConnectedSource = nullptr;
-				if (df.animName != lastConnectedAnimName) lastConnectedAnimName = nullptr;
+		}
+		if (onlyCopyTitle) {
+			if (!sources[posDest]) {
+				sources[posDest] = dad;
+				df.title = prevTitle;  // will get corrected in determineName
 			}
-			df.newHit |= sf.newHit;
-			df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
-			df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
-			df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
-			df.powerup |= sf.powerup;
-			df.marker |= sf.marker;
-			df.charSpecific1 = sf.charSpecific1;
-			df.charSpecific2 = sf.charSpecific2;
-			df.title = sf.title;  // will get corrected in determineName
-			sf.next = df.next;
-			df.next = &sf;
+			if (sources[posDest] != lastConnectedSource) lastConnectedSource = nullptr;
+			if (df.animName != lastConnectedAnimName) lastConnectedAnimName = nullptr;
 		}
 	}
-	if (source.preFrameLength) {
-		if (source.preFrame != main.preFrame) {
-			if (determineFrameLevel(source.preFrame) >= determineFrameLevel(main.preFrame)) {
-				main.preFrame = source.preFrame;
-				main.preFrameLength = source.preFrameLength;
+	
+	JustThePreFrameStuff preFrameStuff;
+	preFrameStuff.preFrame = source.stateHead->preFrame;
+	preFrameStuff.preFrameMapped = source.stateHead->preFrameMapped;
+	preFrameStuff.preFrameMappedNoIdle = source.stateHead->preFrameMappedNoIdle;
+	preFrameStuff.preFrameLength = source.stateHead->preFrameLength;
+	preFrameStuff.preFrameMappedLength = source.stateHead->preFrameMappedLength;
+	preFrameStuff.preFrameMappedNoIdleLength = source.stateHead->preFrameMappedNoIdleLength;
+	
+	int visibleRealFrames;
+	int remainingIdleTime;
+	
+	int framesAlreadyIncludedInPreFrame;
+	if (realUse > FRAMES_MAX) {
+		framesAlreadyIncludedInPreFrame = realUse - FRAMES_MAX;
+	} else {
+		framesAlreadyIncludedInPreFrame = 0;
+	}
+	
+	if (idleUse >= framesCountButLocal) {
+		visibleRealFrames = 0;
+		remainingIdleTime = idleUse - framesCountButLocal;
+	} else {
+		visibleRealFrames = framesCountButLocal - idleUse;
+		remainingIdleTime = 0;
+	}
+	
+	int realFramesToSoakUp = realUse - visibleRealFrames  // if negative, the loop below will simply not run. Also see "can this be negative?" comment above
+		- framesAlreadyIncludedInPreFrame /* the condition when this one is non-0 makes it so we still can't become negative from subtracting this */;
+	
+	if (realFramesToSoakUp > 0) {
+		
+		// the framebarPosition that we were given might be affected by horizontal framebar scroll.
+		// Restore the actual, current playhead position.
+		// The frame that is next after the preFrame will sit at this position
+		posSrcNext = source.toRelative(EntityFramebar::confinePos(
+			framebarPositionWithoutScroll
+			- idleUse
+			- visibleRealFrames
+			- realFramesToSoakUp
+			+ 1));
+		
+		int i = 0;
+		do {
+			
+			posSrc = posSrcNext;
+			posSrcNext = posSrcNext == _countof(PlayerFramebar::frames) - 1
+				? 0
+				: posSrcNext + 1;
+			
+			soakUpIntoPreFrame(&preFrameStuff, source[posSrc]);
+			
+			++i;
+		} while (i < realFramesToSoakUp);
+		
+	}
+	
+	if (remainingIdleTime) {
+		::soakUpIntoPreFrame(&preFrameStuff, FT_IDLE_PROJECTILE, remainingIdleTime);
+	}
+	
+	if (preFrameStuff.preFrameLength) {
+		if (preFrameStuff.preFrame != preFrame) {
+			if (determineFrameLevel(preFrameStuff.preFrame) >= determineFrameLevel(preFrame)) {
+				preFrame = preFrameStuff.preFrame;
+				preFrameLength = preFrameStuff.preFrameLength;
 			}
-		} else if (source.preFrameLength > main.preFrameLength) {
-			main.preFrameLength = source.preFrameLength;
+		} else if (preFrameStuff.preFrameLength > preFrameLength) {
+			preFrameLength = preFrameStuff.preFrameLength;
 		}
 	}
-	if (source.preFrameMappedLength) {
-		if (source.preFrameMapped != main.preFrameMapped) {
-			if (determineFrameLevel(source.preFrameMapped) >= determineFrameLevel(main.preFrameMapped)) {
-				main.preFrameMapped = source.preFrameMapped;
-				main.preFrameMappedLength = source.preFrameMappedLength;
+	if (preFrameStuff.preFrameMappedLength) {
+		if (preFrameStuff.preFrameMapped != preFrameMapped) {
+			if (determineFrameLevel(preFrameStuff.preFrameMapped) >= determineFrameLevel(preFrameMapped)) {
+				preFrameMapped = preFrameStuff.preFrameMapped;
+				preFrameMappedLength = preFrameStuff.preFrameMappedLength;
 			}
-		} else if (source.preFrameMappedLength > main.preFrameMappedLength) {
-			main.preFrameMappedLength = source.preFrameMappedLength;
+		} else if (preFrameStuff.preFrameMappedLength > preFrameMappedLength) {
+			preFrameMappedLength = preFrameStuff.preFrameMappedLength;
 		}
 	}
-	if (source.preFrameMappedNoIdleLength) {
-		if (source.preFrameMappedNoIdle != main.preFrameMappedNoIdle) {
-			if (determineFrameLevel(source.preFrameMappedNoIdle) >= determineFrameLevel(main.preFrameMappedNoIdle)) {
-				main.preFrameMappedNoIdle = source.preFrameMappedNoIdle;
-				main.preFrameMappedNoIdleLength = source.preFrameMappedNoIdleLength;
+	if (preFrameStuff.preFrameMappedNoIdleLength) {
+		if (preFrameStuff.preFrameMappedNoIdle != preFrameMappedNoIdle) {
+			if (determineFrameLevel(preFrameStuff.preFrameMappedNoIdle) >= determineFrameLevel(preFrameMappedNoIdle)) {
+				preFrameMappedNoIdle = preFrameStuff.preFrameMappedNoIdle;
+				preFrameMappedNoIdleLength = preFrameStuff.preFrameMappedNoIdleLength;
 			}
-		} else if (source.preFrameMappedNoIdleLength > main.preFrameMappedNoIdleLength) {
-			main.preFrameMappedNoIdleLength = source.preFrameMappedNoIdleLength;
+		} else if (preFrameStuff.preFrameMappedNoIdleLength > preFrameMappedNoIdleLength) {
+			preFrameMappedNoIdleLength = preFrameStuff.preFrameMappedNoIdleLength;
 		}
 	}
+	
 }
 
-void CombinedProjectileFramebar::determineName(int framebarPosition, bool isHitstop) {
-	int posNext = framebarPosition == _countof(Framebar::frames) - 1
-		? 0
-		: framebarPosition + 1;
+void CombinedProjectileFramebar::determineName(int framebarPosition, int scrollXInFrames, bool isHitstop) {
+	int posAbsoluteNext = EntityFramebar::confinePos(framebarPosition + scrollXInFrames - endScene.framesCount + 1);
+	int posAbsolute;
+	int posNext = endScene.framesCount == 0 ? 0 : FRAMES_MAX - endScene.framesCount;
 	int pos;
 	const FramebarTitle* title = nullptr;
 	bool charSpecific1 = false;
 	bool charSpecific2 = false;
 	
-	for (int i = 0; i < _countof(Framebar::frames); ++i) {
+	int iEnd = endScene.framesCount;
+	for (int i = 0; i < iEnd; ++i) {
 		
 		pos = posNext;
-		posNext = posNext == _countof(Framebar::frames) - 1
+		posNext = posNext == FRAMES_MAX - 1
 			? 0
 			: posNext + 1;
+		
+		posAbsolute = posAbsoluteNext;
+		EntityFramebar::incrementPos(posAbsoluteNext);
 		
 		const ProjectileFramebar* source = sources[pos];
 		if (source) {
 			const Framebar& framebar = isHitstop ? source->hitstop : source->main;
-			moveFramebarId = source->moveFramebarId;  // why do I need this on a combined framebar?
-			const Frame& frame = framebar[pos];
-			title = &frame.title;
-			charSpecific1 = frame.charSpecific1;
-			charSpecific2 = frame.charSpecific2;
+			int posRel = framebar.toRelative(posAbsoluteNext);
+			if (posRel < framebar.stateHead->framesCount) {
+				const Frame& frame = framebar[posRel];
+				title = &frame.title;
+				charSpecific1 = frame.charSpecific1;
+				charSpecific2 = frame.charSpecific2;
+			}
 		}
 		
 		if (title) {
-			Frame& frame = main[pos];
+			Frame& frame = frames[pos];
 			frame.title = *title;
 			frame.charSpecific1 = charSpecific1;
 			frame.charSpecific2 = charSpecific2;
@@ -3257,8 +3857,9 @@ void PlayerInfo::fillInPlayervalSetter(int playervalNum) {
 }
 
 void Framebar::modifyFrame(int pos, DWORD aswEngineTick, FrameType newType) {
-	int ind = pos;
-	for (int i = 0; i < _countof(Framebar::frames); ++i) {
+	int ind = toRelative(pos);
+	size_t framesSize = (size_t)stateHead->framesCount;
+	for (int i = 0; i < (int)framesSize; ++i) {
 		Frame& f = frames[ind];
 		if (f.type == FT_NONE) break;
 		if (f.aswEngineTick == aswEngineTick) {
@@ -3266,8 +3867,7 @@ void Framebar::modifyFrame(int pos, DWORD aswEngineTick, FrameType newType) {
 			break;
 		}
 		if (f.aswEngineTick < aswEngineTick) break;
-		--ind;
-		if (ind < 0) ind = _countof(Framebar::frames) - 1;
+		EntityFramebar::decrementPos(ind);
 	}
 }
 
@@ -3536,66 +4136,6 @@ bool PlayerCancelInfo::hasCancel(const char* skillName, const GatlingOrWhiffCanc
 }
 
 template<typename T>
-T* FixedArrayOfGatlingOrWhiffCancelInfos<T>::erase(T* ptr) {
-	int index = ptr - elems;
-	if (count - index > 1) {
-		const size_t elemSize = sizeof (T);
-		memmove(ptr, ptr + 1, elemSize * (count - index - 1));
-	}
-	--count;
-	return elems + index;
-}
-
-template GatlingOrWhiffCancelInfoStored* FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>::erase(GatlingOrWhiffCancelInfoStored* ptr);
-template GatlingOrWhiffCancelInfo* FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>::erase(GatlingOrWhiffCancelInfo* ptr);
-
-// does not include the 'ending'
-template<typename T>
-T* FixedArrayOfGatlingOrWhiffCancelInfos<T>::erase(T* start, T* ending) {
-	int startIndex = start - elems;
-	int endIndex = ending - elems;
-	if (count - endIndex > 0) {
-		const size_t elemSize = sizeof (T);
-		memmove(start, ending, elemSize * (count - endIndex));
-	}
-	count -= ending - start;
-	return elems + startIndex;
-}
-
-template GatlingOrWhiffCancelInfoStored* FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>::erase(GatlingOrWhiffCancelInfoStored* start, GatlingOrWhiffCancelInfoStored* ending);
-template GatlingOrWhiffCancelInfo* FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>::erase(GatlingOrWhiffCancelInfo* start, GatlingOrWhiffCancelInfo* ending);
-
-template<typename T>
-void FixedArrayOfGatlingOrWhiffCancelInfos<T>::emplace(T* ptr) {
-	if (count == _countof(elems)) return;
-	int index = ptr - elems;
-	if (index == count) {
-		++count;
-		return;
-	}
-	const size_t elemSize = sizeof (T);
-	memmove(ptr + 1, ptr, elemSize * (count - index));
-	++count;
-}
-
-template void FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>::emplace(GatlingOrWhiffCancelInfoStored* ptr);
-template void FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>::emplace(GatlingOrWhiffCancelInfo* ptr);
-
-template<typename T>
-bool FixedArrayOfGatlingOrWhiffCancelInfos<T>::hasCancel(const char* skillName, const T** infoPtr) const {
-	for (const T& info : *this) {
-		if (strcmp(info.move->name, skillName) == 0) {
-			if (infoPtr) *infoPtr = &info;
-			return true;
-		}
-	}
-	return false;
-}
-
-template bool FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>::hasCancel(const char* skillName, const GatlingOrWhiffCancelInfoStored** infoPtr) const;
-template bool FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>::hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr) const;
-
-template<typename T>
 void FrameCancelInfoBase<T>::clear() {
 	gatlings.clear();
 	whiffCancels.clear();
@@ -3633,10 +4173,10 @@ void FrameCancelInfoStored::copyFromAnotherArray(const FrameCancelInfoFull& src)
 	whiffCancelsNote = src.whiffCancelsNote;
 }
 
-void FrameCancelInfoStored::copyCancelsFromAnotherArrayPart(FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>& dest,
-		const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src) {
+void FrameCancelInfoStored::copyCancelsFromAnotherArrayPart(std::vector<GatlingOrWhiffCancelInfoStored>& dest,
+		const std::vector<GatlingOrWhiffCancelInfo>& src) {
 	size_t elemsToCopy = src.size();
-	dest.count = elemsToCopy;
+	dest.resize(elemsToCopy);
 	GatlingOrWhiffCancelInfoStored* destPtr = dest.data();
 	const GatlingOrWhiffCancelInfo* srcPtr = src.data();
 	for (size_t counter = elemsToCopy; counter != 0; --counter) {
@@ -3652,8 +4192,8 @@ bool FrameCancelInfoStored::equalTruncated(const FrameCancelInfoFull& src) const
 		&& whiffCancelsNote == src.whiffCancelsNote;
 }
 
-bool FrameCancelInfoStored::equalTruncatedPart(const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>& dest,
-			const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src) const {
+bool FrameCancelInfoStored::equalTruncatedPart(const std::vector<GatlingOrWhiffCancelInfoStored>& dest,
+			const std::vector<GatlingOrWhiffCancelInfo>& src) const {
 	size_t srcSize = src.size();
 	size_t destSize = dest.size();
 	if (srcSize != destSize) return false;
@@ -3684,11 +4224,11 @@ void FrameCancelInfoFull::unsetWasFoundOnThisFrame(bool unsetCountersIncremented
 	}
 }
 
-void FrameCancelInfoFull::deleteThatWhichWasNotFoundPart(FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& ar) {
+void FrameCancelInfoFull::deleteThatWhichWasNotFoundPart(std::vector<GatlingOrWhiffCancelInfo>& ar) {
 	int i;
 	int deletionStart;
 	if (!ar.empty()) {
-		GatlingOrWhiffCancelInfo* beginPtr = ar.begin();
+		auto beginPtr = ar.begin();
 		deletionStart = -1;
 		for (i = (int)ar.size() - 1; i >= 0; --i) {
 			if (!ar[i].foundOnThisFrame) {
@@ -3726,7 +4266,7 @@ void PlayerCancelInfo::copyFromAnotherArray(const FrameCancelInfoFull& src) {
 }
 
 void PlayerCancelInfo::copyCancelsFromAnotherArrayPart(std::vector<GatlingOrWhiffCancelInfo>& dest,
-		const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src) {
+		const std::vector<GatlingOrWhiffCancelInfo>& src) {
 	size_t elemsToCopy = src.size();
 	dest.clear();
 	dest.resize(elemsToCopy);
@@ -3930,3 +4470,278 @@ bool PlayerInfo::isIdle() {
 	if (!pawn) return true;
 	return idlePlus;
 }
+
+void ProjectileFramebar::advanceStateHead() {
+	ProjectileFramebarState* prevStateHead = stateHead;
+	++stateHead;
+	if (stateHead >= states + ROLLBACK_MAX) {
+		stateHead = states;
+	}
+	*stateHead = *prevStateHead;
+	
+	main.advanceStateHead();
+	idle.advanceStateHead();
+	hitstop.advanceStateHead();
+	idleHitstop.advanceStateHead();
+}
+
+void PlayerFramebars::advanceStateHead() {
+	main.advanceStateHead();
+	idle.advanceStateHead();
+	hitstop.advanceStateHead();
+	idleHitstop.advanceStateHead();
+}
+
+template<typename StateT, typename FramebarT>
+void advanceStateHeadImpl(FramebarT* framebar) {
+	StateT* prevStateHead = framebar->stateHead;
+	++framebar->stateHead;
+	if (framebar->stateHead >= framebar->states + ROLLBACK_MAX) {
+		framebar->stateHead = framebar->states;
+	}
+	*framebar->stateHead = *prevStateHead;
+}
+
+void Framebar::advanceStateHead() {
+	advanceStateHeadImpl<FramebarState, Framebar>(this);
+}
+
+void PlayerFramebar::advanceStateHead() {
+	advanceStateHeadImpl<PlayerFramebarState, PlayerFramebar>(this);
+}
+
+void PlayerFramebarState::clear() {
+	currentFrame.clear();
+	createdProjectiles.clear();
+	prevInput = Input{0x0000};
+	inputs.clear();
+	inputsOverflow = false;
+	FramebarBaseState::clear();
+}
+
+void FramebarState::clear() {
+	FramebarBaseState::clear();
+}
+
+// sets framesCount and resizes frames, if needed
+void Framebar::addFrames(int count) {
+	size_t newSize = (size_t)stateHead->framesCount + (size_t)count;
+	if (newSize > (size_t)_countof(PlayerFramebar::frames)) {
+		newSize = (size_t)_countof(PlayerFramebar::frames);
+	}
+	stateHead->framesCount = (int)newSize;
+	if (newSize <= frames.size()) {
+		return;
+	}
+	frames.resize(newSize);
+}
+
+// framebarPosition must point to the last idle frame or, if there are no idle frames, to the last filled frame
+void Framebar::getLastTitle(int framebarPosition, FramebarTitle* title) {
+	title->text = assignName("");
+	title->uncombined = nullptr;
+	title->full = nullptr;
+	if (stateHead->framesCount) {
+		int posPrev = toRelative(EntityFramebar::confinePos(framebarPosition - stateHead->idleTime));
+		if (posPrev < (int)stateHead->framesCount) {
+			*title = frames[posPrev].title;
+		}
+	}
+}
+
+// framebarPosition points to a spot after the last idle or filled frame
+// see the other overload for more
+void Framebar::convertIdleTimeToFrames(int framebarPosition, int framesTotal) {
+	FramebarTitle prevTitle;
+	// but this function requires framebarPosition to point to the last idle or filled frame
+	getLastTitle(EntityFramebar::posMinusOne(framebarPosition), &prevTitle);
+	convertIdleTimeToFrames(framebarPosition, framesTotal, &prevTitle);
+}
+
+// framebarPosition points to a spot after the last idle frame, because this function
+// gets called at a point when framebarPos has already been advanced, but neither the
+// framebar's framesCount has been advanced, nor its idleTime yet
+// framesTotal tells the current number of frames at the time of converting idle frames (if you haven't called advance yet, exclude any +1 you did prior)
+// framesTotal is measured from the last time the framebar was cleared
+void Framebar::convertIdleTimeToFrames(int framebarPosition, int framesTotal, const FramebarTitle* title) {
+	if (!stateHead->framesCount || !stateHead->idleTime) {
+		stateHead->idleTime = 0;
+		return;
+	}
+	
+	// refer to preFrame comments for explanation
+	int idleTime = stateHead->idleTime;
+	stateHead->idleTime = 0;
+	int realFramesCountForPreFrame = stateHead->framesCount;
+	if (realFramesCountForPreFrame + idleTime > framesTotal) {
+		if (idleTime >= framesTotal) {
+			realFramesCountForPreFrame = 0;
+		} else {
+			realFramesCountForPreFrame = framesTotal - idleTime;
+		}
+	} else {
+		realFramesCountForPreFrame = framesTotal - idleTime;
+		if (realFramesCountForPreFrame > stateHead->framesCount) {
+			realFramesCountForPreFrame = stateHead->framesCount;
+		}
+	}
+	int framesAlreadyInPreFrame = realFramesCountForPreFrame > (int)FRAMES_MAX ? realFramesCountForPreFrame - FRAMES_MAX : 0;
+	int notYetSoakedRealFrames = realFramesCountForPreFrame - framesAlreadyInPreFrame;
+	int framesToSoak = idleTime + notYetSoakedRealFrames - (int)FRAMES_MAX;
+	if (framesToSoak > 0) {
+		int realFramesToSoak;
+		int idleFramesToSoak;
+		if (framesToSoak > notYetSoakedRealFrames) {
+			realFramesToSoak = notYetSoakedRealFrames;
+			idleFramesToSoak = framesToSoak - notYetSoakedRealFrames;
+		} else {
+			realFramesToSoak = framesToSoak;
+			idleFramesToSoak = 0;
+		}
+		if (realFramesToSoak) {
+			int soakPos = toRelative(EntityFramebar::confinePos(framebarPosition - idleTime - FRAMES_MAX));
+			int i = 0;
+			do {
+				soakUpIntoPreFrame(frames[soakPos]);
+				EntityFramebar::incrementPos(soakPos);
+				++i;
+			} while (i < realFramesToSoak);
+		}
+		if (idleFramesToSoak) {
+			::soakUpIntoPreFrame<FramebarState>(stateHead, FT_IDLE_PROJECTILE, idleFramesToSoak);
+		}
+	}
+	
+	int idleTimeToWrite;
+	int framesToEat = idleTime + stateHead->framesCount - (int)_countof(PlayerFramebar::frames);
+	if (framesToEat > 0) {
+		int actualFramesToEat;
+		if (framesToEat > stateHead->framesCount) {
+			actualFramesToEat = stateHead->framesCount;
+		} else {
+			actualFramesToEat = framesToEat;
+		}
+		// the oldest filled frame
+		int pos = toRelative(EntityFramebar::confinePos(framebarPosition - idleTime - stateHead->framesCount));
+		for (int i = 0; i < actualFramesToEat; ++i) {
+			Frame& frame = frames[pos];
+			memset(&frame, 0, sizeof Frame);
+			frame.title = *title;
+			
+			pos = EntityFramebar::posPlusOne(pos);
+		}
+		idleTimeToWrite = _countof(PlayerFramebar::frames) - actualFramesToEat;
+	} else {
+		idleTimeToWrite = idleTime;
+	}
+	addFrames(idleTimeToWrite);
+	// the first idle frame
+	int posNext = toRelative(framebarPosition - idleTime);
+	int pos;
+	// idleTimeToWrite frames, because we either end up kissing the oldest filled frame that we already soaked up followed by possibly more
+	// idle frames next, but no need to double-write those which would get double-written, which is why we write from the first idle frame
+	for (int i = 0; i < idleTimeToWrite; ++i) {
+		pos = posNext;
+		posNext = EntityFramebar::posPlusOne(posNext);
+		
+		Frame& frame = frames[pos];
+		memset(&frame, 0, sizeof Frame);
+		frame.title = *title;
+	}
+}
+
+// you're about to write into the frame that corresponds to playhead position framebarPosition.
+// It is assumed that that position is one plus from the previous position, if any, or is the
+// first position ever for this framebar.
+// This function allocates the vector space needed to hold the frame and, if overflowing,
+// accumulates information in the preFrame.
+// framesTotal tells the total number of frames since the framebar was last cleared that will be after advancing (so +1 included)
+Frame& Framebar::advance(int framebarPosition, int framesTotal) {
+	int relPos;
+	if (stateHead->framesCount >= (int)_countof(PlayerFramebar::frames)) {
+		relPos = toRelative(framebarPosition);
+		if (framesTotal > (int)FRAMES_MAX) {
+			soakUpIntoPreFrame(frames[EntityFramebar::confinePos(relPos - FRAMES_MAX)]);
+		}
+	} else {
+		if (!stateHead->framesCount) {
+			positionStart = framebarPosition;
+			relPos = 0;
+		} else {
+			relPos = toRelative(framebarPosition);
+		}
+		if (min(framesTotal, stateHead->framesCount) >= (int)FRAMES_MAX) {
+			soakUpIntoPreFrame(frames[EntityFramebar::confinePos(relPos - FRAMES_MAX)]);
+		}
+		addFrames(1);
+	}
+	if (relPos >= (int)frames.size()) {
+		addFrames(relPos - (int)frames.size() + 1);
+	}
+	return frames[relPos];
+}
+
+// get the frame but safe. Index is non-relative
+Frame& Framebar::makeSureFrameExists(int index) {
+	if (!stateHead->framesCount) {
+		positionStart = index;
+		addFrames(1);
+		return frames[0];
+	}
+	int relPos = toRelative(index);
+	if (relPos >= (int)frames.size()) {
+		addFrames(relPos - (int)frames.size() + 1);
+	}
+	return frames[relPos];
+}
+
+void Framebar::getRegionBounds(int* idleStart, int* idleEnd, int* undefinedStart, int* undefinedEnd) const {
+	if (stateHead->idleTime) {
+		if (stateHead->idleTime >= (int)_countof(PlayerFramebar::frames)) {
+			*idleStart = 0;
+			*idleEnd = _countof(PlayerFramebar::frames) - 1;
+			// some obviously impossible position
+			*undefinedStart = _countof(PlayerFramebar::frames);
+			*undefinedEnd = _countof(PlayerFramebar::frames);
+		} else {
+			*idleStart = stateHead->framesCount == _countof(PlayerFramebar::frames) ? 0 : stateHead->framesCount;
+			*idleEnd = EntityFramebar::confinePos(*idleStart + stateHead->idleTime - 1);
+			if (stateHead->framesCount + stateHead->idleTime < (int)_countof(PlayerFramebar::frames)) {
+				*undefinedStart = *idleEnd + 1;
+				*undefinedEnd = _countof(PlayerFramebar::frames) - 1;
+			} else {
+				// some obviously impossible position
+				*undefinedStart = _countof(PlayerFramebar::frames);
+				*undefinedEnd = _countof(PlayerFramebar::frames);
+			}
+		}
+	} else {
+		// some obviously impossible position
+		*idleStart = _countof(PlayerFramebar::frames);
+		*idleEnd = _countof(PlayerFramebar::frames);
+		if (stateHead->framesCount < (int)_countof(PlayerFramebar::frames)) {
+			*undefinedStart = stateHead->framesCount;
+			*undefinedEnd = _countof(PlayerFramebar::frames) - 1;
+		} else {
+			// some obviously impossible position
+			*undefinedStart = _countof(PlayerFramebar::frames);
+			*undefinedEnd = _countof(PlayerFramebar::frames);
+		}
+	}
+}
+
+template<typename T>
+bool FrameCancelInfoBase<T>::hasCancel(const std::vector<T>& array, const char* skillName, const T** infoPtr) {
+	for (const T& elem : array) {
+		if (strcmp(elem.move->name, skillName) == 0) {
+			if (infoPtr) {
+				*infoPtr = &elem;
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+template bool FrameCancelInfoBase<GatlingOrWhiffCancelInfo>::hasCancel(const std::vector<GatlingOrWhiffCancelInfo>& array, const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr);
+template bool FrameCancelInfoBase<GatlingOrWhiffCancelInfoStored>::hasCancel(const std::vector<GatlingOrWhiffCancelInfoStored>& array, const char* skillName, const GatlingOrWhiffCancelInfoStored** infoPtr);

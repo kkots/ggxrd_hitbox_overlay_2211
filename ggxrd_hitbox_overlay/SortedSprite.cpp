@@ -1042,7 +1042,14 @@ void FPACSecondaryData::replaceFpac(SourceFpacProvier* provider) {
 		char spriteName[32];
 		for (int i = 0; i < entityList.count; ++i) {
 			Entity ent = entityList.list[i];
-			if (ent.bbscrIndexInAswEng() == bbscrIndexInAswEng) {
+			int entBBScrIndexInAswEng;
+			if (ent.bbscrIndexInAswEng() == 1
+					&& entityList.slots[0].characterType() == entityList.slots[1].characterType()) {
+				entBBScrIndexInAswEng = 0;
+			} else {
+				entBBScrIndexInAswEng = ent.bbscrIndexInAswEng();
+			}
+			if (entBBScrIndexInAswEng == bbscrIndexInAswEng) {
 				memcpy(spriteName, ent.spriteName(), 32);
 				endScene.spriteImpl((void*)ent.ent, spriteName, 1);
 				game.allowTickForActor(ent.pawnWorld());

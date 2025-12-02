@@ -330,47 +330,26 @@ struct GatlingOrWhiffCancelInfo : public GatlingOrWhiffCancelInfoStored {
 
 const size_t FrameCancelInfoSize = 180;
 
-template<typename T>
-struct FixedArrayOfGatlingOrWhiffCancelInfos {
-	T elems[FrameCancelInfoSize] { };
-	int count;
-	inline bool empty() const { return count == 0; }
-	inline T* begin() { return elems; }
-	inline T* end() { return elems + count; }
-	inline const T* begin() const { return elems; }
-	inline const T* end() const { return elems + count; }
-	inline size_t size() const { return (size_t)count; }
-	T* erase(T* ptr);
-	// does not include the 'ending'
-	T* erase(T* start, T* ending);
-	inline void clear() { count = 0; }
-	inline void emplace_back() { if (count != _countof(elems)) { ++count; } }
-	void emplace(T* ptr);
-	inline T& front() { return elems[0]; }
-	inline const T& front() const { return elems[0]; }
-	inline T& back() { return elems[count - 1]; }
-	inline const T& back() const { return elems[count - 1]; }
-	inline T& operator[](int index) { return elems[index]; }
-	inline const T& operator[](int index) const { return elems[index]; }
-	inline T* data() { return elems; }
-	inline const T* data() const { return elems; }
-	bool hasCancel(const char* skillName, const T** infoPtr = nullptr) const;
-};
+const size_t FRAMES_MAX = 200;
+const size_t ROLLBACK_MAX = 30;
+const size_t IDLE_MAX = 30;
+const size_t PLAYERFRAMEBAR_MAX = FRAMES_MAX + ROLLBACK_MAX - 1;
 
 template<typename T>
 struct FrameCancelInfoBase {
-	FixedArrayOfGatlingOrWhiffCancelInfos<T> gatlings;
-	FixedArrayOfGatlingOrWhiffCancelInfos<T> whiffCancels;
+	std::vector<T> gatlings;
+	std::vector<T> whiffCancels;
 	const char* whiffCancelsNote = nullptr;
 	FrameCancelInfoBase() = default;
 	void clear();
 	bool hasCancel(const char* skillName, const T** infoPtr = nullptr) const;
+	static bool hasCancel(const std::vector<T>& array, const char* skillName, const T** infoPtr = nullptr);
 };
 
 struct FrameCancelInfoFull : FrameCancelInfoBase<GatlingOrWhiffCancelInfo> {
 	FrameCancelInfoFull();
 	void unsetWasFoundOnThisFrame(bool unsetCountersIncremented);
-	void deleteThatWhichWasNotFoundPart(FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& ar);
+	void deleteThatWhichWasNotFoundPart(std::vector<GatlingOrWhiffCancelInfo>& ar);
 	void deleteThatWhichWasNotFound();
 	void clearDelays();
 };
@@ -378,11 +357,11 @@ struct FrameCancelInfoFull : FrameCancelInfoBase<GatlingOrWhiffCancelInfo> {
 struct FrameCancelInfoStored : FrameCancelInfoBase<GatlingOrWhiffCancelInfoStored> {
 	FrameCancelInfoStored();
 	void copyFromAnotherArray(const FrameCancelInfoFull& src);
-	void copyCancelsFromAnotherArrayPart(FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>& dest,
-			const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src);
+	void copyCancelsFromAnotherArrayPart(std::vector<GatlingOrWhiffCancelInfoStored>& dest,
+			const std::vector<GatlingOrWhiffCancelInfo>& src);
 	bool equalTruncated(const FrameCancelInfoFull& src) const;
-	bool equalTruncatedPart(const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>& dest,
-			const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src) const;
+	bool equalTruncatedPart(const std::vector<GatlingOrWhiffCancelInfoStored>& dest,
+			const std::vector<GatlingOrWhiffCancelInfo>& src) const;
 };
 
 struct PlayerCancelInfo {
@@ -405,7 +384,7 @@ struct PlayerCancelInfo {
 	bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const;
 	void copyFromAnotherArray(const FrameCancelInfoFull& src);
 	void copyCancelsFromAnotherArrayPart(std::vector<GatlingOrWhiffCancelInfo>& dest,
-		const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src);
+		const std::vector<GatlingOrWhiffCancelInfo>& src);
 };
 
 enum FrameType : char {
@@ -715,6 +694,13 @@ struct Frame : public FrameBase {
 	bool accountedFor:1;  // used by tooltip drawing
 	bool operator==(const Frame& other) const;
 	inline bool operator!=(const Frame& other) const { return !(*this == other); }
+	inline bool strikeInvulForMarkers(bool isJacko) const {
+		return marker && isJacko;
+	}
+	inline bool powerupForMarkers() const {
+		return powerup;
+	}
+	inline bool superArmorCheckForMarkers() const { return false; }
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
@@ -841,6 +827,69 @@ struct PlayerFrame : public FrameBase {
 			const std::vector<Input>& source, bool* overflow);
 	void printInvuls(char* buf, size_t bufSize) const;
 	void clear();
+	inline bool strikeInvulForMarkers(bool isJacko) const {
+		return strikeInvulInGeneral;
+	}
+	inline bool powerupForMarkers() const {
+		return powerup && !dontShowPowerupGraphic;
+	}
+	inline bool superArmorCheckForMarkers() const { return superArmorActiveInGeneral; }
+};
+
+struct FramebarBaseState {
+	// these are the most fundamental comments explaining how preFrame works.
+	// In old times framebar was 200 frames long, did not support rollback or save states and preFrame was a virtual frame before the oldest
+	// frame that held the type and the count of all similarly-typed frames before the oldest frame.
+	// Its purpose was and still is to display frame counts on the framebar for frame regions that got scrolled off too far into the past, but
+	// whose ends are still partially visible. For example, you are walking back and forth for a millennia (malenia?) while the opponent is Faust
+	// on a pogo. Faust will get off automatically eventually, but we want to display the frame count of Faust's green frames region, including
+	// the frames that are no longer visible on the framebar. That's what this is for.
+	//
+	// As for where the preFrame is located now. It starts accumulating oldest frames that exceed FRAMES_MAX frames. However,
+	// to accomodate rollback, framebars can store more frames than FRAMES_MAX. This means the preFrame now has a physical
+	// location on the framebar at playhead - FRAMES_MAX position (previously, it was outside of the framebar, at playhead - countof(PlayerFramebar::frames)).
+	// Or, if you have already advanced the playhead to the next frame that you're about to write, at new_playhead - FRAMES_MAX - 1.
+	// And the oldest possible visible frame would be one frame + from that.
+	//
+	// Projectile framebars grow their vector size (stateHead->framesCount) over time and do not start accumulating preFrame,
+	// until they reach size >= FRAMES_MAX. The [playhead - FRAMES_MAX] (playhead here is already advanced to the next frame)
+	// frame gets accumulated into preFrame while it is still alive, a horrible fate.
+	//
+	// Frames that aren't even scrolled off yet out of existence get accumulated in preFrame.
+	//
+	// Why does preFrame start at -FRAMES_MAX, and not -countof(PlayerFramebar::frames)?
+	// This is due to rollback. If you advance a framebar and overwrite a frame at -countof(PlayerFramebar::frames) (the now playhead),
+	// then rollback one frame, the playhead resets back one frame, and what you now got at playhead + 1 is the frame you just wrote,
+	// essentially containing garbage or data that you should disregard. What would happen to frame count display on the framebar is
+	// if preFrame starts at -countof(PlayerFramebar::frames) it would have to begin at the preFrame and then iterate frames
+	// -countof(PlayerFramebar::frames) + 1, -countof(PlayerFramebar::frames) + 2 and so on to calculate the number of consecutive
+	// similarly-typed frames up to and not including the frame -FRAMES_MAX+1 (FRAMES_MAX is < countof(PlayerFramebar::frames)),
+	// which is the oldest possible visible frame.
+	// But because you put garbage in the way, this is impossible to do now. If preFrame starts at -FRAMES_MAX, this process
+	// is now possible, without having to store copies of most (in multiplayer it would be only a small portion,
+	// but with replay takeover it could be almost the entire match's duration) of the framebar per rollback state.
+	FrameType preFrame = FT_NONE;
+	FrameType preFrameMapped = FT_NONE;
+	FrameType preFrameMappedNoIdle = FT_NONE;
+	DWORD preFrameLength = 0;
+	DWORD preFrameMappedLength = 0;
+	DWORD preFrameMappedNoIdleLength = 0;
+	// how requests work:
+	// you fill in the idle hitstop framebar, because out of all 4 framebars, this one always advances when
+	// there is any advancement at all. The remaining 3 framebars simply copy information from it.
+	// But there is just one hiccup. The 'first frame' and 'next hit' markers can happen on the idle hitstop
+	// framebar and get missed by the no-hitstop or no-idle framebars, because they don't copy every frame.
+	// Instead, we use collectRequests to set these flags on the framebars that skip a frame.
+	// When those framebars advance, they call processRequests, and what processRequests does is apply
+	// changes to the current frame based on these flags, and also resets these flags.
+	// When a no-idle framebar catches up to its corresponding idle framebar, it simply copies frames from
+	// it, but to put it into the exact same state as the idle framebar, it also has to copy the requests from
+	// it. For that we use the cloneRequests function.
+	// With all that said, the idle hitstop framebar does not use its own requests, but other framebars
+	// do use its requests.
+	bool requestFirstFrame = false;
+	bool requestNextHit = false;
+	void clear();
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
@@ -853,28 +902,47 @@ struct FramebarBase {
 	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) = 0;
 	virtual void processRequests(FrameBase& destinationFrame) = 0;
 	virtual void processRequests(int destinationPosition) = 0;
+	virtual void clearRequests() = 0;
 	virtual void collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) = 0;
 	virtual void cloneRequests(FramebarBase& source) = 0;
-	virtual void clearRequests() = 0;
-	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) = 0;
+	// position points to past the source framebar's last idle or filled frame
+	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor, int framesTotal) = 0;
 	virtual FrameBase& getFrame(int index) = 0;
 	virtual const FrameBase& getFrame(int index) const = 0;
 	virtual bool lastNFramesCompletelyEmpty(int framebarPosition, int n) const = 0;
-	FrameType preFrame = FT_NONE;
-	FrameType preFrameMapped = FT_NONE;
-	FrameType preFrameMappedNoIdle = FT_NONE;
-	DWORD preFrameLength = 0;
-	DWORD preFrameMappedLength = 0;
-	DWORD preFrameMappedNoIdleLength = 0;
-	bool requestFirstFrame = false;
-	bool requestNextHit = false;
+};
+
+struct FramebarState : public FramebarBaseState {
+	Frame currentFrame { };  // used to rollback changes to pre-superfreeze frames such as them being active or having hits occuring on them
+	int framesCount = 0;  // number of frames in the Framebar::frames vector. Rollbackable. Do not try to calculate where you're in the framebuffer based solely on this number and idleTime. It's impossible.
 	bool completelyEmpty = false;
+	// How many advanced frames has this framebar not been updated for.
+	// These idle frames must not be included in the 'frames' vector.
+	// They're presumed to be filled with dark void.
+	// This can only increment when the framebar advances.
+	// If the framebar didn't advance, this value doesn't change.
+	// Do not try to calculate where you're in the framebuffer based solely on this number and framesCount. It's impossible.
+	int idleTime = 0;
+	void clear();
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector are not allowed.
 struct Framebar : public FramebarBase {
-	Frame frames[200] { Frame{} };
+	std::vector<Frame> frames;
+	// the position on the framebar where this framebar begins, in [0;_countof(PlayerFramebar::frames)] coordinate space.
+	// Can be compared to endScene.currentState->framebarPosition for main,
+	// and endScene.currentState->framebarPositionHitstop for hitstop.
+	// For idle and idleHitstop the idle time should be included in (should affect, at the time of creating the first frame of the framebar) positionStart.
+	// Therefore, it is possible that between all 4 framebars none of the positionStarts are same.
+	// Once set, you may not change this position, as there is no way to roll it back.
+	// Since you are not permitted to not advance (advancing could be incrementing idleTime, or filling a new frame) a projectile framebar, unless it got deleted,
+	// the positionStart is redundant, as it is always equal to current playhead position - idleTime - framesCount + 1, or,
+	// if the playhead is one frame ahead of the last idle time or, if there's no idle time, the latest filled frame, then
+	// playhead position - idleTime - framesCount.
+	// In other words, positionStart + framesCount + idleTime - 1 == playhead position.
+	// The variable is still needed for lastNFramesCompletelyEmpty to work with arbitrary positions
+	int positionStart;
 	inline Frame& operator[](int index) { return frames[index]; }
 	inline const Frame& operator[](int index) const { return frames[index]; }
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
@@ -884,21 +952,78 @@ struct Framebar : public FramebarBase {
 	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) override;
 	virtual void processRequests(FrameBase& destinationFrame) override;
 	virtual void processRequests(int destinationPosition) override;
+	virtual void clearRequests() override;
 	virtual void collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) override;
 	virtual void cloneRequests(FramebarBase& source) override;
-	virtual void clearRequests() override;
-	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
+	// position points to past the last filled frame
+	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor, int framesTotal) override;
 	virtual FrameBase& getFrame(int index) override;
 	virtual const FrameBase& getFrame(int index) const override;
 	virtual bool lastNFramesCompletelyEmpty(int framebarPosition, int n) const override;
-	bool lastNFramesHaveMarker(int framebarPosition, int n) const;  // defined in UI.cpp
+	bool lastNFramesHaveMarker(int framebarPosition, int scrollXInFrames, int n) const;  // defined in UI.cpp
 	void modifyFrame(int pos, DWORD aswEngineTick, FrameType newType);
+	void advanceStateHead();
+	FramebarState* stateHead = nullptr;
+	FramebarState states[ROLLBACK_MAX] { FramebarState{} };
+	// sets framesCount and resizes frames, if needed
+	void addFrames(int count);
+	inline int toRelative(int pos) const { pos -= positionStart; if (pos < 0) pos += PLAYERFRAMEBAR_MAX; return pos; }
+	// get the frame but safe. Index is non-relative
+	Frame& makeSureFrameExists(int index);
+	// framebarPosition must point to the last idle frame or, if there are no idle frames, to the last filled frame.
+	// This function can't be used to obtain title from an older frame
+	void getLastTitle(int framebarPosition, FramebarTitle* title);
+	// idle time is a product of not willing to allocate vector space for frames
+	// that are just going to be empty anyway.
+	// Suddenly, you decided to write useful information into the vector.
+	// It's time to write the actual idle time into the vector as if it was there all along.
+	// framebarPosition points to a spot after the last idle frame, because this function
+	// gets called at a point when framebarPos has already been advanced, but neither the
+	// framebar's framesCount has been advanced, nor its idleTime yet.
+	// If you call this during superfreeze, or when frame has not been advanced,
+	// artificially add one and pass it to arguments.
+	// framesTotal tells the current number of frames at the time of converting idle frames (if you haven't called advance yet, exclude any +1 you did prior)
+	// framesTotal is measured from the last time the framebar was cleared
+	void convertIdleTimeToFrames(int framebarPosition, int framesTotal);
+	// read the other overload
+	void convertIdleTimeToFrames(int framebarPosition, int framesTotal, const FramebarTitle* title);
+	// you're about to write into the frame that corresponds to playhead position framebarPosition.
+	// It is assumed that that position is one plus from the previous position, if any, or is the
+	// first position ever for this framebar.
+	// This function allocates the vector space needed to hold the frame and, if overflowing,
+	// accumulates information in the preFrame.
+	// framesTotal tells the total number of frames since the framebar was last cleared that will be after advancing (so +1 included)
+	Frame& advance(int framebarPosition, int framesTotal);
+	// all these are relative, ends are inclusive
+	void getRegionBounds(int* idleStart, int* idleEnd, int* undefinedStart, int* undefinedEnd) const;
+	// this returns the frame you would soak up into pre frame would you be writing a new frame into an overflowing buffer.
+	// The returned position is relative.
+	// framebarAbsolutePos points to a position after the last idle frame.
+	inline int getOldestFrameRelativePos(int framebarAbsolutePos) const {
+		int pos = framebarAbsolutePos - stateHead->idleTime - stateHead->framesCount;
+		if (pos < 0) {
+			pos = (int)PLAYERFRAMEBAR_MAX + (pos + 1) % (int)PLAYERFRAMEBAR_MAX - 1;  // (int) very important x_x (all covered in bruises) (written in blood)
+		} else {
+			pos = pos % PLAYERFRAMEBAR_MAX;
+		}
+		return toRelative(pos);
+	}
+};
+
+struct PlayerFramebarState : public FramebarBaseState {
+	PlayerFrame currentFrame { };
+	std::vector<CreatedProjectileStruct> createdProjectiles;
+	Input prevInput{0x0000};
+	std::vector<Input> inputs;
+	bool inputsOverflow = false;
+	bool prevInputCopied = false;
+	void clear();
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector are not allowed.
 struct PlayerFramebar : public FramebarBase {
-	PlayerFrame frames[200] { PlayerFrame{} };
+	PlayerFrame frames[PLAYERFRAMEBAR_MAX] { PlayerFrame{} };
 	inline PlayerFrame& operator[](int index) { return frames[index]; }
 	inline const PlayerFrame& operator[](int index) const { return frames[index]; }
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
@@ -908,31 +1033,29 @@ struct PlayerFramebar : public FramebarBase {
 	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) override;
 	virtual void processRequests(FrameBase& destinationFrame) override;
 	virtual void processRequests(int destinationPosition) override;
+	virtual void clearRequests() override;
 	virtual void collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) override;
 	virtual void cloneRequests(FramebarBase& source) override;
-	virtual void clearRequests() override;
-	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
+	// position points to past the last filled frame
+	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor, int framesTotal) override;
 	virtual FrameBase& getFrame(int index) override;
 	virtual const FrameBase& getFrame(int index) const override;
 	virtual bool lastNFramesCompletelyEmpty(int framebarPosition, int n) const override;
 	void clearCancels();
 	void clearCancels(int index);
-	std::vector<CreatedProjectileStruct> createdProjectiles;
-	std::vector<Input> inputs;
-	Input prevInput{0x0000};
-	bool inputsOverflow = false;
-	bool prevInputCopied = false;
+	PlayerFramebarState* stateHead = nullptr;
+	PlayerFramebarState states[ROLLBACK_MAX] { PlayerFramebarState{} };
+	void advanceStateHead();
 };
 
 struct EntityFramebar {
-	EntityFramebar() = default;
-	EntityFramebar(int playerIndex, int id) : playerIndex(playerIndex), id(id) { }
+	bool isPlayer;
 	int playerIndex = -1;
-	int id = -1;
-	int moveFramebarId = -1;
-	bool foundOnThisFrame = false;
+	EntityFramebar(bool isPlayer, int playerIndex) : isPlayer(isPlayer), playerIndex(playerIndex) { }
+	EntityFramebar() = default;
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const = 0;
+	virtual void clear() = 0;
 	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
 	inline void changePreviousFramesOneType(FrameType prevType,
 			FrameType newType,
@@ -941,6 +1064,14 @@ struct EntityFramebar {
 			int positionIdle,
 			int position,
 			int maxCount,
+			int framebarPositionHitstopIdle,
+			int framebarPositionHitstop,
+			int framebarPositionIdle,
+			int framebarPosition,
+			int framesTotalHitstopIdle,
+			int framesTotalHitstop,
+			int framesTotalIdle,
+			int framesTotal,
 			bool stopAtFirstFrame = false) {
 		changePreviousFrames(&prevType,
 			1,
@@ -950,6 +1081,14 @@ struct EntityFramebar {
 			positionIdle,
 			position,
 			maxCount,
+			framebarPositionHitstopIdle,
+			framebarPositionHitstop,
+			framebarPositionIdle,
+			framebarPosition,
+			framesTotalHitstopIdle,
+			framesTotalHitstop,
+			framesTotalIdle,
+			framesTotal,
 			stopAtFirstFrame);
 	}
 	virtual void changePreviousFrames(FrameType* prevTypes,
@@ -960,6 +1099,14 @@ struct EntityFramebar {
 		int positionIdle,
 		int position,
 		int maxCount,
+		int framebarPositionHitstopIdle,
+		int framebarPositionHitstop,
+		int framebarPositionIdle,
+		int framebarPosition,
+		int framesTotalHitstopIdle,
+		int framesTotalHitstop,
+		int framesTotalIdle,
+		int framesTotal,
 		bool stopAtFirstFrame = false) = 0;
 	static int confinePos(int pos);
 	static int confinePos(int pos, int size);
@@ -967,8 +1114,8 @@ struct EntityFramebar {
 	inline static int posPlusOne(int pos) { if (pos == _countof(PlayerFramebar::frames) - 1) return 0; else return pos + 1; }
 	inline static void decrementPos(int& pos) { if (pos == 0) pos = _countof(PlayerFramebar::frames) - 1; else --pos; }
 	inline static void incrementPos(int& pos) { if (pos == _countof(PlayerFramebar::frames) - 1) pos = 0; else ++pos; }
-	inline bool belongsToProjectile() const { return id != -1; }
-	inline bool belongsToPlayer() const { return id == -1; }
+	inline bool belongsToProjectile() const { return !isPlayer; }
+	inline bool belongsToPlayer() const { return isPlayer; }
 	virtual FramebarBase& getMain() = 0;
 	virtual FramebarBase& getHitstop() = 0;
 	virtual FramebarBase& getIdle() = 0;
@@ -993,52 +1140,45 @@ struct EntityFramebar {
 	static void utf8len(const char* txt, int* byteLen, int* cpCountTotal, int maxCodepointCount, int* byteLenBelowMax);
 };
 
-struct ProjectileFramebar : public EntityFramebar {
-	ProjectileFramebar() = default;
-	ProjectileFramebar(int playerIndex, int id) : EntityFramebar(playerIndex, id) {}
-	Framebar main { };  // the one framebar that is displayed
-	Framebar idle { };  // because we don't update the framebar when players are idle and reset it when an action beghins after
-	                            // EndScene::framebarIdleForLimit f of idle, if an action begins before EndScene::framebarIdleForLimit f
-	                            // of idle with some non-zero f idle time, we need to display what happened during that
-	                            // idle time so we will take that information from here. This framebar shall be updated even during idle time
-	Framebar hitstop { };  // we omit hitstop in the main framebar, but there's a setting to show it anyway, and we want the
-	                               // framebar to update upon changing this setting without having to re-record the action.
-	                               // Hence this framebar works in parallel with the main one, with the one difference that it always records hitstop
-	Framebar idleHitstop { };  // information from this gets copied to the hitstop framebar when the omitted idle frames are needed as
-	                                   // described in the 'idle' framebar
-	bool isEddie = false;
-	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
-	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
-	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const override;
-	virtual void changePreviousFrames(FrameType* prevTypes,
-		int prevTypesCount,
-		FrameType newType,
-		int positionHitstopIdle,
-		int positionHitstop,
-		int positionIdle,
-		int position,
-		int maxCount,
-		bool stopAtFirstFrame = false) override;
-	virtual FramebarBase& getMain() override;
-	virtual FramebarBase& getHitstop() override;
-	virtual FramebarBase& getIdle() override;
-	virtual FramebarBase& getIdleHitstop() override;
-	virtual const FramebarBase& getMain() const override;
-	virtual const FramebarBase& getHitstop() const override;
-	virtual const FramebarBase& getIdle() const override;
-	virtual const FramebarBase& getIdleHitstop() const override;
-	inline int idForCombinedFramebar() const { if (moveFramebarId == -1) return INT_MAX - 1 + playerIndex; else return moveFramebarId; }
+struct ProjectileFramebarState {
+	int moveFramebarId = -1;
 };
-	
-struct CombinedProjectileFramebar : public EntityFramebar {
-	CombinedProjectileFramebar() = default;
-	CombinedProjectileFramebar(int playerIndex, int id) : EntityFramebar(playerIndex, id) {}
+
+struct ProjectileFramebar : public EntityFramebar {
+	int id = -1;
+	bool foundOnThisFrame = false;
+	ProjectileFramebarState states[ROLLBACK_MAX] { ProjectileFramebarState{} };
+	ProjectileFramebarState* stateHead = nullptr;
+	// instead of deleting the framebar, set this variable to the tick
+	// that was at the time of "deleting" this set of framebars.
+	// If the framebar is "gone" for ROLLBACK_MAX frames in a row,
+	// it gets deleted permanently. These frames include all frames,
+	// not just when the framebar was advancing. That is the reason
+	// why we don't just check Framebar::idleTime, superfreeze frames
+	// count towards "gone" too. This is for rollback.
+	// If the projectile framebar is gone, it cannot be revived through
+	// natural means by the game's logic tick (and our hooks) advancing.
+	// It can only be brought back to life by rollback, which is why
+	// this is a single variable and not an array.
+	DWORD deletionTick;
+	// the tick on which this set of framebars got created.
+	DWORD creationTick;
+	ProjectileFramebar() = default;
+	ProjectileFramebar(int playerIndex, int id) : id(id), EntityFramebar(false, playerIndex) {}
 	Framebar main { };  // the one framebar that is displayed
+	Framebar idle { };  // because we don't update the framebar when players are idle and reset it when an action begins after
+	                    // EndScene::framebarIdleForLimit f of idle time, if an action begins before EndScene::framebarIdleForLimit f
+	                    // of idle time with some non-zero f idle time, we need to display what happened during that
+	                    // idle time so we will take that information from here. This framebar shall be updated even during idle time
+	Framebar hitstop { };  // we omit hitstop in the main framebar, but there's a setting to show it anyway, and we want the
+	                       // framebar to update upon changing this setting without having to re-record the action.
+	                       // Hence this framebar works in parallel with the main one, with the one difference that it always records hitstop
+	Framebar idleHitstop { };  // information from this gets copied to the hitstop framebar when the omitted idle frames are needed as
+	                           // described in the 'idle' framebar
 	bool isEddie = false;
-	const ProjectileFramebar* sources[_countof(Framebar::frames)] { nullptr };
-	int combinedIds[_countof(Framebar::frames)] { 0 };
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void clear() override;
 	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void changePreviousFrames(FrameType* prevTypes,
 		int prevTypesCount,
@@ -1048,6 +1188,14 @@ struct CombinedProjectileFramebar : public EntityFramebar {
 		int positionIdle,
 		int position,
 		int maxCount,
+		int framebarPositionHitstopIdle,
+		int framebarPositionHitstop,
+		int framebarPositionIdle,
+		int framebarPosition,
+		int framesTotalHitstopIdle,
+		int framesTotalHitstop,
+		int framesTotalIdle,
+		int framesTotal,
 		bool stopAtFirstFrame = false) override;
 	virtual FramebarBase& getMain() override;
 	virtual FramebarBase& getHitstop() override;
@@ -1057,24 +1205,93 @@ struct CombinedProjectileFramebar : public EntityFramebar {
 	virtual const FramebarBase& getHitstop() const override;
 	virtual const FramebarBase& getIdle() const override;
 	virtual const FramebarBase& getIdleHitstop() const override;
-	bool canBeCombined(const Framebar& source, int sourceId) const;
-	void combineFramebar(int framebarPosition, Framebar& source, const ProjectileFramebar* dad);
-	void determineName(int framebarPosition, bool isHitstop);
+	inline int idForCombinedFramebar() const {
+		if (stateHead->moveFramebarId == -1) return INT_MAX - 1 + playerIndex; else return stateHead->moveFramebarId;
+	}
+	void advanceStateHead();
+};
+
+struct JustThePreFrameStuff {
+	// see some other preFrame for comments
+	FrameType preFrame = FT_NONE;
+	FrameType preFrameMapped = FT_NONE;
+	FrameType preFrameMappedNoIdle = FT_NONE;
+	DWORD preFrameLength = 0;
+	DWORD preFrameMappedLength = 0;
+	DWORD preFrameMappedNoIdleLength = 0;
+};
+
+struct CombinedProjectileFramebar : public EntityFramebar {
+	int id = -1;
+	CombinedProjectileFramebar() = default;
+	CombinedProjectileFramebar(int playerIndex, int id) : id(id), EntityFramebar(false, playerIndex) {}
+	Frame frames[FRAMES_MAX] { Frame{} };  // the one framebar that is displayed. Its latest frame is located always at 0
+	bool isEddie = false;
+	const ProjectileFramebar* sources[FRAMES_MAX] { nullptr };
+	int combinedIds[FRAMES_MAX] { 0 };
+	// a combined projectile framebar's preFrame is located not at playhead - FRAMES_MAX, but at 0 (playhead is always 0) - endScene.framesCount, get with the times, ha
+	// I am so going to regret making it this way
+	// See some other preFrame for more fundamental comments
+	FrameType preFrame = FT_NONE;
+	FrameType preFrameMapped = FT_NONE;
+	FrameType preFrameMappedNoIdle = FT_NONE;
+	DWORD preFrameLength = 0;
+	DWORD preFrameMappedLength = 0;
+	DWORD preFrameMappedNoIdleLength = 0;
+	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
+	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void clear() override { }
+	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const override;
+	virtual void changePreviousFrames(FrameType* prevTypes,
+		int prevTypesCount,
+		FrameType newType,
+		int positionHitstopIdle,
+		int positionHitstop,
+		int positionIdle,
+		int position,
+		int maxCount,
+		int framebarPositionHitstopIdle,
+		int framebarPositionHitstop,
+		int framebarPositionIdle,
+		int framebarPosition,
+		int framesTotalHitstopIdle,
+		int framesTotalHitstop,
+		int framesTotalIdle,
+		int framesTotal,
+		bool stopAtFirstFrame = false) override;
+	virtual FramebarBase& getMain() override;
+	virtual FramebarBase& getHitstop() override;
+	virtual FramebarBase& getIdle() override;
+	virtual FramebarBase& getIdleHitstop() override;
+	virtual const FramebarBase& getMain() const override;
+	virtual const FramebarBase& getHitstop() const override;
+	virtual const FramebarBase& getIdle() const override;
+	virtual const FramebarBase& getIdleHitstop() const override;
+	bool canBeCombined(const Framebar& source, int sourceId, int scrollX, int framebarPosition, int framesTotal) const;
+	void combineFramebar(int framebarPosition, int framebarPositionWithoutScroll, int scrollX, int framesTotal,
+			Framebar& source, const ProjectileFramebar* dad);
+	void determineName(int framebarPosition, int scrollXInFrames, bool isHitstop);
+	static void soakUpIntoPreFrame(JustThePreFrameStuff* holder, const Frame& srcFrame);
+	Frame& operator[](int index) { return frames[index]; }
+	const Frame& operator[](int index) const { return frames[index]; }
+	bool lastNFramesHaveMarker(int framebarPosition, int scrollXInFrames, int n) const;  // defined in UI.cpp
 };
 
 struct PlayerFramebars : public EntityFramebar {
+	PlayerFramebars() : EntityFramebar(true, -1) { }
 	PlayerFramebar main { };  // the one framebar that is displayed
-	PlayerFramebar idle { };  // because we don't update the framebar when players are idle and reset it when an action beghins after
-	                            // EndScene::framebarIdleForLimit f of idle, if an action begins before EndScene::framebarIdleForLimit f
-	                            // of idle with some non-zero f idle time, we need to display what happened during that
-	                            // idle time so we will take that information from here. This framebar shall be updated even during idle time
+	PlayerFramebar idle { };  // because we don't update the framebar when players are idle and reset it when an action begins after
+	                          // EndScene::framebarIdleForLimit f of idle time, if an action begins before EndScene::framebarIdleForLimit f
+	                          // of idle time with some non-zero f idle time, we need to display what happened during that
+	                          // idle time so we will take that information from here. This framebar shall be updated even during idle time
 	PlayerFramebar hitstop { };  // we omit hitstop in the main framebar, but there's a setting to show it anyway, and we want the
-	                               // framebar to update upon changing this setting without having to re-record the action.
-	                               // Hence this framebar works in parallel with the main one, with the one difference that it always records hitstop
+	                             // framebar to update upon changing this setting without having to re-record the action.
+	                             // Hence this framebar works in parallel with the main one, with the one difference that it always records hitstop
 	PlayerFramebar idleHitstop { };  // information from this gets copied to the hitstop framebar when the omitted idle frames are needed as
-	                                   // described in the 'idle' framebar
+	                                 // described in the 'idle' framebar
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void clear() override;
 	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void changePreviousFrames(FrameType* prevTypes,
 		int prevTypesCount,
@@ -1084,6 +1301,14 @@ struct PlayerFramebars : public EntityFramebar {
 		int positionIdle,
 		int position,
 		int maxCount,
+		int framebarPositionHitstopIdle,
+		int framebarPositionHitstop,
+		int framebarPositionIdle,
+		int framebarPosition,
+		int framesTotalHitstopIdle,
+		int framesTotalHitstop,
+		int framesTotalIdle,
+		int framesTotal,
 		bool stopAtFirstFrame = false) override;
 	virtual FramebarBase& getMain() override;
 	virtual FramebarBase& getHitstop() override;
@@ -1093,6 +1318,7 @@ struct PlayerFramebars : public EntityFramebar {
 	virtual const FramebarBase& getHitstop() const override;
 	virtual const FramebarBase& getIdle() const override;
 	virtual const FramebarBase& getIdleHitstop() const override;
+	void advanceStateHead();
 };
 
 // iterates the frames from framebarPosition back into the past for frameCount frames
@@ -1101,11 +1327,11 @@ struct PlayerFramebars : public EntityFramebar {
 	if (framebarPosition >= frameCount - 1) { \
 		iterateFrames_loop1Start = framebarPosition - (frameCount - 1); \
 		iterateFrames_loop1End = framebarPosition + 1; \
-		iterateFrames_loop2Start = (int)_countof(Framebar::frames); \
+		iterateFrames_loop2Start = (int)_countof(PlayerFramebar::frames); \
 	} else { \
 		iterateFrames_loop1Start = 0; \
 		iterateFrames_loop1End = framebarPosition + 1; \
-		iterateFrames_loop2Start = (int)_countof(Framebar::frames) - ( \
+		iterateFrames_loop2Start = (int)_countof(PlayerFramebar::frames) - ( \
 			frameCount - (framebarPosition + 1) \
 		); \
 	} \
@@ -1116,13 +1342,87 @@ struct PlayerFramebars : public EntityFramebar {
 			iterateFrames_loopEnd = iterateFrames_loop1End; \
 		} else { \
 			iterateFrames_loopStart = iterateFrames_loop2Start; \
-			iterateFrames_loopEnd = (int)_countof(Framebar::frames); \
+			iterateFrames_loopEnd = (int)_countof(PlayerFramebar::frames); \
 		} \
 		for (int iterateFrames_pos = iterateFrames_loopEnd - 1; iterateFrames_pos >= iterateFrames_loopStart; --iterateFrames_pos) {
 			// code here
 #define iterateFramesEnd \
 		} \
 	}
+
+// iterates the frames from framebarPosition back into the past for frameCount frames
+// um... should this much code really be a define? We can make a function that accepts a callback instead
+#define iterateFramesBeginProjectile(framebarPosition, frameCount) \
+	if (stateHead->framesCount && stateHead->idleTime < (int)_countof(PlayerFramebar::frames)) { \
+		int relPos = toRelative(framebarPosition); \
+		int undefinedTimeToEat; \
+		int idleTimeToEat; \
+		int actualTimeToEat; \
+		/* not inclusive */ \
+		int framesEndRelPos = stateHead->framesCount; \
+		if (framesEndRelPos == _countof(PlayerFramebar::frames)) framesEndRelPos = 0; \
+		if (stateHead->idleTime) { \
+			int idleFramesStartPos = framesEndRelPos; \
+			/* inclusive */ \
+			int idleFramesEndPos = EntityFramebar::confinePos(idleFramesStartPos + stateHead->idleTime - 1); \
+			if (idleFramesStartPos <= idleFramesEndPos) { \
+				if (relPos >= idleFramesStartPos && relPos <= idleFramesEndPos) { \
+					idleTimeToEat = relPos - idleFramesStartPos + 1; \
+				} else { \
+					idleTimeToEat = 0; \
+				} \
+			} else if (relPos >= idleFramesStartPos) { \
+				idleTimeToEat = relPos - idleFramesStartPos + 1; \
+			} else if (relPos <= idleFramesEndPos) { \
+				idleTimeToEat = relPos + 1 + _countof(PlayerFramebar::frames) - idleFramesStartPos; \
+			} else { \
+				idleTimeToEat = 0; \
+			} \
+			if (idleTimeToEat == 0) { \
+				if (stateHead->framesCount + stateHead->idleTime < (int)_countof(PlayerFramebar::frames)) { \
+					if (relPos > idleFramesEndPos) { \
+						undefinedTimeToEat = relPos - idleFramesEndPos; \
+						idleTimeToEat = stateHead->idleTime; \
+					} else { \
+						undefinedTimeToEat = 0; \
+						idleTimeToEat = 0; \
+					} \
+					actualTimeToEat = stateHead->framesCount; \
+				} else { \
+					undefinedTimeToEat = 0; \
+					actualTimeToEat = (int)_countof(PlayerFramebar::frames) - stateHead->idleTime; \
+					if (actualTimeToEat > stateHead->framesCount) actualTimeToEat = stateHead->framesCount; \
+				} \
+			} else { \
+				undefinedTimeToEat = 0; \
+				actualTimeToEat = _countof(PlayerFramebar::frames) - stateHead->idleTime; \
+				if (actualTimeToEat > stateHead->framesCount) actualTimeToEat = stateHead->framesCount; \
+			} \
+		} else { \
+			idleTimeToEat = 0; \
+			if (framesEndRelPos == 0) { \
+				undefinedTimeToEat = 0; \
+				actualTimeToEat = _countof(PlayerFramebar::frames); \
+			} else { \
+				actualTimeToEat = stateHead->framesCount; \
+				if (relPos >= stateHead->framesCount) { \
+					undefinedTimeToEat = relPos - stateHead->framesCount + 1; \
+				} else { \
+					undefinedTimeToEat = 0; \
+				} \
+			} \
+		} \
+		n -= idleTimeToEat + undefinedTimeToEat; \
+		relPos = EntityFramebar::confinePos(relPos - idleTimeToEat - undefinedTimeToEat); \
+		if (n > actualTimeToEat) n = actualTimeToEat; \
+		for (; n > 0; --n) { \
+			if (relPos < stateHead->framesCount) { \
+			// code here
+#define iterateFramesEndProjectile \
+			} \
+			EntityFramebar::decrementPos(relPos); \
+		} \
+	} \
 
 struct ActiveData {
 	short actives = 0;
@@ -1793,7 +2093,7 @@ struct PlayerInfo {
 	DWORD moveStartTime_aswEngineTick = 0;
 	AddedMoveData* standingFDMove = nullptr;
 	AddedMoveData* crouchingFDMove = nullptr;
-	PlayerCancelInfo cancels[10] { };
+	PlayerCancelInfo cancels[10] { PlayerCancelInfo{} };
 	int cancelsTimer = 0;
 	FrameCancelInfoFull prevFrameCancels;
 	FrameCancelInfoFull wasCancels;

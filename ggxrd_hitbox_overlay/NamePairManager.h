@@ -10,7 +10,7 @@ public:
 private:
 	static const int nameArSize = 100;
 	struct NamePairMapElement {
-		std::string nameAr[nameArSize] { };
+		std::string nameAr[nameArSize] { std::string{} };
 		NamePair pairAr[nameArSize];
 		int count = 0;
 		void add(const char* name);

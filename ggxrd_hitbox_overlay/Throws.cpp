@@ -213,36 +213,37 @@ void Throws::hitDetectionMainHook() {
 					throwInfo.bottom = throwMinYInSpace;
 				}
 			}
-
-			for (auto it = infos.begin(); it != infos.end(); ++it) {
+			
+			auto itEnd = endScene.currentState->throws.infos.end();
+			for (auto it = endScene.currentState->throws.infos.begin(); it != itEnd; ++it) {
 				if (it->owner == throwInfo.owner) {
-					infos.erase(it);
+					endScene.currentState->throws.infos.erase(it);
 					break;
 				}
 			}
-			infos.push_back(throwInfo);
+			endScene.currentState->throws.infos.push_back(throwInfo);
 
 		}
 	}
 }
 
-void Throws::drawThrows() {
+void Throws::drawThrowsInside() {
 	bool timeHasChanged = false;
-	unsigned int currentTime = *(DWORD*)(*aswEngine + 4 + game.aswEngineTickCountOffset);
-	if (previousTime != currentTime) {
-		previousTime = currentTime;
+	DWORD currentTime = endScene.getAswEngineTick();
+	if (endScene.currentState->throws.previousTime != currentTime) {
+		endScene.currentState->throws.previousTime = currentTime;
 		timeHasChanged = true;
 	}
 
-	auto it = infos.begin();
-	while (it != infos.end()) {
+	auto it = endScene.currentState->throws.infos.begin();
+	while (it != endScene.currentState->throws.infos.end()) {
 		ThrowInfo& throwInfo = *it;
 		
 		if (timeHasChanged && !throwInfo.firstFrame) {
 			throwInfo.active = false;
 			--throwInfo.framesLeft;
 			if (throwInfo.framesLeft <= 0) {
-				it = infos.erase(it);
+				it = endScene.currentState->throws.infos.erase(it);
 				continue;
 			}
 		}
@@ -263,7 +264,7 @@ void Throws::drawThrows() {
 			} else if (throwInfo.isThrow) {
 				for (int i = 0; i < 2; ++i) {
 					if (throwInfo.owner == entityList.slots[i]) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						
 						if (markActive) {
 							++player.hitboxesCount;
@@ -300,6 +301,14 @@ void Throws::drawThrows() {
 				}
 			}
 		}
+		++it;
+	}
+}
+
+void Throws::drawThrows() {
+	auto it = endScene.currentState->throws.infos.begin();
+	while (it != endScene.currentState->throws.infos.end()) {
+		ThrowInfo& throwInfo = *it;
 		
 		if (!invisChipp.needToHide(throwInfo.owner)) {
 			if (!settings.drawPushboxCheckSeparately) {
@@ -380,7 +389,7 @@ void Throws::drawThrows() {
 }
 
 void Throws::clearAllBoxes() {
-	infos.clear();
+	endScene.currentState->throws.infos.clear();
 }
 
 int Throws::HookHelp::hitDetectionIsActiveHook(BOOL alternativeIsActiveFramesCheck) {

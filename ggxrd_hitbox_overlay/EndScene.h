@@ -19,6 +19,7 @@
 #include "PngResource.h"
 #include "trainingSettings.h"
 #include "DrawBoxCallParams.h"
+#include "EndSceneStoredState.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, BBScrPosType posType);
@@ -207,6 +208,12 @@ struct REDDrawQuadCommand : REDDrawCommand {
 	int field8_0x38;
 	int field9_0x3c;
 };
+	
+struct PunishFrame {
+	int xOffset;  // for P1 side
+	DWORD color;
+	int repeatCount = 0;
+};
 
 using FRingBuffer_AllocationContext_Constructor_t = FRingBuffer_AllocationContext*(__thiscall*)(FRingBuffer_AllocationContext* thisArg,
 	void* InRingBuffer, unsigned int InAllocationSize);
@@ -215,28 +222,6 @@ using REDAnywhereDispDraw_t = void(__cdecl*)(void* canvas, FVector2D* screenSize
 using FRenderCommandDestructor_t = void(__thiscall*)(void* thisArg, BOOL freeMem);
 
 LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-
-enum SkippedFramesType : char {
-	SKIPPED_FRAMES_SUPERFREEZE,
-	SKIPPED_FRAMES_HITSTOP,
-	SKIPPED_FRAMES_GRAB,
-	SKIPPED_FRAMES_SUPER
-};
-
-struct SkippedFramesElement {
-	SkippedFramesType type;
-	unsigned short count;
-};
-
-struct SkippedFramesInfo {
-	SkippedFramesElement elements[4];
-	char count:7;
-	char overflow:1;
-	void addFrame(SkippedFramesType type);
-	void clear();
-	void transitionToOverflow();
-	void print(bool canBlockButNotFD_ASSUMPTION) const;
-};
 
 class EndScene
 {
@@ -260,7 +245,7 @@ public:
 	void onAfterDealHit(Entity defenderPtr, Entity attackerPtr);
 	void removeAttackHitbox(Entity attackerPtr);
 	WNDPROC orig_WndProc = nullptr;
-	void(__thiscall* orig_drawTrainingHud)(char* thisArg) = nullptr;  // type is defined in Game.h: trainingHudTick_t
+	//void(__thiscall* orig_drawTrainingHud)(char* thisArg) = nullptr;  // type is defined in Game.h: trainingHudTick_t
 	BBScr_createObjectWithArg_t orig_BBScr_createObjectWithArg = nullptr;
 	BBScr_createObjectWithArg_t orig_BBScr_createObject = nullptr;
 	BBScr_createParticleWithArg_t orig_BBScr_createParticleWithArg = nullptr;
@@ -291,10 +276,6 @@ public:
 	BBScr_timeSlow_t orig_BBScr_timeSlow = nullptr;
 	onCmnActXGuardLoop_t orig_onCmnActXGuardLoop = nullptr;
 	
-	std::vector<PlayerInfo> players{2};
-	std::vector<ProjectileInfo> projectiles;
-	std::vector<PlayerFramebars> playerFramebars;
-	std::vector<ProjectileFramebar> projectileFramebars;
 	inline int totalFramebarCount() { return playerFramebars.size() + projectileFramebars.size(); }
 	EntityFramebar& getFramebar(int totalIndex);
 	std::vector<CombinedProjectileFramebar> combinedFramebars;  // does not contain player framebars
@@ -329,8 +310,8 @@ public:
 	bool isEntityHidden(const Entity& ent);
 	int getFramebarPosition() const;
 	int getFramebarPositionHitstop() const;
-	int getTotalFramesUnlimited() const { return framebarTotalFramesUnlimited; }
-	int getTotalFramesHitstopUnlimited() const { return framebarTotalFramesHitstopUnlimited; }
+	int getTotalFramesUnlimited() const { return currentState->framebarTotalFramesUnlimited; }
+	int getTotalFramesHitstopUnlimited() const { return currentState->framebarTotalFramesHitstopUnlimited; }
 	bool willEnqueueAndDrawOriginPoints = false;
 	bool endSceneAndPresentHooked = false;
 	BBScr_getAccessedValueImpl_t BBScr_getAccessedValueImpl = nullptr;
@@ -344,7 +325,6 @@ public:
 	int getSuperflashCounterOpponentMax();
 	int getSuperflashCounterAlliedMax();
 	Entity getLastNonZeroSuperflashInstigator();
-	inline bool isIGiveUp() const { return iGiveUp; }
 	bool needDrawInputs = false;
 	const std::vector<SkippedFramesInfo>& getSkippedFrames(bool hitstop) const;
 	bool queueingFramebarDrawCommand = false;
@@ -406,6 +386,24 @@ public:
 	} hitboxEditorCameraValues;
 	bool hitboxEditorCameraValuesReady = false;
 	bool onEnableModsChanged();
+	std::vector<PlayerFramebars> playerFramebars;  // these correspond to the current state
+	std::vector<ThreadUnsafeSharedPtr<ProjectileFramebar>> projectileFramebars;  // these correspond to the current state
+	EndSceneStoredState* currentState = nullptr;
+	std::vector<EndSceneStoredState> stateRingBuffer;  // for rollback, for now. Can later be repurposed for replay takeover
+	int stateCount = 0;
+	InputRingBufferStored inputRingBuffersStored[2] { InputRingBufferStored{}, InputRingBufferStored{} };
+	// the engine tick that was at the time of collecting the last framesHeld of the
+	// last input in the 'inputRingBuffersStored's. Used for rolling back the input ring buffer
+	DWORD inputRingBuffersStoredLastTick = 0;
+	DWORD prevAswEngineTickCountMain = 0;
+	DWORD getAswEngineTick();
+	std::vector<SkippedFramesInfo> skippedFrames;
+	std::vector<SkippedFramesInfo> skippedFramesIdle;
+	std::vector<SkippedFramesInfo> skippedFramesHitstop;
+	std::vector<SkippedFramesInfo> skippedFramesIdleHitstop;
+	int nextFramebarId = 0;
+	// returns ticks to perform
+	int isGameModeNetworkHookWhenDecidingStepCountHook();
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -413,7 +411,7 @@ private:
 	void actUponKeyStrokesThatAlreadyHappened();
 	class HookHelp {
 		friend class EndScene;
-		void drawTrainingHudHook();
+		//void drawTrainingHudHook();
 		void BBScr_createObjectHook(const char* animName, BBScrPosType posType);
 		void BBScr_createObjectWithArgHook(const char* animName, BBScrPosType posType);
 		void BBScr_createParticleWithArgHook(const char* animName, BBScrPosType posType);
@@ -448,7 +446,7 @@ private:
 	};
 	void drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer);
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
-	void drawTrainingHudHook(char* thisArg);
+	//void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, BBScrPosType posType);
 	void BBScr_linkParticleHook(Entity pawn, const char* name);
 	void BBScr_linkParticleWithArg2Hook(Entity pawn, const char* name);
@@ -508,47 +506,17 @@ private:
 	drawTextWithIcons_t drawTextWithIcons = nullptr;
 	
 	bool needToRunNoGravGifMode = false;
-	void drawTexts();
+	//void drawTexts();
 	
 	uintptr_t superflashInstigatorOffset = 0;
 	uintptr_t superflashCounterOpponentOffset = 0;
 	uintptr_t superflashCounterAlliedOffset = 0;
-	
-	bool measuringFrameAdvantage = false;
-	int measuringLandingFrameAdvantage = -1;  // index of the player who is in the air and needs to land
 	void restartMeasuringFrameAdvantage(int index);
 	void restartMeasuringLandingFrameAdvantage(int index);
-	
-	int tensionRecordedHit[2] { 0 };
-	int burstRecordedHit[2] { 0 };
-	int tensionGainOnLastHit[2] { 0 };
-	bool tensionGainOnLastHitUpdated[2] { 0 };
-	int burstGainOnLastHit[2] { 0 };
-	bool burstGainOnLastHitUpdated[2] { 0 };
-	
-	DWORD prevAswEngineTickCount = 0;
-	DWORD prevAswEngineTickCountForInputs = 0;
 	bool shutdown = false;
 	HandleWrapper shutdownFinishedEvent = NULL;
-	struct RegisteredHit {
-		ProjectileInfo projectile;
-		HitResult hitResult;
-		Entity attacker;
-		Entity defender;
-		bool hasHitbox;
-		bool isPawn;
-	};
-	std::vector<RegisteredHit> registeredHits;
-	struct LeoParry {
-		int x;
-		int y;
-		int timer;
-		DWORD aswEngTick;
-	};
-	std::vector<LeoParry> leoParries;
 	
 	void initializePawn(PlayerInfo& player, Entity ent);
-	bool needFrameCleanup = false;
 	void frameCleanup();
 	bool creatingObject = false;
 	Entity creatorOfCreatedObject = nullptr;
@@ -572,44 +540,19 @@ private:
 	
 	void queueOriginPointDrawingDummyCommandAndInitializeIcon();
 	void queueDummyCommand(int layer, float x, char* txt);
-	struct OccuredEvent {
-		enum OccuredEventType {
-			SET_ANIM,
-			SIGNAL
-		} type;
-		union OccuredEventUnion {
-			struct OccuredEventSetAnim {
-				Entity pawn;
-				char fromAnim[32];
-			} setAnim;
-			struct OccuredEventSignal {
-				Entity from;
-				Entity to;
-				char fromAnim[32];  // this is needed from Bedman 236H's bomb1 being created by Flying_bomb1.
-									// Flying_bomb1 disappears on that very frame and is never actually visible,
-									// and we get a different animation string ("423wind") when reading from its pointer
-				CreatedProjectileStruct creatorName;
-			} signal;
-			inline OccuredEventUnion() { }
-		} u;
-	};
-	std::vector<OccuredEvent> events;
 	std::vector<Entity> sendSignalStack;
-	int framebarPosition = 0;
-	int framebarTotalFramesUnlimited = 0;
-	int framebarPositionHitstop = 0;
-	int framebarTotalFramesHitstopUnlimited = 0;
-	int framebarIdleFor = 0;
-	int framebarIdleHitstopFor = 0;
-	const int framebarIdleForLimit = 30;
-	DWORD getAswEngineTick();
 	
-	int nextFramebarId = 0;
 	void incrementNextFramebarIdDirectly();
 	void incrementNextFramebarIdSmartly();
 	ProjectileFramebar& findProjectileFramebar(ProjectileInfo& projectile, bool needCreate);
-	CombinedProjectileFramebar& findCombinedFramebar(const ProjectileFramebar& source, bool hitstop);
+	CombinedProjectileFramebar& findCombinedFramebar(const ProjectileFramebar& source, bool hitstop,
+			int scrollX, int framebarPosition, int framesTotal);
 	void copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entityFramebar,
+		bool framebarAdvanced,
+		bool framebarAdvancedIdle,
+		bool framebarAdvancedHitstop,
+		bool framebarAdvancedIdleHitstop);
+	void copyIdleHitstopFrameToTheRestOfSubframebars(ProjectileFramebar& entityFramebar,
 		bool framebarAdvanced,
 		bool framebarAdvancedIdle,
 		bool framebarAdvancedHitstop,
@@ -621,7 +564,7 @@ private:
 	bool postEffectWasOnWhenEnteringDarkenModePlusTurnOffPostEffect = false;
 	bool willDrawOriginPoints();
 	void collectFrameCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isBlitzShieldCancels);
-	void collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move,
+	void collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move,
 								int iterationIndex, bool inHitstopFreeze, bool blitzShield = false);
 	bool checkMoveConditions(PlayerInfo& player, const AddedMoveData* move);
 	bool requiresStylishInputs(const AddedMoveData* move);
@@ -629,19 +572,13 @@ private:
 	Entity getSuperflashInstigator();
 	int getSuperflashCounterOpponent();
 	int getSuperflashCounterAllied();
-	int superfreezeHasBeenGoingFor = 0;
-	int superflashCounterAllied = 0;
-	int superflashCounterAlliedMax = 0;
-	int superflashCounterOpponent = 0;
-	int superflashCounterOpponentMax = 0;
 	void onProjectileHit(Entity ent);
-	Entity lastNonZeroSuperflashInstigator;
-	bool iGiveUp = false;
 	std::vector<ForceAddedWhiffCancel> baikenBlockCancels;
 	bool neverIgnoreHitstop = false;
 	bool combineProjectileFramebarsWhenPossible = false;
 	bool eachProjectileOnSeparateFramebar = false;
 	bool condenseIntoOneProjectileFramebar = false;
+	friend struct CombinedProjectileFramebar;
 	int framesCount = -1;
 	int storedFramesCount = -1;
 	int scrollXInFrames = 0;
@@ -649,18 +586,6 @@ private:
 	bool isHoldingFD(const PlayerInfo& player) const;
 	bool isHoldingFD(Entity pawn) const;
 	void prepareInputs();
-	InputRingBuffer prevInputRingBuffers[2] { };
-	InputRingBufferStored inputRingBuffersStored[2] { };
-	std::vector<SkippedFramesInfo> skippedFrames;
-	std::vector<SkippedFramesInfo> skippedFramesIdle;
-	std::vector<SkippedFramesInfo> skippedFramesHitstop;
-	std::vector<SkippedFramesInfo> skippedFramesIdleHitstop;
-	SkippedFramesInfo nextSkippedFrames;
-	SkippedFramesInfo nextSkippedFramesIdle;
-	SkippedFramesInfo nextSkippedFramesHitstop;
-	SkippedFramesInfo nextSkippedFramesIdleHitstop;
-	bool isFirstTickOfAMatch = false;
-	bool startedNewRound = false;
 	CharInfo staticFontOpenParenthesis;
 	CharInfo staticFontCloseParenthesis;
 	CharInfo staticFontDigit[10];
@@ -672,7 +597,6 @@ private:
 	hitDetection_t hitDetectionFunc = nullptr;
 	void checkVenomBallActivations();
 	void checkSelfProjectileHarmInflictions();
-	int reachedMaxStun[2] { -1, -1 };  // on this frame
 	void registerJump(PlayerInfo& player, Entity pawn, const char* animName);
 	void registerRun(PlayerInfo& player, Entity pawn, const char* animName);
 	bool shouldIgnoreEnterKey() const;
@@ -688,20 +612,6 @@ private:
 	// this function is useless if you can have multiple of these projectiles and some can be dangerous while others aren't
 	bool hasProjectileOfTypeStrNCmp(PlayerInfo& player, const char* name);
 	char hasBoomerangHead(PlayerInfo& player);
-	struct AttackHitbox {
-		DrawHitboxArrayCallParams hitbox;
-		bool notClash = false;
-		bool clash = false;
-		int count = 0;
-		Entity ent { nullptr };
-		bool found = false;
-		int team = 2;
-	};
-	// this is needed to display hitboxes of projectiles that disappear when their player is hit, on the very frame their player gets hit.
-	// Without this, those projectiles would get deleted by the end of the tick and we would not see their hitboxes.
-	// While in reality, projectiles run hit collision before players do, and there may be some order between different projectiles,
-	// so such projectiles could potentially deal hits on that very frame.
-	std::vector<AttackHitbox> attackHitboxes;
 	HitDetectionType currentHitDetectionType = HIT_DETECTION_EASY_CLASH;
 	bool objHasAttackHitboxes(Entity ent) const;
 	template<size_t size>
@@ -719,7 +629,7 @@ private:
 	bool blitzShieldCancellable(PlayerInfo& player, bool insideTick);
 	void collectBlitzShieldCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isStylish);
 	void collectBaikenBlockCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isStylish);
-	// these are common for both players, because these move are in cmn_ef
+	// these are common for both players, because these moves are in cmn_ef
 	int bdashMoveIndex = -1;
 	int fdashMoveIndex = -1;
 	int maximumBurstMoveIndex = -1;
@@ -764,7 +674,7 @@ private:
 	void fillDizzyInfo(PlayerInfo& player, PlayerFrame& frame);
 	multiplySpeedX_t multiplySpeedX = nullptr;
 	pawnGetColor_t orig_pawnGetColor = nullptr;
-	bool hasCancelUnlocked(CharacterType charType, const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& array, std::vector<const AddedMoveData*>& markedMoves,
+	bool hasCancelUnlocked(CharacterType charType, const std::vector<GatlingOrWhiffCancelInfo>& array, std::vector<const AddedMoveData*>& markedMoves,
 		bool* redPtr, bool* greenPtr, bool* bluePtr);
 	void processColor(PlayerInfo& player);
 	struct HighlightMoveCacheEntry {
@@ -785,21 +695,10 @@ private:
 	bool overwriteCall(uintptr_t callInstr, int newOffset);
 	// meant for use outside of onDllMain, but may be called from onDllMain as well
 	bool attach(PVOID* ppPointer, PVOID pDetour, const char* name);
-	bool lastRoundendContainedADeath = false;
 	void drawHitboxEditorHitboxes();
 	void drawHitboxEditorHitboxesForEntity(Entity ent);
 	void drawHitboxEditorPushbox(Entity ent, int posY);
-	struct PunishMessageTimer {
-		int animFrame = -1;
-		int recheckTimer = -1;
-		int animFrameRepeatCount = 0;
-		float yOff = 0.F;
-		float xOff = 0.F;
-	};
-	std::array<std::vector<PunishMessageTimer>, 2> punishMessageTimers;
 	void drawPunishMessage(float x, float y, DrawTextWithIconsAlignment alignment, DWORD textColor);
-	bool attackerInRecoveryAfterBlock[2] { false, false };
-	bool attackerInRecoveryAfterCreatingProjectile[2][75] { false };
 	int aswOneScreenPixelWidth = 0;
 	int aswOneScreenPixelHeight = 0;
 	int aswOneScreenPixelDiameter = 0;
@@ -818,6 +717,16 @@ private:
 		std::vector<BYTE>& data, bool* pathLengthError);
 	DWORD fillBBScrInfosWrapperVtblOffset = 0;
 	bool attemptedHookPreBeginPlay_Internal = false;
+	void logicInside();
+	EndSceneStoredState* incrementStatePointer(EndSceneStoredState* ptr);
+	EndSceneStoredState* findState(DWORD tickCount);
+	void loadState(EndSceneStoredState* ptr);
+	void cloneState(EndSceneStoredState* dest, EndSceneStoredState* src);
+	bool isRunning();
+	void prepareDrawDataInside();
+	bool onSpeedUpReplayChanged();
+	bool hookLogicTickStepCount();
+	bool attemptedHookLogicTickStepCount = false;
 };
 
 extern EndScene endScene;

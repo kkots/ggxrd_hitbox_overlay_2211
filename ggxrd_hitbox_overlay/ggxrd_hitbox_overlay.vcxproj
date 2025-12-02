@@ -195,6 +195,7 @@
     <ClInclude Include="DrawTextWithIconsParams.h" />
     <ClInclude Include="EditedHitbox.h" />
     <ClInclude Include="EndScene.h" />
+    <ClInclude Include="EndSceneRepeatingStuff.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="EntityList.h" />
     <ClInclude Include="findMoveByName.h" />
@@ -224,6 +225,7 @@
     <ClInclude Include="LayerIterator.h" />
     <ClInclude Include="LineReader.h" />
     <ClInclude Include="LineReaderFromString.h" />
+    <ClInclude Include="EndSceneStoredState.h" />
     <ClInclude Include="NamePairManager.h" />
     <ClInclude Include="PackTextureSizes.h" />
     <ClInclude Include="PinAtlas.h" />
@@ -250,7 +252,6 @@
     <ClInclude Include="StringWithLength.h" />
     <ClInclude Include="TexturePacker.h" />
     <ClInclude Include="ThreadUnsafeSharedPtr.h" />
-    <ClInclude Include="ThrowInfo.h" />
     <ClInclude Include="Throws.h" />
     <ClInclude Include="trainingSettings.h" />
     <ClInclude Include="UI.h" />
@@ -291,6 +292,7 @@
     <ClCompile Include="DrawOutlineCallParams.cpp" />
     <ClCompile Include="DrawTextWithIconsParams.cpp" />
     <ClCompile Include="EndScene.cpp" />
+    <ClCompile Include="EndSceneInside.cpp" />
     <ClCompile Include="Entity.cpp" />
     <ClCompile Include="EntityList.cpp" />
     <ClCompile Include="Game.cpp" />

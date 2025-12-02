@@ -175,31 +175,39 @@ static float drawFramebars_frameWidthScaled;
 // The total number of frames that can be displayed
 static int drawFramebars_framesCount;
 // The framebar position with horizontal scrolling already applied to it
-// Is in [0;_countof(Framebar::frames)] coordinate space, its range of possible values is [0;_countof(Framebar::frames)-1]
+// Is in [0;_countof(PlayerFramebar::frames)] coordinate space, its range of possible values is [0;_countof(PlayerFramebar::frames)-1]
 static int drawFramebars_framebarPosition;
 // Is in [0;drawFramebars_framesCount] coordinate space, its range of possible values is [0;drawFramebars_framesCount-1]
-// It is the result of converting drawFramebars_framebarPosition from [0;_countof(Framebar::frames)] coordinate space to [0;drawFramebars_framesCount] coordinate space
+// It is the result of converting drawFramebars_framebarPosition from [0;_countof(PlayerFramebar::frames)] coordinate space to [0;drawFramebars_framesCount] coordinate space
 static int drawFramebars_framebarPositionDisplay;
-// the internal index that is being referred to here is the index pointing into the [0;_countof(Framebar::frames)] coordinate space
-static int inline iterateVisualFramesFrom0_getInitialInternalInd() {
+static int drawFramebars_framebarTotalFramesUnlimited_withScroll;
+// the internal index that is being referred to here is the index pointing into the [0;_countof(PlayerFramebar::frames)] coordinate space
+static int inline iterateVisualFramesFrom0_getInitialInternalInd() {  // translation of title to english: get the internal index that corresponds to visual frame 0 (the leftmost frame on the visual framebar)
 	int result = drawFramebars_framebarPosition - drawFramebars_framebarPositionDisplay;
 	if (result < 0) {
-		return result + _countof(Framebar::frames);
+		return result + _countof(PlayerFramebar::frames);
 	} else {
 		return result;
 	}
 }
-// the internal index that is being referred to here is the index pointing into the [0;_countof(Framebar::frames)] coordinate space
-static void inline iterateVisualFrames_incrementInternalInd(int& internalInd) {
+// the internal index that is being referred to here is the index pointing into the [0;_countof(PlayerFramebar::frames)] coordinate space
+static void inline iterateVisualFrames_incrementInternalInd(int& internalInd) {  // increment visual frame, but get corresponding internal index. We're passing in an internal index too that corresponds to the old, unincremented visual frame
 	if (internalInd == drawFramebars_framebarPosition) {
 		internalInd = drawFramebars_framebarPosition - drawFramebars_framesCount + 1;
 		if (internalInd < 0) {
-			internalInd += _countof(Framebar::frames);
+			internalInd += _countof(PlayerFramebar::frames);
 		}
-	} else if (internalInd == _countof(Framebar::frames) - 1) {
+	} else if (internalInd == _countof(PlayerFramebar::frames) - 1) {
 		internalInd = 0;
 	} else {
 		++internalInd;
+	}
+}
+static inline int confineDisplayPosition(int pos) {
+	if (pos < 0) {
+		return drawFramebars_framesCount + (pos + 1) % drawFramebars_framesCount - 1;
+	} else {
+		return pos % drawFramebars_framesCount;
 	}
 }
 const char thisHelpTextWillRepeat[] = "Shows available gatlings, whiff cancels, and whether the jump and the special cancels are available,"
@@ -210,14 +218,14 @@ const char thisHelpTextWillRepeat[] = "Shows available gatlings, whiff cancels, 
 					" and the cancels become available during the active frame,"
 					" then the first group of cancels will begin on frame 2.\n"
 					"\n"
-					"If the move is made out of several animations, which is signaled by the main UI window showing a + sign in"
+					"If the move is made up of several animations, which is signaled by the main UI window showing a + sign in"
 					" its 'Startup' field, then the countdown for the display of cancels in this window begins from the first move from which the chain of"
-					" + added moves start. For example, a Mist Finer Cancel always breaks up into two parts with a + sign inbetween them in the main UI window."
+					" + added moves starts. For example, a Mist Finer Cancel always breaks up into two parts with a + sign inbetween them in the main UI window."
 					" It does not have cancels, but let's imagine it did. On Lv1 Johnny MFC is 9+4 frames total. If it had cancels in the second portion on its f2,"
 					" the cancels in this window would show that they start on f11, because it counts from the first move (the one that is 9 total in the "
 					"overall total 9+4).\n"
 					"\n"
-					"Available cancels may change between hit and whiff, and if the animation is canceled prematurely, not all cancells, that are still there in the move,"
+					"Available cancels may change between hit and whiff. And, if the animation is canceled prematurely, then not all cancels that are still there in the move"
 					" may be displayed, because the information is being gathered from the player character directly every frame and not by reading"
 					" the move's script (bbscript) ahead or in advance.\n"
 					"\n"
@@ -1096,9 +1104,6 @@ void UI::drawSearchableWindows() {
 		pushSearchStack("Main UI Window");
 		
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Framedata"), ImGuiTreeNodeFlags_DefaultOpen) || searching) {
-			if (endScene.isIGiveUp() && !searching) {
-				ImGui::TextUnformatted("Online non-observer match running.");
-			} else
 			if (ImGui::BeginTable("##PayerData", 3, tableFlags)) {
 				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 				ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
@@ -1117,7 +1122,7 @@ void UI::drawSearchableWindows() {
 				drawPlayerIconWithTooltip(1);
 				
 				{
-					PlayerInfo& player = endScene.players[0];
+					PlayerInfo& player = endScene.currentState->players[0];
 					ImGui::TableNextColumn();
 					sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
 					stringArena = strbuf;
@@ -1134,7 +1139,7 @@ void UI::drawSearchableWindows() {
 					"Technically you should divide HP by these values in order to get effective HP, because they're what all damage is multiplied by."));
 				
 				{
-					PlayerInfo& player = endScene.players[1];
+					PlayerInfo& player = endScene.currentState->players[1];
 					ImGui::TableNextColumn();
 					sprintf_s(strbuf, "%-3d ", player.hp);
 					stringArena = strbuf;
@@ -1145,7 +1150,7 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(stringArena.c_str());
 				}
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					sprintf_s(strbuf, "%s", printDecimal(player.tension, 2, 0));
 					printNoWordWrap
@@ -1157,7 +1162,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					sprintf_s(strbuf, "%s", printDecimal(player.burst, 2, 0));
 					printNoWordWrap
@@ -1168,7 +1173,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					sprintf_s(strbuf, "%s", printDecimal(player.risc, 2, 0));
 					printNoWordWrap
@@ -1179,7 +1184,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					const char* formatString;
 					if (i == 0) {
@@ -1202,7 +1207,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					printDecimal(player.x, 2, 0);
 					sprintf_s(strbuf, "%s; ", printdecimalbuf);
@@ -1217,12 +1222,12 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					player.printStartup(strbufs[i], sizeof strbuf, &nameParts[i]);
 				}
 				startupOrTotal(two, "Startup", PinnedWindowEnum_StartupFieldHelp);
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					if (player.startedUp || player.startupProj) {
 						printActiveWithMaxHit(player.activesDisp, player.maxHitDisp, player.hitOnFrameDisp);
@@ -1237,7 +1242,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					player.printRecovery(strbuf, sizeof strbuf);
 					printWithWordWrap
@@ -1251,12 +1256,12 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					player.printTotal(strbufs[i], sizeof strbuf, &nameParts[i]);
 				}
 				startupOrTotal(two, "Total", PinnedWindowEnum_TotalFieldHelp);
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					player.printInvuls(strbuf, sizeof strbuf);
 					searchFieldValue(strbuf, nullptr);
@@ -1304,7 +1309,7 @@ void UI::drawSearchableWindows() {
 					int displayBlockstunLandQuestionMarkValue = 0;
 				} playerBlocks[2];
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
 						if (player.hitstunMaxFloorbounceExtra) {
 							playerBlocks[i].displayFloorbounceQuestionMarkValue = player.hitstunMaxFloorbounceExtra;
@@ -1318,7 +1323,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					*strbuf = '\0';
 					int strbufLen = 0;
@@ -1480,7 +1485,7 @@ void UI::drawSearchableWindows() {
 				
 				bool oneWillIncludeParentheses = false;
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					int frameAdvantage = dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage;
 					int landingFrameAdvantage = dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage;
 					if (player.frameAdvantageValid && player.landingFrameAdvantageValid
@@ -1491,7 +1496,7 @@ void UI::drawSearchableWindows() {
 				}
 				
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					
 					ImGui::TableNextColumn();
 					frameAdvantageControl(
@@ -1513,7 +1518,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					player.printGaps(strbuf, sizeof strbuf);
 					printWithWordWrap
@@ -1526,7 +1531,7 @@ void UI::drawSearchableWindows() {
 				}
 				if (!settings.dontShowMoveName) {
 					for (int i = 0; i < 2; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						if (printMoveField(player)) {
 							printWithWordWrap
@@ -1567,7 +1572,7 @@ void UI::drawSearchableWindows() {
 				}
 				if (settings.showDebugFields) {
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%s", formatBoolean(player.idle));
 						printNoWordWrap
@@ -1578,7 +1583,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%s", formatBoolean(player.canBlock));
 						printNoWordWrap
@@ -1589,7 +1594,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%s", formatBoolean(player.canFaultlessDefense));
 						printNoWordWrap
@@ -1600,7 +1605,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
 						printNoWordWrap
@@ -1611,7 +1616,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idleLanding), player.timePassedLanding);
 						printNoWordWrap
@@ -1623,7 +1628,7 @@ void UI::drawSearchableWindows() {
 					}
 					const bool useSlang = settings.useSlangNames;
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						const char* names[3] { nullptr };
 						if (player.moveNonEmpty) {
@@ -1670,7 +1675,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%d", player.animFrame);
 						printNoWordWrap
@@ -1682,7 +1687,7 @@ void UI::drawSearchableWindows() {
 					}
 					if (settings.showDebugFields) {
 						for (int i = 0; i < two; ++i) {
-							PlayerInfo& player = endScene.players[i];
+							PlayerInfo& player = endScene.currentState->players[i];
 							ImGui::TableNextColumn();
 							sprintf_s(strbuf, "%d", player.pawn && *aswEngine ? player.pawn.animFrameStepCounter() : 0);
 							printNoWordWrap
@@ -1694,7 +1699,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						player.sprite.print(strbuf, sizeof strbuf);
 						printNoWordWrap
@@ -1705,7 +1710,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						if (*aswEngine && player.pawn) {
 							printNoWordWrapArg(player.pawn.gotoLabelRequests())
@@ -1717,7 +1722,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%d", player.startup);
 						printNoWordWrap
@@ -1728,7 +1733,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						player.actives.print(strbuf, sizeof strbuf);
 						printWithWordWrap
@@ -1739,7 +1744,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%d", player.recovery);
 						printNoWordWrap
@@ -1750,7 +1755,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%d", player.total);
 						printNoWordWrap
@@ -1761,7 +1766,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						sprintf_s(strbuf, "%d", player.startupProj);
 						printNoWordWrap
@@ -1772,7 +1777,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						player.activesProj.print(strbuf, sizeof strbuf);
 						printWithWordWrap
@@ -1783,7 +1788,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
+						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
 						if (player.charType == CHARACTER_TYPE_ELPHELT) {
 							if (player.cmnActIndex == CmnActStand || player.cmnActIndex == CmnActCrouch2Stand) {
@@ -1816,7 +1821,7 @@ void UI::drawSearchableWindows() {
 				}
 				Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
 				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
+					PlayerInfo& player = endScene.currentState->players[i];
 					ImGui::TableNextColumn();
 					int flashCurrent = 0;
 					int flashMax = 0;
@@ -2457,7 +2462,7 @@ void UI::drawSearchableWindows() {
 				
 				float4SettingPreset(settings.framedataInFramebarScale, 0.F, FLT_MAX, 0.1F, 0.2F, 100.F);
 				
-				if (intSettingPreset(settings.framebarStoredFramesCount, 1, 1, 1, 80.F, _countof(Framebar::frames))) {
+				if (intSettingPreset(settings.framebarStoredFramesCount, 1, 1, 1, 80.F, FRAMES_MAX)) {
 					if (settings.framebarDisplayedFramesCount > settings.framebarStoredFramesCount) {
 						settings.framebarDisplayedFramesCount = settings.framebarStoredFramesCount;
 					}
@@ -2500,6 +2505,7 @@ void UI::drawSearchableWindows() {
 				keyComboControl(settings.hitboxEditMoveCameraRight);
 				keyComboControl(settings.hitboxEditMoveCameraBack);
 				keyComboControl(settings.hitboxEditMoveCameraForward);
+				keyComboControl(settings.fastForwardReplay);
 			}
 			popSearchStack();
 			if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
@@ -2530,6 +2536,8 @@ void UI::drawSearchableWindows() {
 				booleanSettingPresetWithHotkey(settings.displayInputHistoryWhenObserving, settings.toggleShowInputHistory);
 				
 				booleanSettingPresetWithHotkey(settings.displayInputHistoryInSomeOfflineModes, settings.toggleShowInputHistory);
+				
+				booleanSettingPresetWithHotkey(settings.displayInputHistoryInOnline, settings.toggleShowInputHistory);
 				
 				booleanSettingPreset(settings.showDurationsInInputHistory);
 				
@@ -2696,6 +2704,8 @@ void UI::drawSearchableWindows() {
 				
 				booleanSettingPreset(settings.showPunishMessageOnBlock);
 				
+				intSettingPreset(settings.fastForwardReplayFactor, 1, 1, 1);
+				
 				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 				ImGui::PushTextWrapPos(0.F);
 				ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above).\n"
@@ -2750,9 +2760,6 @@ void UI::drawSearchableWindows() {
 	searchCollapsibleSection(PinnedWindowEnum_TensionData);
 	if (needDraw(PinnedWindowEnum_TensionData) || searching) {
 		customBegin(PinnedWindowEnum_TensionData);
-		if (endScene.isIGiveUp() && !searching) {
-			ImGui::TextUnformatted("Online non-observer match running.");
-		} else
 		if (ImGui::BeginTable("##TensionData", 3, tableFlags)) {
 			
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
@@ -2774,7 +2781,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Tension"));
 			AddTooltip(searchTooltip("Meter"));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.tension, 2, 0);
 				ImGui::TextUnformatted(printdecimalbuf);
@@ -2785,7 +2792,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip(searchTooltip("Affects how fast you gain tension. Gained on IB, landing attacks, moving forward. Lost when moving back. Decays on its own slowly towards 0."
 				" Tension Pulse Penalty and Corner Penalty may decrease Tension Pulse over time."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%-6d / %d", player.tensionPulse, player.tensionPulse < 0 ? -25000 : 25000);
 				ImGui::TextUnformatted(strbuf);
@@ -2795,7 +2802,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Negative Penalty Active"));
 			AddTooltip(searchTooltip("When Negative Penalty is active, you receive only 20% of the tension you would without it when attacking or moving."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				ImGui::TextUnformatted(player.negativePenaltyTimer ? "Yes" : "No");
 			}
@@ -2804,7 +2811,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Negative Penalty Time Left"));
 			AddTooltip(searchTooltip("Timer that counts down how much time is remaining until Negative Penalty wears off."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.negativePenaltyTimer * 100 / 60, 2, 0);
 				sprintf_s(strbuf, "%s sec", printdecimalbuf);
@@ -2816,7 +2823,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip(searchTooltip("Tracks your progress towards reaching Negative Penalty. Negative Penalty is built up by Tension Pulse Penalty being red"
 				" or Corner Penalty being red or by moving back."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%s / 100.00", printDecimal(player.negativePenalty, 2, -6));
 				ImGui::TextUnformatted(strbuf);
@@ -2827,7 +2834,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip(searchTooltip("Reduces Tension Pulse (yellow) and at large enough values (red) increases Negative Penalty Buildup."
 				" Increases constantly by 1. Gets reduced when getting hit, landing hits, getting your attack blocked or moving forward."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%-4d / 1800", player.tensionPulsePenalty);
 				if (player.tensionPulsePenaltySeverity == 0) {
@@ -2844,7 +2851,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip(searchTooltip("Penalty for being in touch with the screen or the wall. Reduces Tension Pulse (yellow) and increases Negative Penalty (red)."
 				" Slowly decays when not in corner and gets reduced when getting hit."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%-3d / 960", player.cornerPenalty);
 				if (player.cornerPenaltySeverity == 0) {
@@ -2863,7 +2870,7 @@ void UI::drawSearchableWindows() {
 				"Distance-Based Modifier - depends on distance to the opponent.\n"
 				"Tension Pulse-Based Modifier - depends on Tension Pulse."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%s * %d%c", printDecimal(player.tensionPulsePenaltyGainModifier_distanceModifier, 0, -3, true),
 					player.tensionPulsePenaltyGainModifier_tensionPulseModifier, '%');
@@ -2872,7 +2879,7 @@ void UI::drawSearchableWindows() {
 			
 			bool comboHappening = false;
 			for (int i = 0; i < two; ++i) {
-				if (endScene.players[i].inHitstun) {
+				if (endScene.currentState->players[i].inHitstun) {
 					comboHappening = true;
 					break;
 				}
@@ -2912,7 +2919,7 @@ void UI::drawSearchableWindows() {
 				"\n"
 				"If the opponent blocked or armored the move, the tension gain on attack is halved."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%s", printDecimal(player.tensionGainModifier_distanceModifier, 0, -3, true));
 				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s", printDecimal(player.tensionGainModifier_negativePenaltyModifier, 0, -3, true));
@@ -2966,7 +2973,7 @@ void UI::drawSearchableWindows() {
 				"When blocking, the tension gained is the damage / 3, round down, then * 3. The damage is the base damage, prior to chip damage calculation,"
 				" and doesn't depend on guts."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%s", printDecimal(player.tensionGainModifier_distanceModifier, 0, -3, true));
 				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf),
@@ -2993,7 +3000,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Tension Gain On Last Hit"));
 			AddTooltip(searchTooltip("How much Tension was gained on a single last hit (either inflicting it or getting hit by it)."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.tensionGainOnLastHit, 2, 0);
 				ImGui::TextUnformatted(printdecimalbuf);
@@ -3003,7 +3010,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Tension Gain Last Combo"));
 			AddTooltip(searchTooltip("How much Tension was gained on the entire last performed combo (either inflicting it or getting hit by it)."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.tensionGainLastCombo, 2, 0);
 				ImGui::TextUnformatted(printdecimalbuf);
@@ -3016,7 +3023,7 @@ void UI::drawSearchableWindows() {
 				"You can clear this value by pressing a button below this table."));
 			float offsets[2];
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				offsets[i] = ImGui::GetCursorPosX();
 				printDecimal(player.tensionGainMaxCombo, 2, 0);
@@ -3045,9 +3052,6 @@ void UI::drawSearchableWindows() {
 	searchCollapsibleSection(PinnedWindowEnum_BurstGain);
 	if (needDraw(PinnedWindowEnum_BurstGain) || searching) {
 		customBegin(PinnedWindowEnum_BurstGain);
-		if (endScene.isIGiveUp() && !searching) {
-			ImGui::TextUnformatted("Online non-observer match running.");
-		} else
 		if (ImGui::BeginTable("##BurstGain", 3, tableFlags)
 		) {
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
@@ -3073,7 +3077,7 @@ void UI::drawSearchableWindows() {
 				" There are two or three percentages displayed. The first depends on combo count (combo count + 32) / 32, the second depends on some unknown thing"
 				" that scales burst gain by 20%. The third percentage is displayed when you're playing Stylish and is the stylish burst gain modifier.\n"));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				char* buf = strbuf;
 				size_t bufSize = sizeof strbuf;
@@ -3097,7 +3101,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Burst Gain On Last Hit"));
 			AddTooltip(searchFieldTitle("How much Burst was gained on a single last hit (either inflicting it or getting hit by it)."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.burstGainOnLastHit, 2, 0);
 				ImGui::TextUnformatted(printdecimalbuf);
@@ -3107,7 +3111,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Burst Gain Last Combo"));
 			AddTooltip(searchTooltip("How much Burst was gained on the entire last performed combo (either inflicting it or getting hit by it)."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.burstGainLastCombo, 2, 0);
 				ImGui::TextUnformatted(printdecimalbuf);
@@ -3120,7 +3124,7 @@ void UI::drawSearchableWindows() {
 				"You can clear this value by pressing a button below this table."));
 			float offsets[2];
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				offsets[i] = ImGui::GetCursorPosX();
 				printDecimal(player.burstGainMaxCombo, 2, 0);
@@ -3138,7 +3142,7 @@ void UI::drawSearchableWindows() {
 				"106-210 (25%-50%): 120 burst;\n"
 				"1-105 (0%-25%): 180 burst."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				int burstGainedPerSecond;
 				if (player.hp > 210) {
@@ -3176,8 +3180,8 @@ void UI::drawSearchableWindows() {
 		if (needDrawPair(PinnedWindowEnum_ComboDamage, i) || searching) {
 			ImGui::PushID(i);
 			customBeginPair(PinnedWindowEnum_ComboDamage, i);
-			PlayerInfo& player = endScene.players[i];
-			PlayerInfo& opponent = endScene.players[1 - i];
+			PlayerInfo& player = endScene.currentState->players[i];
+			PlayerInfo& opponent = endScene.currentState->players[1 - i];
 			
 			drawPlayerIconInWindowTitle(i);
 			
@@ -3232,10 +3236,6 @@ void UI::drawSearchableWindows() {
 	searchCollapsibleSection(PinnedWindowEnum_SpeedHitstunProration);
 	if (needDraw(PinnedWindowEnum_SpeedHitstunProration) || searching) {
 		customBegin(PinnedWindowEnum_SpeedHitstunProration);
-		
-		if (endScene.isIGiveUp() && !searching) {
-			ImGui::TextUnformatted("Online non-observer match running.");
-		} else
 		if (ImGui::BeginTable("##SpeedHitstunProrationDotDotDot", 3, tableFlags)) {
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.f);
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
@@ -3256,7 +3256,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("X; Y"));
 			AddTooltip(searchTooltip("Position X; Y in the arena. Divided by 100 for viewability."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.x, 2, 0);
 				sprintf_s(strbuf, "%s; ", printdecimalbuf);
@@ -3269,7 +3269,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Speed X; Y"));
 			AddTooltip(searchTooltip("Speed X; Y. Divided by 100 for viewability."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.speedX, 2, 0);
 				sprintf_s(strbuf, "%s; ", printdecimalbuf);
@@ -3282,7 +3282,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Dash Speed"));
 			AddTooltip(searchTooltip("Dash Speed X. Divided by 100 for viewability."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.pawn ? player.pawn.dashSpeed() : 0, 2, 0);
 				sprintf_s(strbuf, "%s", printdecimalbuf);
@@ -3293,7 +3293,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Gravity"));
 			AddTooltip(searchTooltip("Gravity. Divided by 100 for viewability."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.gravity, 2, 0);
 				ImGui::TextUnformatted(printdecimalbuf);
@@ -3303,7 +3303,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Weight"));
 			AddTooltip(searchTooltip("Weight is the percentage multiplier applied to received speed Y."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%d", player.weight);
 				ImGui::TextUnformatted(strbuf);
@@ -3314,7 +3314,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip(searchTooltip("The time, in seconds, of the current combo's duration. Keeps counting during hitstop. Pauses during superfreeze"
 				" and increases at half the rate when the one being comboed is affected by RC slowdown."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.comboTimer * 100 / 60, 2, 0);
 				sprintf_s(strbuf, "%s sec (%df)", printdecimalbuf, player.comboTimer);
@@ -3333,7 +3333,7 @@ void UI::drawSearchableWindows() {
 				" than 385000, the base is 900, otherwise it's 500. The modifier is 130% if the defender was touching the wall, otherwise 100%."
 				" Multiply the base value by the modifier and 175 / 10, round down to get resulting pushback, divide by 100 for viewability."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.pushback, 2, 0);
 				sprintf_s(strbuf, !player.baseFdPushback ? "%s / " : "%s / (", printdecimalbuf);
@@ -3356,7 +3356,7 @@ void UI::drawSearchableWindows() {
 				"Air block: 800,  850,  900,  950, 1000;\n"
 				"Hit: 1300, 1400, 1500, 1750, 2000;\n"));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%d", player.basePushback);
 				ImGui::TextUnformatted(strbuf);
@@ -3374,7 +3374,7 @@ void UI::drawSearchableWindows() {
 				", >= 240 --> 136%, >= 180 --> 124%, >= 120 --> 114%, >= 60 --> 106%."
 				" IB modifier is non-100 on IB: air IB 10%, ground IB 90%."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%d%c * %d%c * %d%c * %d%c = %d%c", player.attackPushbackModifier, '%', player.hitstunPushbackModifier, '%',
 					player.comboTimerPushbackModifier, '%', player.ibPushbackModifier, '%',
@@ -3409,7 +3409,7 @@ void UI::drawSearchableWindows() {
 				"Hitting the opponent with a move that deals higher damage, but is slower, might not launch them higher"
 				" than a weaker, but fast move that hits them earlier, due to the opponent constantly descending down."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (!player.receivedSpeedYValid) {
 					ImGui::TextUnformatted("???");
@@ -3436,7 +3436,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip(searchTooltip("This is updated only when a hit happens."
 				"Combo timer at the time of the hit affects hitstun proration (see Hitstun Proration's tooltip for info)."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				printDecimal(player.lastHitComboTimer * 100 / 60, 2, 0);
 				sprintf_s(strbuf, "%s sec (%df)", printdecimalbuf, player.lastHitComboTimer);
@@ -3460,7 +3460,7 @@ void UI::drawSearchableWindows() {
 				"Combo timer keeps counting during hitstop, pauses during superfreeze"
 				" and increases at half the rate when the one being comboed is affected by RC slowdown."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (!player.hitstunProrationValid) {
 					ImGui::TextUnformatted("--");
@@ -3474,7 +3474,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Double Jumps"));
 			AddTooltip(searchTooltip("Available double jumps."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (*aswEngine && player.pawn) {
 					sprintf_s(strbuf, "%d/%d", player.pawn.remainingDoubleJumps(), player.pawn.maxDoubleJumps());
@@ -3486,7 +3486,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Airdashes"));
 			AddTooltip(searchTooltip("Available airdashes."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (*aswEngine && player.pawn) {
 					sprintf_s(strbuf, "%d/%d", player.pawn.remainingAirDashes(), player.pawn.maxAirdashes());
@@ -3499,7 +3499,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip(searchTooltip("The Y of the last connected attack. This value is divided by 100 for viewability."
 				" If the attack connected at Y < 1750.00, the hitstun animation is low, otherwise it is high."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (*aswEngine && player.pawn) {
 					printDecimal((int)player.pawn.attackY(), 2, 0);
@@ -3512,7 +3512,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip(searchTooltip("Displays wakeup timing or time until able to act after air recovery (airtech)."
 				" Format: Time remaining until able to act / Total wakeup or airtech time."));
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%2d/%2d", player.wakeupTiming ? player.wakeupTimingWithSlow : 0, player.wakeupTimingMaxWithSlow);
 				ImGui::TextUnformatted(strbuf);
@@ -3546,7 +3546,7 @@ void UI::drawSearchableWindows() {
 				ProjectileInfo* side[2] { nullptr };
 			};
 			std::vector<Row> rows;
-			for (ProjectileInfo& projectile : endScene.projectiles) {
+			for (ProjectileInfo& projectile : endScene.currentState->projectiles) {
 				bool found = false;
 				for (Row& row : rows) {
 					if (!row.side[projectile.team]) {
@@ -3820,7 +3820,7 @@ void UI::drawSearchableWindows() {
 		if (needDrawPair(PinnedWindowEnum_CharSpecific, i) || searching) {
 			ImGui::PushID(i);
 			customBeginPair(PinnedWindowEnum_CharSpecific, i);
-			PlayerInfo& player = endScene.players[i];
+			PlayerInfo& player = endScene.currentState->players[i];
 			
 			GGIcon scaledIcon;
 			if (player.charType == CHARACTER_TYPE_SOL && player.playerval0) {
@@ -3832,10 +3832,7 @@ void UI::drawSearchableWindows() {
 			
 			if (!*aswEngine || !player.pawn) {
 				ImGui::TextUnformatted("Match not running");
-			} else if (endScene.isIGiveUp() && !searching) {
-				ImGui::TextUnformatted("Online non-observer match running.");
-			} else
-			if (player.charType == CHARACTER_TYPE_SOL) {
+			} else if (player.charType == CHARACTER_TYPE_SOL) {
 				if (player.playerval0) {
 					GGIcon scaledIcon = scaleGGIconToHeight(DISolIcon, 14.F);
 					drawGGIcon(scaledIcon);
@@ -4803,7 +4800,7 @@ void UI::drawSearchableWindows() {
 				}
 				ImGui::PopTextWrapPos();
 			} else if (player.charType == CHARACTER_TYPE_FAUST) {
-				const PlayerInfo& otherPlayer = endScene.players[1 - player.index];
+				const PlayerInfo& otherPlayer = endScene.currentState->players[1 - player.index];
 				if (!otherPlayer.poisonDuration) {
 					ImGui::TextUnformatted(searchFieldTitle("Opponent not poisoned."));
 				} else {
@@ -6124,7 +6121,7 @@ void UI::drawSearchableWindows() {
 					ServantInfo& servant = servants[j];
 					for (int k = 1; k <= 2; ++k) {
 						ProjectileInfo* projectile = nullptr;
-						for (ProjectileInfo& iter : endScene.projectiles) {
+						for (ProjectileInfo& iter : endScene.currentState->projectiles) {
 							if (iter.ptr && iter.team == i && (*(DWORD*)(iter.ptr + 0x120) & servant.mask) != 0
 									&& iter.ptr.mem47() == k) {
 								projectile = &iter;
@@ -6634,9 +6631,6 @@ void UI::drawSearchableWindows() {
 	searchCollapsibleSection(PinnedWindowEnum_BoxExtents);
 	if (needDraw(PinnedWindowEnum_BoxExtents) || searching) {
 		customBegin(PinnedWindowEnum_BoxExtents);
-		if (endScene.isIGiveUp() && !searching) {
-			ImGui::TextUnformatted("Online non-observer match running.");
-		} else
 		if (ImGui::BeginTable("##PlayerData", 3, tableFlags)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
@@ -6656,7 +6650,7 @@ void UI::drawSearchableWindows() {
 			drawPlayerIconWithTooltip(1);
 			
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (player.hurtboxTopBottomValid) {
 					sprintf_s(strbuf, "from %d to %d",
@@ -6677,7 +6671,7 @@ void UI::drawSearchableWindows() {
 			}
 			
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (player.hitboxTopBottomValid) {
 					sprintf_s(strbuf, "from %d to %d",
@@ -6700,7 +6694,7 @@ void UI::drawSearchableWindows() {
 			}
 			
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (player.throwRangeValid) {
 					sprintf_s(strbuf, "%d", player.throwRange);
@@ -6719,7 +6713,7 @@ void UI::drawSearchableWindows() {
 			}
 			
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (player.throwXValid) {
 					sprintf_s(strbuf, "from %d to %d",
@@ -6740,7 +6734,7 @@ void UI::drawSearchableWindows() {
 			}
 			
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (player.throwYValid) {
 					sprintf_s(strbuf, "from %d to %d",
@@ -6761,7 +6755,7 @@ void UI::drawSearchableWindows() {
 			}
 			
 			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
+				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%d; %d", player.pushboxWidth, player.pushboxHeight);
 				printNoWordWrap
@@ -6792,7 +6786,7 @@ void UI::drawSearchableWindows() {
 			const float wrapWidth = ImGui::GetContentRegionAvail().x;
 			ImGui::PushTextWrapPos(wrapWidth);
 			
-			const PlayerInfo& player = endScene.players[i];
+			const PlayerInfo& player = endScene.currentState->players[i];
 			
 			const bool useSlang = settings.useSlangNames;
 			const char* lastName = nullptr;
@@ -6861,7 +6855,7 @@ void UI::drawSearchableWindows() {
 			customBeginPair(PinnedWindowEnum_DamageCalculation, i);
 			drawPlayerIconInWindowTitle(i);
 			
-			const PlayerInfo& player = endScene.players[1 - i];
+			const PlayerInfo& player = endScene.currentState->players[1 - i];
 			
 			struct ComboProration {
 				const char* name;
@@ -8235,13 +8229,11 @@ void UI::drawSearchableWindows() {
 			customBeginPair(PinnedWindowEnum_StunMash, i);
 			drawPlayerIconInWindowTitle(i);
 			
-			const PlayerInfo& player = endScene.players[i];
+			const PlayerInfo& player = endScene.currentState->players[i];
 			
 			if (player.pawn) {
 				bool kizetsu = player.pawn.dizzyMashAmountLeft() > 0 || player.cmnActIndex == CmnActKizetsu;
-				if (endScene.isIGiveUp() && !searching) {
-					ImGui::TextUnformatted("Online non-observer match running.");
-				} else if (!player.pawn) {
+				if (!player.pawn) {
 					ImGui::TextUnformatted("A match isn't currently running");
 				} else if (player.cmnActIndex != CmnActJitabataLoop && !kizetsu) {
 					ImGui::TextUnformatted(searchFieldTitle("Not in stagger/stun"));
@@ -8440,7 +8432,7 @@ void UI::drawSearchableWindows() {
 			ImGui::PushID(i);
 			ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
 			customBeginPair(PinnedWindowEnum_ComboRecipe, i);
-			PlayerInfo& player = endScene.players[i];
+			PlayerInfo& player = endScene.currentState->players[i];
 			
 			drawPlayerIconInWindowTitle(i);
 			
@@ -10484,9 +10476,6 @@ bool UI::needShowFramebar() const {
 			return settings.showFramebarInReplayMode;
 		} else if (
 			!(
-				mode == GAME_MODE_NETWORK
-				&& game.getPlayerSide() != 2  // 2 means observer
-			) && !(
 				mode == GAME_MODE_VERSUS
 				&& game.bothPlayersHuman()
 			)
@@ -11602,7 +11591,7 @@ static inline void printInputsRowP2(ImDrawList* drawList, float x, float y,
 
 // runs on the main thread
 void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerIndex) {
-	CharacterType charType = endScene.players[playerIndex].charType;
+	CharacterType charType = endScene.currentState->players[playerIndex].charType;
 	
 	FrameCancelInfoStored* cancelsUse;
 	if (frame.cancels) {
@@ -11612,8 +11601,6 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 		static bool emptyCancelsInitialized = false;
 		if (!emptyCancelsInitialized) {
 			emptyCancelsInitialized = true;
-			emptyCancels.gatlings.count = 0;
-			emptyCancels.whiffCancels.count = 0;
 			emptyCancels.whiffCancelsNote = nullptr;
 		}
 		cancelsUse = &emptyCancels;
@@ -11857,7 +11844,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	static const StringWithLength invulTitle = "Invul: ";
 	frame.printInvuls(strbuf, sizeof strbuf - invulTitle.length);
 	
-	CharacterType charType = endScene.players[playerIndex].charType;
+	CharacterType charType = endScene.currentState->players[playerIndex].charType;
 	if (charType == CHARACTER_TYPE_JACKO && frame.u.jackoInfo.hasAegisField) {
 		ImGui::TextUnformatted("Aegis Field active.");
 	}
@@ -12583,7 +12570,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	
 	if (frame.needShowAirOptions) {
 		ImGui::Separator();
-		const PlayerInfo& player = endScene.players[playerIndex];
+		const PlayerInfo& player = endScene.currentState->players[playerIndex];
 		Entity pawn = player.pawn;
 		sprintf_s(strbuf, "Double jumps: %d/%d; Airdashes: %d/%d;",
 			frame.doubleJumps,
@@ -12636,7 +12623,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (frame.airthrowDisabled) {
 			ImGui::TextUnformatted("Airthrow disabled.");
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-			if (endScene.players[playerIndex].charType == CHARACTER_TYPE_BEDMAN) {
+			if (endScene.currentState->players[playerIndex].charType == CHARACTER_TYPE_BEDMAN) {
 				ImGui::TextUnformatted("Hover disables airthrow for the remainder of being in the air.");
 			} else {
 				ImGui::TextUnformatted("Airdashing disables airthrow for the remainder of being in the air.");
@@ -12715,7 +12702,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (ci.invis || ci.wallTime) {
 			ImGui::Separator();
 			if (ci.invis) {
-				printChippInvisibility(ci.invis, endScene.players[playerIndex].maxDI);
+				printChippInvisibility(ci.invis, endScene.currentState->players[playerIndex].maxDI);
 			}
 			if (ci.wallTime) {
 				zerohspacing
@@ -12892,7 +12879,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			sprintf_s(strbuf, "%d/%d", ri.slowTime, ri.slowTimeMax);
 			ImGui::TextUnformatted(strbuf);
 			_zerohspacing
-			CharacterType opponentCharType = endScene.players[1 - playerIndex].charType;
+			CharacterType opponentCharType = endScene.currentState->players[1 - playerIndex].charType;
 			if (opponentCharType == CHARACTER_TYPE_ZATO
 					|| opponentCharType == CHARACTER_TYPE_LEO
 					|| opponentCharType == CHARACTER_TYPE_DIZZY) {
@@ -13349,39 +13336,306 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 	
 }
 
+struct FrameIteratorPlayer {
+	int indexNext;
+	int index;
+	PlayerFrame* frame;
+	PlayerFramebar& framebar;
+	int startFrame;
+	PlayerFrame emptyFrame { };
+	int emptinessStart1;
+	// inclusive
+	int emptinessEnd1;
+	int emptinessStart2;
+	// inclusive
+	int emptinessEnd2;
+	inline FrameIteratorPlayer(PlayerFramebar& framebar) : framebar(framebar) {
+		indexNext = iterateVisualFramesFrom0_getInitialInternalInd();
+		
+		startFrame = drawFramebars_framebarPosition - min(FRAMES_MAX, drawFramebars_framebarTotalFramesUnlimited_withScroll) + 1;
+		if (startFrame < 0) startFrame += _countof(PlayerFramebar::frames);
+		
+		if (drawFramebars_framebarTotalFramesUnlimited_withScroll < drawFramebars_framesCount) {
+			if (drawFramebars_framebarPosition == _countof(PlayerFramebar::frames) - 1) {
+				emptinessStart1 = 0;
+				emptinessEnd1 = drawFramebars_framebarPosition - drawFramebars_framebarTotalFramesUnlimited_withScroll;
+				emptinessStart2 = -1;
+				emptinessEnd2 = -1;
+			} else if (drawFramebars_framebarPosition >= drawFramebars_framebarTotalFramesUnlimited_withScroll) {
+				emptinessStart1 = 0;
+				emptinessEnd1 = drawFramebars_framebarPosition - drawFramebars_framebarTotalFramesUnlimited_withScroll;
+				emptinessStart2 = drawFramebars_framebarPosition + 1;
+				emptinessEnd2 = _countof(PlayerFramebar::frames) - 1;
+			} else {
+				emptinessStart1 = -1;
+				emptinessEnd1 = -1;
+				emptinessStart2 = drawFramebars_framebarPosition + 1;
+				emptinessEnd2 = drawFramebars_framebarPosition - drawFramebars_framebarTotalFramesUnlimited_withScroll + _countof(PlayerFramebar::frames);
+			}
+		} else {
+			emptinessStart1 = -1;
+			emptinessEnd1 = -1;
+			emptinessStart2 = -1;
+			emptinessEnd2 = -1;
+		}
+	}
+	inline void advance() {
+		index = indexNext;
+		iterateVisualFrames_incrementInternalInd(indexNext);
+		frame = index >= emptinessStart1 && index <= emptinessEnd1 || index >= emptinessStart2 && index <= emptinessEnd2
+			? &emptyFrame
+			: &framebar[index];
+	}
+	inline void actionBeforeDrawingTooltip() { }
+	inline bool isStartFrame() const {
+		return index == startFrame;
+	}
+	inline PlayerFrame& getPrevFrame() {
+		int prevPos = EntityFramebar::posMinusOne(index);
+		return prevPos >= emptinessStart1 && prevPos <= emptinessEnd1 || prevPos >= emptinessStart2 && prevPos <= emptinessEnd2
+			? emptyFrame
+			: framebar[prevPos];
+	}
+	inline FrameType getPreFrameMapped() const {
+		return framebar.stateHead->preFrameMapped;
+	}
+};
+
+struct FrameIteratorProjectile {
+	int index_RELATIVENext;
+	int index_RELATIVE;
+	int indexNext;
+	int index;
+	Frame idleFrame { };
+	Frame undefinedFrame { };
+	int framebarPositionRel;
+	Framebar& framebar;
+	Frame* frame;
+	// these coordinates are relative to the positionStart of the 'framebar'. Ends are inclusive. In [0;_countof(PlayerFramebar::frames)] coordinate space
+	int idleStart, idleEnd, undefinedStart, undefinedEnd;
+	int startFrame;
+	inline FrameIteratorProjectile(Framebar& framebar) : framebar(framebar) {
+		int pos = drawFramebars_framebarPosition + ui.framebarSettings.scrollXInFrames;
+		if (pos >= (int)_countof(PlayerFramebar::frames)) {
+			pos -= _countof(PlayerFramebar::frames);
+		}
+		framebar.getLastTitle(pos, &idleFrame.title);
+		
+		framebarPositionRel = framebar.toRelative(drawFramebars_framebarPosition);
+		index_RELATIVENext = drawFramebars_framebarPosition - drawFramebars_framebarPositionDisplay;
+		if (index_RELATIVENext < 0) index_RELATIVENext += _countof(PlayerFramebar::frames);
+		index_RELATIVENext = framebar.toRelative(index_RELATIVENext);
+		
+		int idleTimeUse = framebar.stateHead->idleTime;
+		int realTimeUse;
+		if (idleTimeUse >= ui.framebarSettings.scrollXInFrames) {
+			idleTimeUse -= ui.framebarSettings.scrollXInFrames;
+			realTimeUse = framebar.stateHead->framesCount;
+		} else {
+			realTimeUse = framebar.stateHead->framesCount - (ui.framebarSettings.scrollXInFrames - idleTimeUse);
+			idleTimeUse = 0;
+		}
+		if (realTimeUse + idleTimeUse < 0) {
+			idleStart = -1;
+			idleEnd = -1;
+			undefinedStart = 0;
+			undefinedEnd = _countof(PlayerFramebar::frames) - 1;
+			startFrame = -1;
+		} else {
+			if (drawFramebars_framebarTotalFramesUnlimited_withScroll < realTimeUse + idleTimeUse) {
+				if (drawFramebars_framebarTotalFramesUnlimited_withScroll <= idleTimeUse) {
+					realTimeUse = 0;
+					idleTimeUse = drawFramebars_framebarTotalFramesUnlimited_withScroll;
+				} else {
+					realTimeUse = drawFramebars_framebarTotalFramesUnlimited_withScroll - idleTimeUse;
+				}
+			}
+			
+			if (idleTimeUse) {
+				if (idleTimeUse >= (int)_countof(PlayerFramebar::frames)) {
+					idleStart = 0;
+					idleEnd = _countof(PlayerFramebar::frames) - 1;
+					// some obviously impossible position
+					undefinedStart = _countof(PlayerFramebar::frames);
+					undefinedEnd = _countof(PlayerFramebar::frames);
+				} else {
+					idleStart = realTimeUse == _countof(PlayerFramebar::frames) ? 0 : realTimeUse;
+					idleEnd = EntityFramebar::confinePos(idleStart + idleTimeUse - 1);
+					if (realTimeUse + idleTimeUse < (int)_countof(PlayerFramebar::frames)) {
+						undefinedStart = idleEnd + 1;
+						undefinedEnd = _countof(PlayerFramebar::frames) - 1;
+					} else {
+						// some obviously impossible position
+						undefinedStart = _countof(PlayerFramebar::frames);
+						undefinedEnd = _countof(PlayerFramebar::frames);
+					}
+				}
+			} else {
+				// some obviously impossible position
+				idleStart = _countof(PlayerFramebar::frames);
+				idleEnd = _countof(PlayerFramebar::frames);
+				if (realTimeUse < (int)_countof(PlayerFramebar::frames)) {
+					undefinedStart = realTimeUse;
+					undefinedEnd = _countof(PlayerFramebar::frames) - 1;
+				} else {
+					// some obviously impossible position
+					undefinedStart = _countof(PlayerFramebar::frames);
+					undefinedEnd = _countof(PlayerFramebar::frames);
+				}
+			}
+			
+			if (realTimeUse + idleTimeUse <= drawFramebars_framesCount) {
+				startFrame = framebar.toRelative(EntityFramebar::confinePos(
+						drawFramebars_framebarPosition
+						- realTimeUse
+						- idleTimeUse
+						+ 1
+					));
+			} else {
+				startFrame = -1;
+			}
+		}
+		
+		indexNext = iterateVisualFramesFrom0_getInitialInternalInd();
+	}
+	inline void advance() {
+		index_RELATIVE = index_RELATIVENext;
+		if (index_RELATIVENext == framebarPositionRel) {
+			index_RELATIVENext = framebarPositionRel - drawFramebars_framesCount + 1;
+			if (index_RELATIVENext < 0) {
+				index_RELATIVENext += _countof(PlayerFramebar::frames);
+			}
+		} else if (index_RELATIVENext == _countof(PlayerFramebar::frames) - 1) {
+			index_RELATIVENext = 0;
+		} else {
+			++index_RELATIVENext;
+		}
+		frame = (
+			idleStart <= idleEnd
+			? index_RELATIVE >= idleStart && index_RELATIVE <= idleEnd
+			: index_RELATIVE >= idleStart || index_RELATIVE <= idleEnd
+		) ? &idleFrame
+		: (
+			undefinedStart <= undefinedEnd
+			? index_RELATIVE >= undefinedStart && index_RELATIVE <= undefinedEnd
+			: index_RELATIVE >= undefinedStart || index_RELATIVE <= undefinedEnd
+		) ? &undefinedFrame
+		: &framebar[index_RELATIVE];
+		
+		
+		index = indexNext;
+		iterateVisualFrames_incrementInternalInd(indexNext);
+	}
+	inline void actionBeforeDrawingTooltip() {
+		for (Frame* framePtr = frame->next; framePtr; framePtr = framePtr->next) {
+			framePtr->accountedFor = false;
+		}
+	}
+	inline bool isStartFrame() const {
+		return index_RELATIVE == startFrame;
+	}
+	inline Frame& getPrevFrame() {
+		int prevIndexRel = EntityFramebar::posMinusOne(index_RELATIVE);
+		return
+			(
+				idleStart <= idleEnd
+				? prevIndexRel >= idleStart && prevIndexRel <= idleEnd
+				: prevIndexRel >= idleStart || prevIndexRel <= idleEnd
+			) ? idleFrame
+			: (
+				undefinedStart <= undefinedEnd
+				? prevIndexRel >= undefinedStart && prevIndexRel <= undefinedEnd
+				: prevIndexRel >= undefinedStart || prevIndexRel <= undefinedEnd
+			) ? undefinedFrame
+			: framebar[prevIndexRel];
+	}
+	inline FrameType getPreFrameMapped() const {
+		return framebar.stateHead->preFrameMapped;
+	}
+};
+
+struct FrameIteratorCombinedProjectile {
+	int index_COMBINEDPROJECTILESPACENext;
+	int index_COMBINEDPROJECTILESPACE;
+	int indexNext;
+	int index;
+	Frame* frame;
+	CombinedProjectileFramebar& framebar;
+	int startFrame;
+	inline FrameIteratorCombinedProjectile(CombinedProjectileFramebar& framebar) : framebar(framebar) {
+		// internal position
+		// despite being able to accomodate FRAMES_MAX frames, combined projectile framebars only get filled to drawFramebars_framesCount frames
+		// this also means you cannot possibly go out of their bounds
+		startFrame = drawFramebars_framesCount == 1 ? 0 : FRAMES_MAX - drawFramebars_framesCount + 1;
+		// the internal position that corresponds to visual position 0
+		index_COMBINEDPROJECTILESPACENext = drawFramebars_framebarPositionDisplay == 0 ? 0 : FRAMES_MAX - drawFramebars_framebarPositionDisplay;
+		
+		indexNext = iterateVisualFramesFrom0_getInitialInternalInd();
+	}
+	inline void advance() {
+		index_COMBINEDPROJECTILESPACE = index_COMBINEDPROJECTILESPACENext;
+		if (index_COMBINEDPROJECTILESPACENext == 0) {
+			index_COMBINEDPROJECTILESPACENext = FRAMES_MAX - drawFramebars_framesCount + 1;
+		} else if (index_COMBINEDPROJECTILESPACENext == FRAMES_MAX - 1) {
+			index_COMBINEDPROJECTILESPACENext = 0;
+		} else {
+			++index_COMBINEDPROJECTILESPACENext;
+		}
+		frame = &framebar[index_COMBINEDPROJECTILESPACE];
+		
+		index = indexNext;
+		iterateVisualFrames_incrementInternalInd(indexNext);
+	}
+	inline void actionBeforeDrawingTooltip() { }
+	inline bool isStartFrame() const {
+		return index_COMBINEDPROJECTILESPACE == startFrame;
+	}
+	inline Frame& getPrevFrame() {
+		int prevIndex;
+		if (index_COMBINEDPROJECTILESPACE == 0) {
+			prevIndex = FRAMES_MAX - 1;
+		// startFrame already checked before this call in drawFirstFramesUniversal
+		} else {
+			prevIndex = index_COMBINEDPROJECTILESPACE - 1;
+		}
+		return framebar[prevIndex];
+	}
+	inline FrameType getPreFrameMapped() const {
+		return framebar.preFrameMapped;
+	}
+};
+
 /// <summary>
 /// Draws backgrounds of frames - the base frame graphics. Also registers mouse hovering over a frame and draws the frame tooltip window.
 /// runs on the main thread
 /// </summary>
-/// <typeparam name="FramebarT">Possible values: PlayerFramebar, Framebar</typeparam>
-/// <typeparam name="FrameT">Possible values: PlayerFrame, Frame</typeparam>
+/// <typeparam name="FramebarT"></typeparam>
+/// <typeparam name="FrameT"></typeparam>
+/// <typeparam name="FrameIteratorHelper"></typeparam>
+/// <typeparam name="activeFrame"></typeparam>
 /// <param name="framebar">Either main or hitstop framebar</param>
 /// <param name="preppedDims">X positions and widths of each on-screen frame</param>
 /// <param name="tintDarker">Color to be used as the tint for darkened, older frames that are behind drawFramebars_framebarPosition</param>
 /// <param name="playerIndex">Index of the player. 0 or 1. For projectiles it is -1</param>
-/// <param name="skippedFrames">Contains _countof(Framebar::frames) elements. For each frame, describes whether hitstop/superfreeze/etc was skipped and how many frames were skipped</param>
+/// <param name="skippedFrames">Contains _countof(PlayerFramebar::frames) elements. For each frame, describes whether hitstop/superfreeze/etc was skipped and how many frames were skipped</param>
 /// <param name="correspondingPlayersFramebar">If this is a projectile framebar, then framebar of the player that corresponds to or owns this projectile is given</param>
 /// <param name="owningPlayerCharType">If this is a projectile, then this is the character type of the corresponding or owner player</param>
-template<typename FramebarT, typename FrameT>
-inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
+template<typename FramebarT, typename FrameT, FrameType activeFrame, typename FrameIteratorHelper>
+inline void drawFramebarUniversal(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
 			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar,
 			CharacterType owningPlayerCharType, float frameHeight, const FrameAddon& newHitArt,
 			const HitConnectedArtSelector& hitConnectedArtSelector) {
 	const bool useSlang = settings.useSlangNames;
 	const int framesCount = settings.framebarDisplayedFramesCount;
 	
-	int internalINext = iterateVisualFramesFrom0_getInitialInternalInd();
-	int internalI;
+	FrameIteratorHelper frameIterator(framebar);
 	
 	for (int visualI = 0; visualI < drawFramebars_framesCount; ++visualI) {
 		
-		internalI = internalINext;
-		iterateVisualFrames_incrementInternalInd(internalINext);
-		
-		FrameT& frame = framebar[internalI];
-		const Frame& projectileFrame = (const Frame&)frame;
-		const PlayerFrame& correspondingPlayersFrame = correspondingPlayersFramebar[internalI];
-		const SkippedFramesInfo& skippedFramesElem = skippedFrames[internalI];
+		frameIterator.advance();
+		FrameT& frame = *frameIterator.frame;
+		const PlayerFrame& correspondingPlayersFrame = correspondingPlayersFramebar[frameIterator.index];
+		const SkippedFramesInfo& skippedFramesElem = skippedFrames[frameIterator.index];
 		const UI::FrameDims& dims = preppedDims[visualI];
 		
 		ImVec2 frameStartVec { dims.x, drawFramebars_y };
@@ -13428,7 +13682,7 @@ inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 
 			}
 			
 			if (frame.activeDuringSuperfreeze) {
-				const FrameArt& superfreezeActiveArt = drawFramebars_frameArtArray[playerIndex == -1 ? FT_ACTIVE_PROJECTILE : FT_ACTIVE];
+				const FrameArt& superfreezeActiveArt = drawFramebars_frameArtArray[activeFrame];
 				drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 					{
 						frameStartVec.x + dims.width * 0.5F,
@@ -13486,11 +13740,7 @@ inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 
 					bool skippedFramesShown = false;
 					bool startedSayingRepeatedNTimes = false;
 					
-					if (playerIndex == -1) {
-						for (Frame* framePtr = projectileFrame.next; framePtr; framePtr = framePtr->next) {
-							framePtr->accountedFor = false;
-						}
-					}
+					frameIterator.actionBeforeDrawingTooltip();
 					
 					drawFrameTooltip(frame, playerIndex, useSlang,
 						skippedFramesElem, owningPlayerCharType, correspondingPlayersFrame, 0,
@@ -13514,8 +13764,9 @@ inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 
 void drawPlayerFramebar(PlayerFramebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
 			const std::vector<SkippedFramesInfo>& skippedFrames, CharacterType charType, float frameHeight,
 			const FrameAddon& newHitArt, const HitConnectedArtSelector& hitConnectedArtSelector) {
-	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, tintDarker, playerIndex, skippedFrames, framebar, charType,
-		frameHeight, newHitArt, hitConnectedArtSelector);
+	drawFramebarUniversal<PlayerFramebar, PlayerFrame, FT_ACTIVE, FrameIteratorPlayer>(
+		framebar, preppedDims, tintDarker, playerIndex, skippedFrames, framebar, charType, frameHeight, newHitArt, hitConnectedArtSelector
+	);
 }
 
 // runs on the main thread
@@ -13523,26 +13774,34 @@ void drawProjectileFramebar(Framebar& framebar, UI::FrameDims* preppedDims, ImU3
 			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar,
 			CharacterType owningPlayerCharType, float frameHeight, const FrameAddon& newHitArt,
 			const HitConnectedArtSelector& hitConnectedArtSelector) {
-	drawFramebar<Framebar, Frame>(framebar, preppedDims, tintDarker, -1, skippedFrames, correspondingPlayersFramebar, owningPlayerCharType,
-		frameHeight, newHitArt, hitConnectedArtSelector);
+	drawFramebarUniversal<Framebar, Frame, FT_ACTIVE_PROJECTILE, FrameIteratorProjectile>(
+		framebar, preppedDims, tintDarker, -1, skippedFrames, correspondingPlayersFramebar, owningPlayerCharType, frameHeight, newHitArt, hitConnectedArtSelector
+	);
 }
 
 // runs on the main thread
-template<typename FramebarT, typename FrameT>
-void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY, bool* onlyReport) {
+void drawCombinedProjectileFramebar(CombinedProjectileFramebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker,
+			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar,
+			CharacterType owningPlayerCharType, float frameHeight, const FrameAddon& newHitArt,
+			const HitConnectedArtSelector& hitConnectedArtSelector) {
+	drawFramebarUniversal<CombinedProjectileFramebar, Frame, FT_ACTIVE_PROJECTILE, FrameIteratorCombinedProjectile>(
+		framebar, preppedDims, tintDarker, -1, skippedFrames, correspondingPlayersFramebar, owningPlayerCharType, frameHeight, newHitArt, hitConnectedArtSelector
+	);
+}
+
+// runs on the main thread
+template<typename FramebarT, typename FrameT, FrameType idleFrame, typename FrameIteratorHelper>
+inline void drawFirstFramesUniversal(FramebarT& framebar, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY, bool* onlyReport) {
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
 	const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
-	const int startFrame = drawFramebars_framebarPosition == _countof(Framebar::frames) - 1
-					? 0
-					: drawFramebars_framebarPosition + 1;
-	int internalIndNext = iterateVisualFramesFrom0_getInitialInternalInd();
-	int internalInd;
+	
+	FrameIteratorHelper frameIterator(framebar);
+	
 	for (int visualInd = 0; visualInd < drawFramebars_framesCount; ++visualInd) {
 		
-		internalInd = internalIndNext;
-		iterateVisualFrames_incrementInternalInd(internalIndNext);
+		frameIterator.advance();
 		
-		const FrameT& frame = framebar[internalInd];
+		const FrameT& frame = *frameIterator.frame;
 		const UI::FrameDims& dims = preppedDims[visualInd];
 		
 		bool isFirst = frame.isFirst;
@@ -13551,11 +13810,11 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 				// We're just checking considerSimilarFrameTypesSameForFrameCounts for some reason
 				
 				&& considerSimilarIdleFramesSameForFrameCounts
-				&& frameMap(frame.type) == FT_IDLE) {
-			if (internalInd == startFrame) {
-				isFirst = framebar.preFrameMapped != FT_IDLE;
+				&& frameMap(frame.type) == idleFrame) {
+			if (frameIterator.isStartFrame()) {
+				isFirst = frameIterator.getPreFrameMapped() != idleFrame;
 			} else {
-				isFirst = frameMap(framebar[internalInd == 0 ? _countof(Framebar::frames) - 1 : internalInd - 1].type) != FT_IDLE;
+				isFirst = frameMap(frameIterator.getPrevFrame().type) != idleFrame;
 			}
 		}
 		if (isFirst) {
@@ -13588,6 +13847,23 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 }
 
 // runs on the main thread
+void drawFirstFramesPlayer(PlayerFramebar& framebar, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY, bool* onlyReport) {
+	drawFirstFramesUniversal<PlayerFramebar, PlayerFrame, FT_IDLE, FrameIteratorPlayer>(framebar, preppedDims, firstFrameTopY, firstFrameBottomY, onlyReport);
+}
+
+// projectile framebars use an alien coordinate system that deviates from all others
+void drawFirstFramesProjectile(Framebar& framebar, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY, bool* onlyReport) {
+	drawFirstFramesUniversal<Framebar, Frame, FT_IDLE_PROJECTILE, FrameIteratorProjectile>(framebar, preppedDims, firstFrameTopY, firstFrameBottomY, onlyReport);
+}
+
+// combined projectile framebars also use an alien coordinate system that deviates from all others. Every kind of framebar works in a unique way, huh
+void drawFirstFramesCombinedProjectile(CombinedProjectileFramebar& framebar,
+			UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY, bool* onlyReport) {
+	drawFirstFramesUniversal<CombinedProjectileFramebar, Frame, FT_IDLE_PROJECTILE, FrameIteratorCombinedProjectile>(
+		framebar, preppedDims, firstFrameTopY, firstFrameBottomY, onlyReport);
+}
+
+// runs on the main thread
 void drawDigit(char digit, const UI::FrameDims& dims, float frameNumberYTop, float frameNumberYBottom, ImU32 tint, const DigitUVs* uvs) {
 	const DigitUVs& digitImg = uvs[digit];
 	
@@ -13604,86 +13880,389 @@ void drawDigit(char digit, const UI::FrameDims& dims, float frameNumberYTop, flo
 		tint);
 }
 
+static void drawDigitsAtPlace(int displayPosIter, int theNumber, UI::FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom,
+			char* hasDigit, const DigitUVs* uvs) {
+	int prevIndCounter = 0;
+	while (theNumber) {
+		
+		int remainder = theNumber % 10;
+		theNumber /= 10;
+		
+		drawDigit(remainder, preppedDims[displayPosIter], frameNumberYTop, frameNumberYBottom, -1, uvs);
+		
+		hasDigit[displayPosIter] = remainder + 1;
+		
+		++prevIndCounter;
+		if (displayPosIter == 0) {
+			displayPosIter = drawFramebars_framesCount - 1;
+		} else {
+			--displayPosIter;
+		}
+	}
+}
+
+struct FrameIteratorDrawDigitsPlayer {
+	FrameType lastFrameType;
+	int sameFrameTypeCount;
+	const PlayerFramebar& framebar;
+	const PlayerFrame* frame;
+	int internalInd;
+	int internalIndNext;
+	int prevVisualInd;
+	int visualInd;
+	int count;
+	inline FrameIteratorDrawDigitsPlayer(
+						const PlayerFramebar& framebar,
+						UI::FrameDims* preppedDims,
+						float frameNumberYTop,
+						float frameNumberYBottom,
+						char* hasDigit,
+						const DigitUVs* uvs
+	) : framebar(framebar) {
+		if (settings.considerSimilarFrameTypesSameForFrameCounts) {
+			if (settings.considerSimilarIdleFramesSameForFrameCounts) {
+				lastFrameType = framebar.stateHead->preFrameMapped;
+				sameFrameTypeCount = framebar.stateHead->preFrameMappedLength;
+			} else {
+				lastFrameType = framebar.stateHead->preFrameMappedNoIdle;
+				sameFrameTypeCount = framebar.stateHead->preFrameMappedNoIdleLength;
+			}
+		} else {
+			lastFrameType = framebar.stateHead->preFrame;
+			sameFrameTypeCount = framebar.stateHead->preFrameLength;
+		}
+		
+		int preFrameBuffer = _countof(PlayerFramebar::frames) - FRAMES_MAX;
+		count = (int)_countof(PlayerFramebar::frames) - ui.framebarSettings.scrollXInFrames - preFrameBuffer;
+		if (count > drawFramebars_framebarTotalFramesUnlimited_withScroll) {
+			count = drawFramebars_framebarTotalFramesUnlimited_withScroll;
+		}
+		
+		internalIndNext = EntityFramebar::confinePos(drawFramebars_framebarPosition - count + 1);
+		visualInd = -1;
+	}
+	inline bool needExit() { return false; }
+	inline void advance() {
+		internalInd = internalIndNext;
+		if (internalIndNext == _countof(PlayerFramebar::frames) - 1) {
+			internalIndNext = 0;
+		} else {
+			++internalIndNext;
+		}
+		
+		prevVisualInd = visualInd;
+		
+		if (drawFramebars_framebarPosition >= drawFramebars_framesCount - 1) {
+			if (internalInd <= drawFramebars_framebarPosition) {
+				if (internalInd >= drawFramebars_framebarPosition - drawFramebars_framesCount + 1) {
+					visualInd = drawFramebars_framebarPositionDisplay - (drawFramebars_framebarPosition - internalInd);
+					if (visualInd < 0) visualInd += drawFramebars_framesCount;
+				} else {
+					visualInd = -1;
+				}
+			} else {
+				visualInd = -1;
+			}
+		} else if (internalInd <= drawFramebars_framebarPosition) {
+			visualInd = drawFramebars_framebarPositionDisplay - (drawFramebars_framebarPosition - internalInd);
+			if (visualInd < 0) visualInd += drawFramebars_framesCount;
+		} else {
+			int startInd = drawFramebars_framebarPosition - drawFramebars_framesCount + 1 + _countof(PlayerFramebar::frames);
+			if (internalInd >= startInd) {
+				visualInd = drawFramebars_framebarPositionDisplay - drawFramebars_framesCount + 1
+					+ (internalInd - startInd);
+				if (visualInd < 0) visualInd += drawFramebars_framesCount;
+			} else {
+				visualInd = -1;
+			}
+		}
+		frame = &framebar[internalInd];
+	}
+	FrameType getPreFrameMapped() const {
+		return framebar.stateHead->preFrameMapped;
+	}
+	const PlayerFrame& getPrevFrame() {
+		return framebar[internalInd == 0 ? _countof(PlayerFramebar::frames) - 1 : internalInd - 1];
+	}
+};
+
+struct FrameIteratorDrawDigitsProjectile {
+	FrameType lastFrameType;
+	int sameFrameTypeCount;
+	const Framebar& framebar;
+	const Frame* frame;
+	int internalInd;
+	int internalIndNext;
+	int prevVisualInd;
+	int visualInd;
+	int visualIndNext;
+	int count;
+	int firstVisibleFilledFrame;
+	int visibleFramesIteratedSoFar;
+	inline FrameIteratorDrawDigitsProjectile(
+						const Framebar& framebar,
+						UI::FrameDims* preppedDims,
+						float frameNumberYTop,
+						float frameNumberYBottom,
+						char* hasDigit,
+						const DigitUVs* uvs
+	) : framebar(framebar) {
+		_needExit = false;
+		int idleUse;
+		int realUse;
+		if (ui.framebarSettings.scrollXInFrames >= framebar.stateHead->idleTime) {
+			idleUse = 0;
+			realUse = framebar.stateHead->framesCount - (ui.framebarSettings.scrollXInFrames - framebar.stateHead->idleTime);
+			if (realUse <= 0) {
+				_needExit = true;
+				return;
+			}
+		} else {
+			idleUse = framebar.stateHead->idleTime - ui.framebarSettings.scrollXInFrames;
+			realUse = framebar.stateHead->framesCount;
+		}
+		
+		if (idleUse + realUse < drawFramebars_framebarTotalFramesUnlimited_withScroll) {
+			if (idleUse >= drawFramebars_framebarTotalFramesUnlimited_withScroll) {
+				realUse = 0;
+				idleUse = drawFramebars_framebarTotalFramesUnlimited_withScroll;
+			} else {
+				realUse = drawFramebars_framebarTotalFramesUnlimited_withScroll - idleUse;
+				if (realUse <= 0) {
+					_needExit = true;
+					return;
+				}
+			}
+		}
+		
+		int preFrameBuffer = realUse > FRAMES_MAX ? realUse - FRAMES_MAX : 0;
+		
+		const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
+		const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
+		const bool showFirstFrames = settings.showFirstFramesOnFramebar;
+		
+		if (considerSimilarFrameTypesSameForFrameCounts) {
+			if (considerSimilarIdleFramesSameForFrameCounts) {
+				lastFrameType = framebar.stateHead->preFrameMapped;
+				sameFrameTypeCount = framebar.stateHead->preFrameMappedLength;
+			} else {
+				lastFrameType = framebar.stateHead->preFrameMappedNoIdle;
+				sameFrameTypeCount = framebar.stateHead->preFrameMappedNoIdleLength;
+			}
+		} else {
+			lastFrameType = framebar.stateHead->preFrame;
+			sameFrameTypeCount = framebar.stateHead->preFrameLength;
+		}
+		
+		int filledFramesSkipped;
+		int totalIdleTime;
+		int visibleIdleFrames;  // expanded to include frames we hijacked from the filled region
+		if (idleUse && realUse) {
+			filledFramesSkipped = 0;
+			// the most recent filled frame
+			int posRel = framebar.toRelative(EntityFramebar::confinePos(drawFramebars_framebarPosition - idleUse));
+			int i;
+			int framesCountButLocal = framebar.stateHead->framesCount;
+			int iEnd = realUse - preFrameBuffer;
+			int posRelPrev;
+			for (i = 0; i < iEnd; ++i) {
+				if (posRel < framesCountButLocal) {  // just in case, to not crash
+					const Frame& frame = framebar[posRel];
+					FrameType currentType = frame.type;
+					if (considerSimilarFrameTypesSameForFrameCounts) {
+						currentType = considerSimilarIdleFramesSameForFrameCounts ? frameMap(currentType) : frameMapNoIdle(currentType);
+					} else if (currentType == FT_IDLE_NO_DISPOSE) {
+						currentType = FT_IDLE_PROJECTILE;
+					}
+					
+					bool isFirst;
+					if (showFirstFrames) {
+						isFirst = frame.isFirst;
+						if (isFirst && considerSimilarFrameTypesSameForFrameCounts && considerSimilarIdleFramesSameForFrameCounts) {
+							if (i == 0) {
+								isFirst = frameMap(frame.type) != FT_IDLE_PROJECTILE;
+							} else {
+								FrameType frameTypeMapped = frameMap(frame.type);
+								isFirst = !(
+									frameTypeMapped == (
+										posRelPrev < iEnd
+											? frameMap(framebar[posRelPrev].type)
+											: FT_NONE
+									)
+									&& frameTypeMapped == FT_IDLE_PROJECTILE
+								);
+							}
+						}
+					} else {
+						isFirst = false;
+					}
+					
+					if (currentType == FT_IDLE_PROJECTILE && !isFirst) {
+						++filledFramesSkipped;
+					} else {
+						break;
+					}
+				}
+				posRelPrev = posRel;
+				EntityFramebar::decrementPos(posRel);
+			}
+			visibleIdleFrames = idleUse + filledFramesSkipped;
+			totalIdleTime = visibleIdleFrames;
+			if (i == iEnd && lastFrameType == FT_IDLE_PROJECTILE) {
+				totalIdleTime += sameFrameTypeCount;
+			}
+			int digitCount = numDigits(totalIdleTime);
+			if (digitCount >= drawFramebars_framesCount && visibleIdleFrames > 3) {
+				drawDigitsAtPlace(drawFramebars_framebarPositionDisplay, totalIdleTime, preppedDims, frameNumberYTop, frameNumberYBottom,
+					hasDigit, uvs);
+			}
+		} else {
+			visibleIdleFrames = 0;
+			totalIdleTime = 0;
+			filledFramesSkipped = 0;
+		}
+		
+		if (filledFramesSkipped >= realUse - preFrameBuffer) {
+			_needExit = true;
+			return;
+		}
+		count = realUse - filledFramesSkipped - preFrameBuffer;
+		if (count + visibleIdleFrames > drawFramebars_framesCount) {
+			firstVisibleFilledFrame = count + visibleIdleFrames - drawFramebars_framesCount;
+		} else {
+			firstVisibleFilledFrame = 0;
+		}
+		visualInd = -1;
+		visualIndNext = confineDisplayPosition(drawFramebars_framebarPositionDisplay - visibleIdleFrames - count + 1);
+		
+		internalIndNext = framebar.toRelative(EntityFramebar::confinePos(drawFramebars_framebarPosition
+				- idleUse
+				- realUse
+				+ 1
+				+ preFrameBuffer));
+		
+		visibleFramesIteratedSoFar = 0;
+	}
+	bool _needExit;
+	inline bool needExit() { return _needExit; }
+	Frame anticrashFrame { };
+	inline void advance() {
+		internalInd = internalIndNext;
+		EntityFramebar::incrementPos(internalIndNext);
+		
+		if (internalInd < framebar.stateHead->framesCount) {
+			frame = &framebar.frames[internalInd];
+		} else {
+			frame = &anticrashFrame;
+		}
+		
+		prevVisualInd = visualInd;
+		visualInd = visibleFramesIteratedSoFar >= firstVisibleFilledFrame ? visualIndNext : -1;
+		if (visualIndNext == drawFramebars_framesCount - 1) {
+			visualIndNext = 0;
+		} else {
+			++visualIndNext;
+		}
+		
+		++visibleFramesIteratedSoFar;
+	}
+	FrameType getPreFrameMapped() const {
+		return framebar.stateHead->preFrameMapped;
+	}
+	const Frame& getPrevFrame() {
+		int prevPos = EntityFramebar::posMinusOne(internalInd);
+		if (prevPos < framebar.stateHead->framesCount) {
+			return framebar[prevPos];
+		} else {
+			return anticrashFrame;
+		}
+	}
+};
+
+struct FrameIteratorDrawDigitsCombinedProjectile {
+	FrameType lastFrameType;
+	int sameFrameTypeCount;
+	const CombinedProjectileFramebar& framebar;
+	const Frame* frame;
+	int internalInd;
+	int internalIndNext;
+	int prevVisualInd;
+	int visualInd;
+	int visualIndNext;
+	int count;
+	inline FrameIteratorDrawDigitsCombinedProjectile(
+						const CombinedProjectileFramebar& framebar,
+						UI::FrameDims* preppedDims,
+						float frameNumberYTop,
+						float frameNumberYBottom,
+						char* hasDigit,
+						const DigitUVs* uvs
+	) : framebar(framebar) {
+		if (settings.considerSimilarFrameTypesSameForFrameCounts) {
+			if (settings.considerSimilarIdleFramesSameForFrameCounts) {
+				lastFrameType = framebar.preFrameMapped;
+				sameFrameTypeCount = framebar.preFrameMappedLength;
+			} else {
+				lastFrameType = framebar.preFrameMappedNoIdle;
+				sameFrameTypeCount = framebar.preFrameMappedNoIdleLength;
+			}
+		} else {
+			lastFrameType = framebar.preFrame;
+			sameFrameTypeCount = framebar.preFrameLength;
+		}
+		
+		internalIndNext = drawFramebars_framesCount == 1 ? 0 : FRAMES_MAX - drawFramebars_framesCount + 1;
+		visualInd = -1;
+		visualIndNext = drawFramebars_framebarPositionDisplay - drawFramebars_framesCount + 1;
+		if (visualIndNext < 0) {
+			visualIndNext += drawFramebars_framesCount;
+		}
+		
+		count = drawFramebars_framesCount;
+	}
+	inline bool needExit() { return false; }
+	inline void advance() {
+		internalInd = internalIndNext;
+		if (internalIndNext == FRAMES_MAX - 1) {
+			internalIndNext = 0;
+		} else {
+			++internalIndNext;
+		}
+		
+		prevVisualInd = visualInd;
+		visualInd = visualIndNext;
+		visualIndNext = visualIndNext == drawFramebars_framesCount - 1 ? 0 : visualIndNext + 1;
+		frame = &framebar[internalInd];
+	}
+	FrameType getPreFrameMapped() const {
+		return framebar.preFrameMapped;
+	}
+	const Frame& getPrevFrame() {
+		return framebar[internalInd == 0 ? FRAMES_MAX - 1 : internalInd - 1];
+	}
+};
+
 // Draws frame counts of contiguous groups of similarly-typed frames, on top of the frames
 // runs on the main thread
-template<typename FramebarT, typename FrameT>
-void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom,
+template<typename FramebarT, typename FrameT, FrameType idleFrame, typename FrameIteratorHelper>
+void drawDigits(FramebarT& framebar, UI::FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom,
 			char* hasDigit, const DigitUVs* uvs) {
 	
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
 	const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
 	
-	FrameType lastFrameType;
-	int sameFrameTypeCount;
-	if (considerSimilarFrameTypesSameForFrameCounts) {
-		if (considerSimilarIdleFramesSameForFrameCounts) {
-			lastFrameType = framebar.preFrameMapped;
-			sameFrameTypeCount = framebar.preFrameMappedLength;
-		} else {
-			lastFrameType = framebar.preFrameMappedNoIdle;
-			sameFrameTypeCount = framebar.preFrameMappedNoIdleLength;
-		}
-	} else {
-		lastFrameType = framebar.preFrame;
-		sameFrameTypeCount = framebar.preFrameLength;
-	}
 	int visualFrameCount = 0;
-	bool indInView = false;
-	int visualInd;
-	int positionWithUndoneScroll = drawFramebars_framebarPosition + ui.framebarSettings.scrollXInFrames;
-	if (positionWithUndoneScroll > _countof(Framebar::frames)) {
-		positionWithUndoneScroll -= (int)_countof(Framebar::frames);
-	}
-	int internalIndNext = positionWithUndoneScroll == _countof(Framebar::frames) - 1
-		? 0
-		: positionWithUndoneScroll + 1;
-	int internalInd;
-	bool prevIndInView = false;
-	int prevVisualInd;
 	
-	const int iEnd = (int)_countof(Framebar::frames) - ui.framebarSettings.scrollXInFrames;
+	FrameIteratorHelper frameIterator(framebar, preppedDims, frameNumberYTop, frameNumberYBottom, hasDigit, uvs);
+	if (frameIterator.needExit()) return;
+	int iEnd = frameIterator.count;
+	
 	const int iLast = iEnd - 1;
 	for (int i = 0; i < iEnd; ++i) {
 		
-		internalInd = internalIndNext;
-		if (internalIndNext == _countof(Framebar::frames) - 1) {
-			internalIndNext = 0;
-		} else {
-			++internalIndNext;
-		}
-		
-		prevIndInView = indInView;
-		if (indInView) {
-			prevVisualInd = visualInd;
-		}
-		
-		if (drawFramebars_framebarPosition >= drawFramebars_framesCount - 1) {
-			if (internalInd <= drawFramebars_framebarPosition) {
-				indInView = internalInd >= drawFramebars_framebarPosition - drawFramebars_framesCount + 1;
-				if (indInView) {
-					visualInd = drawFramebars_framebarPositionDisplay - (drawFramebars_framebarPosition - internalInd);
-				}
-			} else {
-				indInView = false;
-			}
-		} else if (internalInd <= drawFramebars_framebarPosition) {
-			indInView = true;
-			visualInd = drawFramebars_framebarPositionDisplay - (drawFramebars_framebarPosition - internalInd);
-		} else {
-			int startInd = drawFramebars_framebarPosition - drawFramebars_framesCount + 1 + _countof(Framebar::frames);
-			indInView = internalInd >= startInd;
-			if (indInView) {
-				visualInd = drawFramebars_framebarPositionDisplay - drawFramebars_framesCount + 1
-					+ (internalInd - startInd);
-			}
-		}
-		
-		if (indInView && visualInd < 0) {
-			visualInd += drawFramebars_framesCount;
-		}
-		
-		const FrameT& frame = framebar[internalInd];
+		frameIterator.advance();
+		const FrameT& frame = *frameIterator.frame;
 		
 		enum DivisionType {
 			DIVISION_TYPE_NONE,
@@ -13703,16 +14282,17 @@ void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float fra
 			isFirst = frame.isFirst;
 			if (isFirst && considerSimilarFrameTypesSameForFrameCounts && considerSimilarIdleFramesSameForFrameCounts) {
 				if (i == 0) {
+					FrameType preFrameMapped = frameIterator.getPreFrameMapped();
 					isFirst = !(
-						framebar.preFrameMapped != FT_NONE
-						&& frameMap(frame.type) == framebar.preFrameMapped
-						&& framebar.preFrameMapped == FT_IDLE
+						preFrameMapped != FT_NONE
+						&& frameMap(frame.type) == preFrameMapped
+						&& preFrameMapped == idleFrame
 					);
 				} else {
 					FrameType frameTypeMapped = frameMap(frame.type);
 					isFirst = !(
-						frameTypeMapped == frameMap(framebar[internalInd == 0 ? _countof(Framebar::frames) - 1 : internalInd - 1].type)
-						&& frameTypeMapped == FT_IDLE
+						frameTypeMapped == frameMap(frameIterator.getPrevFrame().type)
+						&& frameTypeMapped == idleFrame
 					);
 				}
 			}
@@ -13720,63 +14300,327 @@ void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float fra
 			isFirst = false;
 		}
 		
-		int displayPos = -1;
-		if (prevIndInView) {
-			displayPos = prevVisualInd;
-		}
+		int displayPos = frameIterator.prevVisualInd;
 		
-		if (currentType == lastFrameType
+		if (currentType == frameIterator.lastFrameType
 				&& !isFirst
 				&& i == iLast
-				&& lastFrameType != FT_NONE) {
+				&& frameIterator.lastFrameType != FT_NONE) {
 			divisionType = DIVISION_TYPE_REACHED_END;
-			displayPos = visualInd;
-			++sameFrameTypeCount;
+			displayPos = frameIterator.visualInd;
+			++frameIterator.sameFrameTypeCount;
 			++visualFrameCount;
-		} else if (!(currentType == lastFrameType && !isFirst)
+		} else if (!(currentType == frameIterator.lastFrameType && !isFirst)
 				&& i != 0
-				&& lastFrameType != FT_NONE) {
+				&& frameIterator.lastFrameType != FT_NONE) {
 			divisionType = DIVISION_TYPE_DIFFERENT_TYPES;
 		}
 		
 		if (
 				divisionType != DIVISION_TYPE_NONE
-				&& sameFrameTypeCount > 3
-				&& numDigits(sameFrameTypeCount) <= visualFrameCount
+				&& frameIterator.sameFrameTypeCount > 3
+				&& numDigits(frameIterator.sameFrameTypeCount) <= visualFrameCount
 				&& displayPos != -1
 			) {
-			
-			int displayPosIter = displayPos;
-			int prevIndCounter = 0;
-			int sameFrameTypeCountModif = sameFrameTypeCount;
-			while (sameFrameTypeCountModif) {
-				
-				int remainder = sameFrameTypeCountModif % 10;
-				sameFrameTypeCountModif /= 10;
-				
-				drawDigit(remainder, preppedDims[displayPosIter], frameNumberYTop, frameNumberYBottom, -1, uvs);
-				
-				hasDigit[displayPosIter] = remainder + 1;
-				
-				++prevIndCounter;
-				if (displayPosIter == 0) {
-					displayPosIter = drawFramebars_framesCount - 1;
-				} else {
-					--displayPosIter;
-				}
-			}
+			drawDigitsAtPlace(displayPos, frameIterator.sameFrameTypeCount, preppedDims, frameNumberYTop, frameNumberYBottom,
+				hasDigit, uvs);
 		}
 		
-		if (currentType == lastFrameType && !isFirst) {
-			++sameFrameTypeCount;
-			if (prevIndInView) {
+		if (currentType == frameIterator.lastFrameType && !isFirst) {
+			++frameIterator.sameFrameTypeCount;
+			if (frameIterator.prevVisualInd != -1) {
 				++visualFrameCount;
 			}
 		} else {
-			lastFrameType = currentType;
-			sameFrameTypeCount = 1;
-			visualFrameCount = prevIndInView ? 1 : 0;
+			frameIterator.lastFrameType = currentType;
+			frameIterator.sameFrameTypeCount = 1;
+			visualFrameCount = frameIterator.prevVisualInd != -1 ? 1 : 0;
 		}
+	}
+}
+
+#define selectTintTop (hasDigit && drewTopMarker >= 1 ? tintSemiTransparent : tint)
+#define selectTintBottom (hasDigit && drewBottomMarker >= 1 ? tintSemiTransparent : tint)
+
+// this struct gets copied around. Don't put huge data in it
+struct QueuedFramebar {
+	EntityFramebar& framebar = *(EntityFramebar*)nullptr;
+	float y = 0.F;  // points to the top of the frame texture
+	float padding = 0.F;  // the padding that should be between this framebar and the previous framebar
+	Moves::TriBool hasFirstFrames = Moves::TriBool::TRIBOOL_DUNNO;
+	char hasDigit[FRAMES_MAX] = { '\0' };  // specifies if a digit was drawn on this frame, and which digit. 0 means no digit was drawn. 1 means 0 was drawn, and so on
+	bool condensed = false;
+	float heightWithBorder;
+	float height;
+	bool useMini;
+	float frameNumberYTop;
+	float frameNumberYBottom;
+};
+
+struct MarkerDrawerPlayer {
+	const QueuedFramebar* playersCondensedFramebar;
+	int playerIndex;
+	MarkerDrawerPlayer(QueuedFramebar* (&playersCondensedFramebarArray)[2], int playerIndex)
+		: playersCondensedFramebar(playersCondensedFramebarArray[playerIndex]), playerIndex(playerIndex) { }
+	inline void pt1(const PlayerFrame& frame,
+				bool showSuperArmorOnFramebar,
+				bool showThrowInvulOnFramebar,
+				bool showOTGOnFramebar,
+				const FrameMarkerArt* frameMarkerArtArray,
+				const ImVec2& markerStart,
+				const ImVec2& markerEnd,
+				ImVec2& bottomMarkerStart,
+				ImVec2& bottomMarkerEnd,
+				bool hasDigit,
+				unsigned char& drewTopMarker,
+				unsigned char& drewBottomMarker,
+				ImU32 tint,
+				ImU32 tintSemiTransparent,
+				const FrameMarkerArt& throwInvulMarker,
+				const FrameMarkerArt& OTGMarker,
+				float frameMarkerSideHeight,
+				bool isDizzy,
+				bool isFlipped) {
+		
+		if (frame.superArmorActiveInGeneral && showSuperArmorOnFramebar) {
+			const FrameMarkerArt& markerArt = frameMarkerArtArray[
+					frame.superArmorActiveInGeneral_IsFull
+						? MARKER_TYPE_SUPER_ARMOR_FULL
+						: MARKER_TYPE_SUPER_ARMOR
+			];
+			drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
+				markerStart,
+				markerEnd,
+				markerArt.framebar.start,
+				markerArt.framebar.end,
+				selectTintTop);
+			++drewTopMarker;
+		}
+		
+		if (frame.throwInvulInGeneral && showThrowInvulOnFramebar) {
+			
+			drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
+				bottomMarkerStart,
+				bottomMarkerEnd,
+				throwInvulMarker.framebar.start,
+				throwInvulMarker.framebar.end,
+				selectTintBottom);
+			
+			bottomMarkerStart.y -= frameMarkerSideHeight;
+			bottomMarkerEnd.y -= frameMarkerSideHeight;
+			++drewBottomMarker;
+		}
+		
+		if (frame.OTGInGeneral && showOTGOnFramebar) {
+			
+			drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
+				bottomMarkerStart,
+				bottomMarkerEnd,
+				OTGMarker.framebar.start,
+				OTGMarker.framebar.end,
+				selectTintBottom);
+			++drewBottomMarker;
+		}
+	}
+	inline void pt2(
+				int visualInd,
+				unsigned char drewTopMarker,
+				unsigned char drewBottomMarker,
+				const ImU32 (&digitTints)[2],
+				const UI::FrameDims& dims) {
+		if (settings.drawDigits && playersCondensedFramebar && playersCondensedFramebar->hasDigit[visualInd]
+				&& (playerIndex == 0 && drewTopMarker
+					|| playerIndex == 1 && drewBottomMarker)) {
+			drawDigit(playersCondensedFramebar->hasDigit[visualInd] - 1, dims,
+				playersCondensedFramebar->frameNumberYTop, playersCondensedFramebar->frameNumberYBottom,
+				digitTints[visualInd > drawFramebars_framebarPositionDisplay],
+				playersCondensedFramebar->useMini ? digitUVsMini : digitUVs);
+		}
+	}
+};
+
+struct MarkerDrawerProjectile {
+	MarkerDrawerProjectile(QueuedFramebar* (&playersCondensedFramebarArray)[2], int playerIndex) { }
+	inline void pt1(const Frame& frame,
+				bool showSuperArmorOnFramebar,
+				bool showThrowInvulOnFramebar,
+				bool showOTGOnFramebar,
+				const FrameMarkerArt* frameMarkerArtArray,
+				const ImVec2& markerStart,
+				const ImVec2& markerEnd,
+				ImVec2& bottomMarkerStart,
+				ImVec2& bottomMarkerEnd,
+				bool hasDigit,
+				unsigned char& drewTopMarker,
+				unsigned char& drewBottomMarker,
+				ImU32 tint,
+				ImU32 tintSemiTransparent,
+				const FrameMarkerArt& throwInvulMarker,
+				const FrameMarkerArt& OTGMarker,
+				float frameMarkerSideHeight,
+				bool isDizzy,
+				bool isFlipped) {
+		if (frame.marker
+				&& isDizzy
+				&& showSuperArmorOnFramebar) {
+			const FrameMarkerArt& markerArt = frameMarkerArtArray[MARKER_TYPE_SUPER_ARMOR];
+			drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
+				isFlipped ? bottomMarkerEnd : markerStart,
+				isFlipped ? bottomMarkerStart : markerEnd,
+				markerArt.framebar.start,
+				markerArt.framebar.end,
+				isFlipped ? selectTintBottom : selectTintTop);
+			
+			if (isFlipped) ++drewBottomMarker;
+			else ++drewTopMarker;
+		}
+	}
+	inline void pt2(
+		int visualInd,
+		unsigned char drewTopMarker,
+		unsigned char drewBottomMarker,
+		const ImU32 (&digitTints)[2],
+		const UI::FrameDims& dims) { }
+};
+
+// what on earth is this
+template<typename FramebarT, typename FrameT, typename FrameIteratorHelper, typename MarkerDrawer>
+void drawMarkers(FramebarT& framebar,
+			int playerIndex,
+			bool isJacko,
+			bool isDizzy,
+			bool isFlipped,
+			char (&hasDigitArray)[FRAMES_MAX],
+			float yTopRow,
+			float markerEndY,
+			float yBottomRow,
+			float markerBottomEndY,
+			float powerupWidthUse,
+			QueuedFramebar* (&playersCondensedFramebarArray)[2],
+			const FrameMarkerArt* frameMarkerArtArray,
+			const FrameMarkerArt& throwInvulMarker,
+			const FrameMarkerArt& OTGMarker,
+			const FrameMarkerArt& strikeInvulMarker,
+			float frameMarkerSideHeight,
+			const ImU32 (&digitTints)[2],
+			const UI::FrameDims (&preppedDims)[FRAMES_MAX],
+			float frameNumberYTop,
+			float frameNumberYBottom,
+			const DigitUVs (&digitUVs)[10],
+			ImU32 tintDarker,
+			ImU32 tintDarkerSemiTransparent,
+			float markerWidthUse,
+			float powerupHeight) {
+	
+	const bool showStrikeInvulOnFramebar = settings.showStrikeInvulOnFramebar;
+	const bool showSuperArmorOnFramebar = settings.showSuperArmorOnFramebar;
+	const bool showThrowInvulOnFramebar = settings.showThrowInvulOnFramebar;
+	const bool showOTGOnFramebar = settings.showOTGOnFramebar;
+	
+	FrameIteratorHelper frameIterator(framebar);
+	MarkerDrawer markerDrawer(playersCondensedFramebarArray, playerIndex);
+	
+	for (int visualInd = 0; visualInd < drawFramebars_framesCount; ++visualInd) {
+		
+		frameIterator.advance();
+		const FrameT& frame = *frameIterator.frame;
+		
+		const UI::FrameDims& dims = preppedDims[visualInd];
+		
+		ImU32 tint = -1;
+		ImU32 tintSemiTransparent = ImGui::GetColorU32(IM_COL32(255, 255, 255, 200));
+		if (visualInd > drawFramebars_framebarPositionDisplay) {
+			tint = tintDarker;
+			tintSemiTransparent = tintDarkerSemiTransparent;
+		}
+		
+		ImVec2 markerStart { dims.x - 1.F, yTopRow };
+		ImVec2 markerEnd { markerStart.x + markerWidthUse, markerEndY };
+		ImVec2 bottomMarkerStart { markerStart.x, yBottomRow };
+		ImVec2 bottomMarkerEnd { markerEnd.x, markerBottomEndY };
+		unsigned char drewTopMarker = 0;
+		unsigned char drewBottomMarker = 0;
+		const bool hasDigit = settings.drawDigits && hasDigitArray[visualInd];
+		
+		if (frame.strikeInvulForMarkers(isJacko) && showStrikeInvulOnFramebar) {
+			drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
+				isFlipped ? bottomMarkerEnd : markerStart,
+				isFlipped ? bottomMarkerStart : markerEnd,
+				strikeInvulMarker.framebar.start,
+				strikeInvulMarker.framebar.end,
+				isFlipped ? selectTintBottom : selectTintTop);
+			
+			if (isFlipped) {
+				bottomMarkerStart.y -= frameMarkerSideHeight;
+				bottomMarkerEnd.y -= frameMarkerSideHeight;
+				++drewBottomMarker;
+			} else {
+				markerStart.y += frameMarkerSideHeight;
+				markerEnd.y += frameMarkerSideHeight;
+				++drewTopMarker;
+			}
+		}
+		
+		markerDrawer.pt1(frame,
+				showSuperArmorOnFramebar,
+				showThrowInvulOnFramebar,
+				showOTGOnFramebar,
+				frameMarkerArtArray,
+				markerStart,
+				markerEnd,
+				bottomMarkerStart,
+				bottomMarkerEnd,
+				hasDigit,
+				drewTopMarker,
+				drewBottomMarker,
+				tint,
+				tintSemiTransparent,
+				throwInvulMarker,
+				OTGMarker,
+				frameMarkerSideHeight,
+				isDizzy,
+				isFlipped);
+		
+		if (frame.powerupForMarkers()) {
+			float powerupWidthOffset = std::floorf((dims.width - powerupWidthUse) * 0.5F + 0.001F);
+			drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
+				{
+						dims.x + powerupWidthOffset,
+						isFlipped
+							? drewBottomMarker
+								? yBottomRow - frameMarkerSideHeight
+								: yBottomRow
+							: frame.superArmorCheckForMarkers()
+								? yTopRow + frameMarkerSideHeight
+								: yTopRow
+				},
+				{
+					dims.x + powerupWidthOffset + powerupWidthUse,
+					isFlipped
+						? drewBottomMarker
+							? yBottomRow + powerupHeight - frameMarkerSideHeight
+							: yBottomRow + powerupHeight
+						: frame.superArmorCheckForMarkers()
+							? yTopRow + powerupHeight + frameMarkerSideHeight
+							: yTopRow + powerupHeight
+				},
+				powerupFrameArt.framebar.start,
+				powerupFrameArt.framebar.end,
+				tint);
+		}
+		
+		if (hasDigit && (drewTopMarker >= 2 || drewBottomMarker >= 2)
+				&& !(
+					frameIsRed(frame.type) && drewTopMarker >= 2
+				)) {
+			drawDigit(hasDigitArray[visualInd] - 1, dims,
+				frameNumberYTop, frameNumberYBottom,
+				digitTints[visualInd > drawFramebars_framebarPositionDisplay],
+				digitUVs);
+		}
+		
+		markerDrawer.pt2(visualInd, drewTopMarker, drewBottomMarker, digitTints, dims);
+		
 	}
 }
 
@@ -14023,7 +14867,7 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 // runs on the main thread
 void UI::startupOrTotal(int two, StringWithLength title, PinnedWindowEnum windowIndex) {
 	for (int i = 0; i < two; ++i) {
-		PlayerInfo& player = endScene.players[i];
+		PlayerInfo& player = endScene.currentState->players[i];
 		ImGui::TableNextColumn();
 		printWithWordWrapArg(strbufs[i])
 		if (ImGui::BeginItemTooltip()) {
@@ -14579,9 +15423,9 @@ int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int atta
 int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectile, int projectileDamageScale, HitResult hitResult, int superArmorDamagePercent) {
 	x = x * 10;
 	int oldX = x;
-	CharacterType otherChar = endScene.players[1 - playerIndex].charType;
+	CharacterType otherChar = endScene.currentState->players[1 - playerIndex].charType;
 	if (otherChar == CHARACTER_TYPE_RAVEN
-			|| endScene.players[playerIndex].charType == CHARACTER_TYPE_RAVEN
+			|| endScene.currentState->players[playerIndex].charType == CHARACTER_TYPE_RAVEN
 			&& (
 				otherChar == CHARACTER_TYPE_DIZZY
 				|| otherChar == CHARACTER_TYPE_ZATO
@@ -15350,7 +16194,7 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 			if (charge != 0) {
 				sprintf_s(strbuf, "%2d/%d", charge, maxCharge);
 			} else {
-				sprintf_s(strbuf, " 0/%d (last %d)", maxCharge, endScene.players[playerIndex].chargeLeftLast);
+				sprintf_s(strbuf, " 0/%d (last %d)", maxCharge, endScene.currentState->players[playerIndex].chargeLeftLast);
 			}
 			ImGui::TextUnformatted(strbuf);
 			
@@ -15360,7 +16204,7 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 			if (charge != 0) {
 				sprintf_s(strbuf, "%2d/%d", charge, maxCharge);
 			} else {
-				sprintf_s(strbuf, " 0/%d (last %d)", maxCharge, endScene.players[playerIndex].chargeRightLast);
+				sprintf_s(strbuf, " 0/%d (last %d)", maxCharge, endScene.currentState->players[playerIndex].chargeRightLast);
 			}
 			ImGui::TextUnformatted(strbuf);
 		}
@@ -15372,7 +16216,7 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 			if (charge != 0) {
 				sprintf_s(strbuf, "%2d/%d", charge, maxCharge);
 			} else {
-				sprintf_s(strbuf, " 0/%d (last %d)", maxCharge, endScene.players[playerIndex].chargeDownLast);
+				sprintf_s(strbuf, " 0/%d (last %d)", maxCharge, endScene.currentState->players[playerIndex].chargeDownLast);
 			}
 			ImGui::TextUnformatted(strbuf);
 		}
@@ -15597,20 +16441,37 @@ void UI::drawFramebars() {
 		bottomPadding = 0.F;
 	}
 	
-	// this struct gets copied around. Don't put huge data in it
-	struct QueuedFramebar {
-		EntityFramebar& framebar = *(EntityFramebar*)nullptr;
-		float y = 0.F;  // points to the top of the frame texture
-		float padding = 0.F;  // the padding that should be between this framebar and the previous framebar
-		Moves::TriBool hasFirstFrames = Moves::TriBool::TRIBOOL_DUNNO;
-		char hasDigit[_countof(Framebar::frames)] = { '\0' };  // specifies if a digit was drawn on this frame, and which digit. 0 means no digit was drawn. 1 means 0 was drawn, and so on
-		bool condensed = false;
-		float heightWithBorder;
-		float height;
-		bool useMini;
-		float frameNumberYTop;
-		float frameNumberYBottom;
-	};
+	// this value is in [0;_countof(PlayerFramebar::frames)] coordinate space, its possible range of values is [0;_countof(PlayerFramebar::frames)-1]
+	// It does not have horizontal scrolling applied to it
+	const int framebarPosition = framebarSettings.neverIgnoreHitstop ? endScene.getFramebarPositionHitstop() : endScene.getFramebarPosition();
+	
+	drawFramebars_framebarPosition = framebarPosition - framebarSettings.scrollXInFrames;
+	if (drawFramebars_framebarPosition < 0) {
+		drawFramebars_framebarPosition += _countof(PlayerFramebar::frames);
+	}
+	
+	int framebarTotalFramesUnlimited = framebarSettings.neverIgnoreHitstop
+		? endScene.getTotalFramesHitstopUnlimited()
+		: endScene.getTotalFramesUnlimited();
+	
+	// Capped between 0 and framebarSettings.storedFramesCount, inclusive
+	int framebarTotalFramesCapped;
+	if (framebarTotalFramesUnlimited > framebarSettings.storedFramesCount) {
+		framebarTotalFramesCapped = framebarSettings.storedFramesCount;
+	} else {
+		framebarTotalFramesCapped = framebarTotalFramesUnlimited;
+	}
+	
+	drawFramebars_framebarTotalFramesUnlimited_withScroll;
+	if (framebarTotalFramesUnlimited < framebarSettings.scrollXInFrames) {
+		drawFramebars_framebarTotalFramesUnlimited_withScroll = 0;
+	} else {
+		drawFramebars_framebarTotalFramesUnlimited_withScroll = framebarTotalFramesUnlimited - framebarSettings.scrollXInFrames;
+	}
+	
+	drawFramebars_framebarPositionDisplay = drawFramebars_framebarTotalFramesUnlimited_withScroll == 0
+		? 0
+		: (drawFramebars_framebarTotalFramesUnlimited_withScroll - 1) % drawFramebars_framesCount;
 	
 	struct {
 		float paddingForPlayers;
@@ -15619,6 +16480,7 @@ void UI::drawFramebars() {
 		float paddingForProjectilesWithFirstFrameOnly;
 		float paddingForProjectilesWithoutAnything;
 		bool condenseIntoOneProjectileFramebar;
+		bool eachProjectileOnSeparateFramebar;
 		float onePlayerFramebarHeight;
 		float oneProjectileFramebarHeight;
 		
@@ -15651,21 +16513,36 @@ void UI::drawFramebars() {
 				return;
 			}
 			
-			const Framebar& projectileFramebar = (const Framebar&)(
-				settings.neverIgnoreHitstop
-					? entityFramebar.getHitstop()
-					: entityFramebar.getMain()
-			);
-			
-			CharacterType correspondingPlayerCharacterType = endScene.players[playerIndex].charType;
+			CharacterType correspondingPlayerCharacterType = endScene.currentState->players[playerIndex].charType;
 			bool hasTopMarker = false;
 			bool hasFirstFrame = false;
 			
-			drawFirstFrames<Framebar, Frame>(projectileFramebar, nullptr, 0.F, 0.F, &hasFirstFrame);
+			int howManyLastFrames = min(drawFramebars_framebarTotalFramesUnlimited_withScroll, drawFramebars_framesCount);
 			
-			if (settings.showSuperArmorOnFramebar && correspondingPlayerCharacterType == CHARACTER_TYPE_DIZZY
-					|| settings.showStrikeInvulOnFramebar && correspondingPlayerCharacterType == CHARACTER_TYPE_JACKO) {
-				hasTopMarker = projectileFramebar.lastNFramesHaveMarker(drawFramebars_framebarPosition, drawFramebars_framesCount);
+			if (eachProjectileOnSeparateFramebar) {
+				Framebar& projectileFramebar = (Framebar&)(
+					settings.neverIgnoreHitstop
+						? entityFramebar.getHitstop()
+						: entityFramebar.getMain()
+				);
+			
+				drawFirstFramesProjectile(projectileFramebar, nullptr, 0.F, 0.F, &hasFirstFrame);
+				
+				if (settings.showSuperArmorOnFramebar && correspondingPlayerCharacterType == CHARACTER_TYPE_DIZZY
+						|| settings.showStrikeInvulOnFramebar && correspondingPlayerCharacterType == CHARACTER_TYPE_JACKO) {
+					hasTopMarker = projectileFramebar.lastNFramesHaveMarker(drawFramebars_framebarPosition,
+						ui.framebarSettings.scrollXInFrames,
+						howManyLastFrames);
+				}
+			} else {
+				drawFirstFramesCombinedProjectile((CombinedProjectileFramebar&)entityFramebar, nullptr, 0.F, 0.F, &hasFirstFrame);
+				
+				if (settings.showSuperArmorOnFramebar && correspondingPlayerCharacterType == CHARACTER_TYPE_DIZZY
+						|| settings.showStrikeInvulOnFramebar && correspondingPlayerCharacterType == CHARACTER_TYPE_JACKO) {
+					hasTopMarker = ((CombinedProjectileFramebar&)entityFramebar).lastNFramesHaveMarker(drawFramebars_framebarPosition,
+						ui.framebarSettings.scrollXInFrames,
+						howManyLastFrames);
+				}
 			}
 			
 			float padding;
@@ -15692,6 +16569,8 @@ void UI::drawFramebars() {
 	queuedFramebarFactory.paddingForProjectilesWithoutAnything = paddingBetweenProjectileFramebarsBase;
 	const bool condenseIntoOneProjectileFramebar = framebarSettings.condenseIntoOneProjectileFramebar;
 	queuedFramebarFactory.condenseIntoOneProjectileFramebar = condenseIntoOneProjectileFramebar;
+	const bool eachProjectileOnSeparateFramebar = framebarSettings.eachProjectileOnSeparateFramebar;
+	queuedFramebarFactory.eachProjectileOnSeparateFramebar = eachProjectileOnSeparateFramebar;
 	
 	const float onePlayerFramebarHeight = outerBorderThickness
 		+ drawFramebars_frameItselfHeight
@@ -15730,57 +16609,16 @@ void UI::drawFramebars() {
 			// also we're going to add a 1px outline all around the text, so that adds 2 more pixels
 	}
 	
-	int framebarTotalFramesUnlimited = framebarSettings.neverIgnoreHitstop
-		? endScene.getTotalFramesHitstopUnlimited()
-		: endScene.getTotalFramesUnlimited();
-	
-	// Capped between 0 and framebarSettings.storedFramesCount, inclusive
-	int framebarTotalFramesCapped;
-	if (framebarTotalFramesUnlimited > framebarSettings.storedFramesCount) {
-		framebarTotalFramesCapped = framebarSettings.storedFramesCount;
-	} else {
-		framebarTotalFramesCapped = framebarTotalFramesUnlimited;
-	}
-	
-	// this value is in [0;_countof(Framebar::frames)] coordinate space, its possible range of values is [0;_countof(Framebar::frames)-1]
-	// It does not have horizontal scrolling applied to it
-	const int framebarPosition = framebarSettings.neverIgnoreHitstop ? endScene.getFramebarPositionHitstop() : endScene.getFramebarPosition();
-	
-	drawFramebars_framebarPosition = framebarPosition - framebarSettings.scrollXInFrames;
-	if (drawFramebars_framebarPosition < 0) {
-		drawFramebars_framebarPosition += _countof(Framebar::frames);
-	}
-	
-	int framebarTotalFramesUnlimited_withScroll;
-	if (framebarTotalFramesUnlimited < framebarSettings.scrollXInFrames) {
-		framebarTotalFramesUnlimited_withScroll = 0;
-	} else {
-		framebarTotalFramesUnlimited_withScroll = framebarTotalFramesUnlimited - framebarSettings.scrollXInFrames;
-	}
-	
-	drawFramebars_framebarPositionDisplay = framebarTotalFramesUnlimited_withScroll == 0
-		? 0
-		: (framebarTotalFramesUnlimited_withScroll - 1) % drawFramebars_framesCount;
-	
-	bool recheckCompletelyEmpty = drawFramebars_framesCount != _countof(Framebar::frames);
-	const bool eachProjectileOnSeparateFramebar = framebarSettings.eachProjectileOnSeparateFramebar;
+	int lastNFramesToCheck = min(drawFramebars_framebarTotalFramesUnlimited_withScroll, drawFramebars_framesCount);
+	bool recheckCompletelyEmpty = eachProjectileOnSeparateFramebar && lastNFramesToCheck != FRAMES_MAX;
 	
 	std::vector<bool> framebarsCompletelyEmpty;
 	if (recheckCompletelyEmpty) {
-		if (eachProjectileOnSeparateFramebar) {
-			framebarsCompletelyEmpty.resize(endScene.projectileFramebars.size(), false);
-			int index = 0;
-			for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
-				const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
-				framebarsCompletelyEmpty[index++] = framebar.lastNFramesCompletelyEmpty(drawFramebars_framebarPosition, drawFramebars_framesCount);
-			}
-		} else {
-			framebarsCompletelyEmpty.resize(endScene.combinedFramebars.size(), false);
-			int index = 0;
-			for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
-				const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
-				framebarsCompletelyEmpty[index++] = framebar.lastNFramesCompletelyEmpty(drawFramebars_framebarPosition, drawFramebars_framesCount);
-			}
+		framebarsCompletelyEmpty.resize(endScene.projectileFramebars.size(), false);
+		int index = 0;
+		for (const ThreadUnsafeSharedPtr<ProjectileFramebar>& entityFramebar : endScene.projectileFramebars) {
+			const Framebar& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar->hitstop : entityFramebar->main;
+			framebarsCompletelyEmpty[index++] = framebar.Framebar::lastNFramesCompletelyEmpty(drawFramebars_framebarPosition, lastNFramesToCheck);
 		}
 	}
 	
@@ -15788,22 +16626,11 @@ void UI::drawFramebars() {
 	if (eachProjectileOnSeparateFramebar) {
 		size_t nonEmptyCount = 0;
 		int index = 0;
-		for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
-			const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+		for (const ThreadUnsafeSharedPtr<ProjectileFramebar>& entityFramebar : endScene.projectileFramebars) {
+			const Framebar& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar->hitstop : entityFramebar->main;
 			if (!(
-					framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
+					framebar.stateHead->completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
 			)) {
-				++nonEmptyCount;
-			}
-			++index;
-		}
-		framebars.reserve(2 + nonEmptyCount);
-	} else if (recheckCompletelyEmpty) {
-		size_t nonEmptyCount = 0;
-		int index = 0;
-		for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
-			const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
-			if (!framebarsCompletelyEmpty[index]) {
 				++nonEmptyCount;
 			}
 			++index;
@@ -15819,20 +16646,20 @@ void UI::drawFramebars() {
 	for (int i = 0; i < 2; ++i) {
 		if (eachProjectileOnSeparateFramebar) {
 			int index = 0;
-			for (ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
-				const Framebar& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.hitstop : entityFramebar.main;
-				if (entityFramebar.playerIndex == i && !(
-						framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
+			for (ThreadUnsafeSharedPtr<ProjectileFramebar>& entityFramebar : endScene.projectileFramebars) {
+				const Framebar& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar->hitstop : entityFramebar->main;
+				if (entityFramebar->playerIndex == i && !(
+						framebar.stateHead->completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
 				)) {
 					framebars.emplace_back();
-					queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)entityFramebar, i);
+					queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)*entityFramebar, i);
 				}
 				++index;
 			}
 		} else {
 			int index = 0;
 			for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
-				if (entityFramebar.playerIndex == i && !(recheckCompletelyEmpty && framebarsCompletelyEmpty[index])) {
+				if (entityFramebar.playerIndex == i) {
 					framebars.emplace_back();
 					queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)entityFramebar, i);
 				}
@@ -15842,21 +16669,20 @@ void UI::drawFramebars() {
 	}
 	if (eachProjectileOnSeparateFramebar) {
 		int index = 0;
-		for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
-			const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
-			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1 && !(
-					framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
+		for (const ThreadUnsafeSharedPtr<ProjectileFramebar>& entityFramebar : endScene.projectileFramebars) {
+			const Framebar& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar->hitstop : entityFramebar->main;
+			if (entityFramebar->playerIndex != 0 && entityFramebar->playerIndex != 1 && !(
+					framebar.stateHead->completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
 			)) {
 				framebars.emplace_back();
-				queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)entityFramebar, -1);
+				queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)*entityFramebar, -1);
 			}
 			++index;
 		}
 	} else {
 		int index = 0;
 		for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
-			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1
-					&& !(recheckCompletelyEmpty && framebarsCompletelyEmpty[index])) {
+			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1) {
 				framebars.emplace_back();
 				queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)entityFramebar, -1);
 			}
@@ -16042,7 +16868,7 @@ void UI::drawFramebars() {
 	ImU32 tintDarker = ImGui::GetColorU32(IM_COL32(128, 128, 128, 255));
 	ImU32 tintDarkerSemiTransparent = ImGui::GetColorU32(IM_COL32(128, 128, 128, 200));
 	
-	FrameDims preppedDims[_countof(Framebar::frames)];  // we're only going to use drawFramebars_framesCount of these
+	FrameDims preppedDims[FRAMES_MAX];  // we're only going to use drawFramebars_framesCount of these
 	float highlighterXStart[2] { 0.F, 0.F };
 	int highlighterCount = 0;
 	
@@ -16133,6 +16959,8 @@ void UI::drawFramebars() {
 		const bool dontTruncateFramebarTitles = settings.dontTruncateFramebarTitles;
 		const bool allFramebarTitlesDisplayToTheLeft = settings.allFramebarTitlesDisplayToTheLeft;
 		const bool useSlang = settings.useSlangNames;
+		Frame emptyFrame;
+		memset(&emptyFrame, 0, sizeof Frame);
 		for (const QueuedFramebar& queuedFramebar : framebars) {
 			const EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
 			const EntityFramebar& entityFramebar = *entityFramebarPtr;
@@ -16148,19 +16976,47 @@ void UI::drawFramebars() {
 			if (!hasTitleInFrame) {
 				title = queuedFramebar.condensed ? "" : nullptr;
 			} else {
-				const Framebar* framebar;
 				if (eachProjectileOnSeparateFramebar) {
 					const ProjectileFramebar& projectileFramebar = (const ProjectileFramebar&)entityFramebar;
-					framebar = framebarSettings.neverIgnoreHitstop ? &projectileFramebar.hitstop : &projectileFramebar.main;
+					const Framebar* framebar = framebarSettings.neverIgnoreHitstop ? &projectileFramebar.hitstop : &projectileFramebar.main;
+					int idleTimeRewound;
+					int idleTimeRemaining;
+					int realTimeRewound;
+					if (framebar->stateHead->idleTime >= ui.framebarSettings.scrollXInFrames) {
+						idleTimeRewound = ui.framebarSettings.scrollXInFrames;
+						idleTimeRemaining = framebar->stateHead->idleTime - idleTimeRewound;
+						realTimeRewound = 0;
+					} else {
+						idleTimeRewound = framebar->stateHead->idleTime;
+						idleTimeRemaining = 0;
+						realTimeRewound = ui.framebarSettings.scrollXInFrames - idleTimeRewound;
+					}
+					if (realTimeRewound == 0) {
+						int posRel = framebar->toRelative(EntityFramebar::confinePos(drawFramebars_framebarPosition - framebar->stateHead->idleTime));
+						if (posRel < framebar->stateHead->framesCount) {
+							frame = &framebar->frames[posRel];
+						} else {
+							frame = &emptyFrame;
+						}
+					} else if (framebar->stateHead->framesCount - realTimeRewound <= 0) {
+						frame = &emptyFrame;
+					} else {
+						int posRel = framebar->toRelative(EntityFramebar::confinePos(drawFramebars_framebarPosition - framebar->stateHead->idleTime - realTimeRewound));
+						if (posRel < framebar->stateHead->framesCount) {
+							frame = &framebar->frames[posRel];
+						} else {
+							frame = &emptyFrame;
+						}
+					}
 				} else {
 					const CombinedProjectileFramebar& combinedProjectileFramebar = (const CombinedProjectileFramebar&)entityFramebar;
-					framebar = &combinedProjectileFramebar.main;
+					// combined projectile framebars are assembled with the scroll X already accounted for
+					frame = &combinedProjectileFramebar.frames[0];
 				}
-				frame = &(*framebar)[drawFramebars_framebarPosition];
 				const char* selectedTitle = nullptr;
 				if ((frame->charSpecific1 || frame->charSpecific2) && (
 						entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1
-					) && endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_RAMLETHAL
+					) && endScene.currentState->players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_RAMLETHAL
 				) {
 					titleFull = selectedTitle = frame->charSpecific1 ? "S Sword" : "H Sword";
 				} else if (eachProjectileOnSeparateFramebar && frame->title.uncombined) {
@@ -16346,9 +17202,13 @@ void UI::drawFramebars() {
 	for (QueuedFramebar& queuedFramebar : framebars) {
 		EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
 		EntityFramebar& entityFramebar = *entityFramebarPtr;
-		FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
-		drawFramebars_y = queuedFramebar.y;
 		const bool isPlayer = entityFramebar.belongsToPlayer();
+		void* framebar = !isPlayer && !eachProjectileOnSeparateFramebar
+			? (void*)&entityFramebar  // combined projectile framebar
+			: framebarSettings.neverIgnoreHitstop
+				? (void*)&entityFramebar.getHitstop()
+				: (void*)&entityFramebar.getMain();
+		drawFramebars_y = queuedFramebar.y;
 		const float framebarHeight = queuedFramebar.heightWithBorder;
 		const float frameHeight = queuedFramebar.height;
 		
@@ -16359,7 +17219,7 @@ void UI::drawFramebars() {
 					&& entityFramebar.playerIndex == 1
 				)
 				&& isPlayer) {
-			const PlayerFramebar& playerFramebar = (const PlayerFramebar&)framebar;
+			const PlayerFramebar& playerFramebar = *(const PlayerFramebar*)framebar;
 			const PlayerFrame& playerFrame = playerFramebar[drawFramebars_framebarPosition];
 			sprintf_s(strbuf, "Startup: %d, Active: %d, Recovery: %d, Total: %d, Advantage: ",
 				playerFrame.startup,
@@ -16410,7 +17270,7 @@ void UI::drawFramebars() {
 			if (framebarSettings.scrollXInFrames == 0) {
 				// get the current frame advantage if the framebar playhead position is the latest one
 				FrameAdvantageForFramebarResult advRes;
-				endScene.players[entityFramebar.playerIndex].calcFrameAdvantageForFramebar(&advRes);
+				endScene.currentState->players[entityFramebar.playerIndex].calcFrameAdvantageForFramebar(&advRes);
 				
 				frameAdvantage = dontUsePreBlockstunTime
 					? advRes.frameAdvantageNoPreBlockstun
@@ -16503,21 +17363,21 @@ void UI::drawFramebars() {
 			}
 			
 			if (isPlayer) {
-				drawPlayerFramebar((PlayerFramebar&)framebar,
+				drawPlayerFramebar(*(PlayerFramebar*)framebar,
 					preppedDims,
 					tintDarker,
 					entityFramebar.playerIndex,
 					skippedFrames,
 					entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1
-						? endScene.players[entityFramebar.playerIndex].charType
+						? endScene.currentState->players[entityFramebar.playerIndex].charType
 						: (CharacterType)-1,
 					frameHeight,
 					queuedFramebar.useMini ? newHitFrameArtMini : newHitFrameArt,
 					hitConnectedArtSelector);
-			} else {
+			} else if (eachProjectileOnSeparateFramebar) {
 				const PlayerFramebars& correspondingPlayersFramebars = endScene.playerFramebars[entityFramebar.playerIndex];
 				
-				drawProjectileFramebar((Framebar&)framebar,
+				drawProjectileFramebar(*(Framebar*)framebar,
 					preppedDims,
 					tintDarker,
 					skippedFrames,
@@ -16525,7 +17385,23 @@ void UI::drawFramebars() {
 						? (const PlayerFramebar&)correspondingPlayersFramebars.getHitstop()
 						: (const PlayerFramebar&)correspondingPlayersFramebars.getMain(),
 					entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1
-						? endScene.players[entityFramebar.playerIndex].charType
+						? endScene.currentState->players[entityFramebar.playerIndex].charType
+						: (CharacterType)-1,
+					frameHeight,
+					queuedFramebar.useMini ? newHitFrameArtMini : newHitFrameArt,
+					hitConnectedArtSelector);
+			} else {
+				const PlayerFramebars& correspondingPlayersFramebars = endScene.playerFramebars[entityFramebar.playerIndex];
+				
+				drawCombinedProjectileFramebar(*(CombinedProjectileFramebar*)framebar,
+					preppedDims,
+					tintDarker,
+					skippedFrames,
+					framebarSettings.neverIgnoreHitstop
+						? (const PlayerFramebar&)correspondingPlayersFramebars.getHitstop()
+						: (const PlayerFramebar&)correspondingPlayersFramebars.getMain(),
+					entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1
+						? endScene.currentState->players[entityFramebar.playerIndex].charType
 						: (CharacterType)-1,
 					frameHeight,
 					queuedFramebar.useMini ? newHitFrameArtMini : newHitFrameArt,
@@ -16539,14 +17415,20 @@ void UI::drawFramebars() {
 			if (settings.drawDigits) {
 				
 				if (isPlayer) {
-					drawDigits<PlayerFramebar, PlayerFrame>(
-						(const PlayerFramebar&)framebar, preppedDims,
+					drawDigits<PlayerFramebar, PlayerFrame, FT_IDLE, FrameIteratorDrawDigitsPlayer>(
+						*(PlayerFramebar*)framebar, preppedDims,
+						queuedFramebar.frameNumberYTop, queuedFramebar.frameNumberYBottom,
+						queuedFramebar.hasDigit,
+						queuedFramebar.useMini ? digitUVsMini : digitUVs);
+				} else if (eachProjectileOnSeparateFramebar) {
+					drawDigits<Framebar, Frame, FT_IDLE_PROJECTILE, FrameIteratorDrawDigitsProjectile>(
+						*(Framebar*)framebar, preppedDims,
 						queuedFramebar.frameNumberYTop, queuedFramebar.frameNumberYBottom,
 						queuedFramebar.hasDigit,
 						queuedFramebar.useMini ? digitUVsMini : digitUVs);
 				} else {
-					drawDigits<Framebar, Frame>(
-						(const Framebar&)framebar, preppedDims,
+					drawDigits<CombinedProjectileFramebar, Frame, FT_IDLE_PROJECTILE, FrameIteratorDrawDigitsCombinedProjectile>(
+						*(CombinedProjectileFramebar*)framebar, preppedDims,
 						queuedFramebar.frameNumberYTop, queuedFramebar.frameNumberYBottom,
 						queuedFramebar.hasDigit,
 						queuedFramebar.useMini ? digitUVsMini : digitUVs);
@@ -16563,16 +17445,20 @@ void UI::drawFramebars() {
 	for (QueuedFramebar& queuedFramebar : framebars) {
 		const EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
 		const EntityFramebar& entityFramebar = *entityFramebarPtr;
-		const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
 		drawFramebars_y = queuedFramebar.y;
 		const bool isPlayer = entityFramebar.belongsToPlayer();
+		void* framebar = !isPlayer && !eachProjectileOnSeparateFramebar
+			? (void*)&entityFramebar
+			: framebarSettings.neverIgnoreHitstop
+				? (void*)&entityFramebar.getHitstop()
+				: (void*)&entityFramebar.getMain();
 		const QueuedFramebar* playersCondensedFramebar = isPlayer ? playersCondensedFramebarArray[entityFramebar.playerIndex] : nullptr;
 		const float frameHeight = queuedFramebar.height;
 		
 		const bool isJacko = (entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1)
-											&& endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_JACKO;
+											&& endScene.currentState->players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_JACKO;
 		const bool isDizzy = (entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1)
-											&& endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_DIZZY;
+											&& endScene.currentState->players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_DIZZY;
 		const bool isFlipped = queuedFramebar.condensed && entityFramebar.playerIndex == 1;
 		
 		if (framesXEnd > framesX) {
@@ -16584,173 +17470,44 @@ void UI::drawFramebars() {
 				const float markerBottomEndY = yBottomRow + frameMarkerHeight;
 				const float powerupWidthUse = powerupFrameArt.framebar.size.x;
 				
-				{
-					const PlayerFramebar& framebarPlayer = (const PlayerFramebar&)framebar;
-					const Framebar& framebarProjectile = (const Framebar&)framebar;
-					int internalIndNext = iterateVisualFramesFrom0_getInitialInternalInd();
-					int internalInd;
-					for (int visualInd = 0; visualInd < drawFramebars_framesCount; ++visualInd) {
-						
-						internalInd = internalIndNext;
-						iterateVisualFrames_incrementInternalInd(internalIndNext);
-						
-						const PlayerFrame& playerFrame = framebarPlayer[internalInd];
-						const Frame& projectileFrame = framebarProjectile[internalInd];
-						const FrameDims& dims = preppedDims[visualInd];
-						
-						ImU32 tint = -1;
-						ImU32 tintSemiTransparent = ImGui::GetColorU32(IM_COL32(255, 255, 255, 200));
-						if (visualInd > drawFramebars_framebarPositionDisplay) {
-							tint = tintDarker;
-							tintSemiTransparent = tintDarkerSemiTransparent;
-						}
-						
-						ImVec2 markerStart { dims.x - 1.F, yTopRow };
-						ImVec2 markerEnd { markerStart.x + markerWidthUse, markerEndY };
-						ImVec2 bottomMarkerStart { markerStart.x, yBottomRow };
-						ImVec2 bottomMarkerEnd { markerEnd.x, markerBottomEndY };
-						unsigned char drewTopMarker = 0;
-						unsigned char drewBottomMarker = 0;
-						const bool hasDigit = settings.drawDigits && queuedFramebar.hasDigit[visualInd];
-						#define selectTintTop (hasDigit && drewTopMarker >= 1 ? tintSemiTransparent : tint)
-						#define selectTintBottom (hasDigit && drewBottomMarker >= 1 ? tintSemiTransparent : tint)
-						
-						if (
-								(
-									isPlayer
-										? playerFrame.strikeInvulInGeneral
-										: projectileFrame.marker
-											&& isJacko
-								) && showStrikeInvulOnFramebar
-						) {
-							drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
-								isFlipped ? bottomMarkerEnd : markerStart,
-								isFlipped ? bottomMarkerStart : markerEnd,
-								strikeInvulMarker.framebar.start,
-								strikeInvulMarker.framebar.end,
-								isFlipped ? selectTintBottom : selectTintTop);
-							
-							if (isFlipped) {
-								bottomMarkerStart.y -= frameMarkerSideHeight;
-								bottomMarkerEnd.y -= frameMarkerSideHeight;
-								++drewBottomMarker;
-							} else {
-								markerStart.y += frameMarkerSideHeight;
-								markerEnd.y += frameMarkerSideHeight;
-								++drewTopMarker;
-							}
-						}
-						if (isPlayer) {
-							if (playerFrame.superArmorActiveInGeneral && showSuperArmorOnFramebar) {
-								const FrameMarkerArt& markerArt = frameMarkerArtArray[
-										playerFrame.superArmorActiveInGeneral_IsFull
-											? MARKER_TYPE_SUPER_ARMOR_FULL
-											: MARKER_TYPE_SUPER_ARMOR
-								];
-								drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
-									markerStart,
-									markerEnd,
-									markerArt.framebar.start,
-									markerArt.framebar.end,
-									selectTintTop);
-								++drewTopMarker;
-							}
-							
-							if (playerFrame.throwInvulInGeneral && showThrowInvulOnFramebar) {
-								
-								drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
-									bottomMarkerStart,
-									bottomMarkerEnd,
-									throwInvulMarker.framebar.start,
-									throwInvulMarker.framebar.end,
-									selectTintBottom);
-								
-								bottomMarkerStart.y -= frameMarkerSideHeight;
-								bottomMarkerEnd.y -= frameMarkerSideHeight;
-								++drewBottomMarker;
-							}
-							
-							if (playerFrame.OTGInGeneral && showOTGOnFramebar) {
-								
-								drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
-									bottomMarkerStart,
-									bottomMarkerEnd,
-									OTGMarker.framebar.start,
-									OTGMarker.framebar.end,
-									selectTintBottom);
-								++drewBottomMarker;
-							}
-						} else if (projectileFrame.marker
-								&& isDizzy
-								&& showSuperArmorOnFramebar) {
-							const FrameMarkerArt& markerArt = frameMarkerArtArray[MARKER_TYPE_SUPER_ARMOR];
-							drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
-								isFlipped ? bottomMarkerEnd : markerStart,
-								isFlipped ? bottomMarkerStart : markerEnd,
-								markerArt.framebar.start,
-								markerArt.framebar.end,
-								isFlipped ? selectTintBottom : selectTintTop);
-							
-							if (isFlipped) ++drewBottomMarker;
-							else ++drewTopMarker;
-						}
-						
-						if (isPlayer ? playerFrame.powerup && !playerFrame.dontShowPowerupGraphic : projectileFrame.powerup) {
-							float powerupWidthOffset = std::floorf((dims.width - powerupWidthUse) * 0.5F + 0.001F);
-							drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
-								{
-										dims.x + powerupWidthOffset,
-										isFlipped
-											? drewBottomMarker
-												? yBottomRow - frameMarkerSideHeight
-												: yBottomRow
-											: isPlayer && playerFrame.superArmorActiveInGeneral
-												? yTopRow + frameMarkerSideHeight
-												: yTopRow
-								},
-								{
-									dims.x + powerupWidthOffset + powerupWidthUse,
-									isFlipped
-										? drewBottomMarker
-											? yBottomRow + powerupHeight - frameMarkerSideHeight
-											: yBottomRow + powerupHeight
-										: isPlayer && playerFrame.superArmorActiveInGeneral
-											? yTopRow + powerupHeight + frameMarkerSideHeight
-											: yTopRow + powerupHeight
-								},
-								powerupFrameArt.framebar.start,
-								powerupFrameArt.framebar.end,
-								tint);
-						}
-						
-						if (hasDigit && (drewTopMarker >= 2 || drewBottomMarker >= 2)
-								&& !(
-									(
-										isPlayer
-											? frameIsRed(playerFrame.type)
-											: frameIsRed(projectileFrame.type)
-									) && drewTopMarker >= 2
-								)) {
-							drawDigit(queuedFramebar.hasDigit[visualInd] - 1, dims,
-								queuedFramebar.frameNumberYTop, queuedFramebar.frameNumberYBottom,
-								digitTints[visualInd > drawFramebars_framebarPositionDisplay],
-								queuedFramebar.useMini ? digitUVsMini : digitUVs);
-						}
-						
-						if (settings.drawDigits && playersCondensedFramebar && playersCondensedFramebar->hasDigit[visualInd]
-								&& (entityFramebar.playerIndex == 0 && drewTopMarker
-									|| entityFramebar.playerIndex == 1 && drewBottomMarker)) {
-							drawDigit(playersCondensedFramebar->hasDigit[visualInd] - 1, dims,
-								playersCondensedFramebar->frameNumberYTop, playersCondensedFramebar->frameNumberYBottom,
-								digitTints[visualInd > drawFramebars_framebarPositionDisplay],
-								playersCondensedFramebar->useMini ? digitUVsMini : digitUVs);
-						}
-						
-						#undef selectTintTop
-						#undef selectTintBottom
-						
-					}
+				#define holyfuck(framebarT, frameT, iteratorT, drawerT) \
+					drawMarkers<framebarT, frameT, iteratorT, drawerT>( \
+						*(framebarT*)framebar, \
+						entityFramebar.playerIndex, \
+						isJacko, \
+						isDizzy, \
+						isFlipped, \
+						queuedFramebar.hasDigit, \
+						yTopRow, \
+						markerEndY, \
+						yBottomRow, \
+						markerBottomEndY, \
+						powerupWidthUse, \
+						playersCondensedFramebarArray, \
+						frameMarkerArtArray, \
+						throwInvulMarker, \
+						OTGMarker, \
+						strikeInvulMarker, \
+						frameMarkerSideHeight, \
+						digitTints, \
+						preppedDims, \
+						queuedFramebar.frameNumberYTop, \
+						queuedFramebar.frameNumberYBottom, \
+						queuedFramebar.useMini ? digitUVsMini : digitUVs, \
+						tintDarker, \
+						tintDarkerSemiTransparent, \
+						markerWidthUse, \
+						powerupHeight);
+				
+				if (isPlayer) {
+					holyfuck(PlayerFramebar, PlayerFrame, FrameIteratorPlayer, MarkerDrawerPlayer)
+				} else if (eachProjectileOnSeparateFramebar) {
+					holyfuck(Framebar, Frame, FrameIteratorProjectile, MarkerDrawerProjectile)
+				} else {
+					holyfuck(CombinedProjectileFramebar, Frame, FrameIteratorCombinedProjectile, MarkerDrawerProjectile)
 				}
+				#undef holyfuck
+				
 			}
 		}
 	}
@@ -16759,7 +17516,11 @@ void UI::drawFramebars() {
 	for (QueuedFramebar& queuedFramebar : framebars) {
 		const EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
 		const EntityFramebar& entityFramebar = *entityFramebarPtr;
-		const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+		void* framebar = !entityFramebar.belongsToPlayer() && !eachProjectileOnSeparateFramebar
+			? (void*)&entityFramebar
+			: framebarSettings.neverIgnoreHitstop
+				? (void*)&entityFramebar.getHitstop()
+				: (void*)&entityFramebar.getMain();
 		drawFramebars_y = queuedFramebar.y;
 			
 		if (framesXEnd > framesX
@@ -16770,9 +17531,11 @@ void UI::drawFramebars() {
 			const float firstFrameBottomY = firstFrameTopY + firstFrameHeightScaled;
 			
 			if (entityFramebar.belongsToPlayer()) {
-				drawFirstFrames<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, preppedDims, firstFrameTopY, firstFrameBottomY, nullptr);
+				drawFirstFramesPlayer(*(PlayerFramebar*)framebar, preppedDims, firstFrameTopY, firstFrameBottomY, nullptr);
+			} else if (eachProjectileOnSeparateFramebar) {
+				drawFirstFramesProjectile(*(Framebar*)framebar, preppedDims, firstFrameTopY, firstFrameBottomY, nullptr);
 			} else {
-				drawFirstFrames<Framebar, Frame>((const Framebar&)framebar, preppedDims, firstFrameTopY, firstFrameBottomY, nullptr);
+				drawFirstFramesCombinedProjectile(*(CombinedProjectileFramebar*)framebar, preppedDims, firstFrameTopY, firstFrameBottomY, nullptr);
 			}
 		}
 	}
@@ -17372,7 +18135,7 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 		FrameMarkerArt markerArt;
 		PngResource resource;
 	};
-	UsedMarker uniqueOutlinedScaledMarkers[2 * MARKER_TYPE_LAST] { };
+	UsedMarker uniqueOutlinedScaledMarkers[2 * MARKER_TYPE_LAST] { UsedMarker{} };
 	int uniqueOutlinedScaledMarkersCount = 0;
 	{
 		const int desiredMarkerHeightWhenUnscaledInt = 4;
@@ -17489,10 +18252,10 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 		texturePacker.addImage(firstFrame);
 	}
 	
-	PngResource hitConnectedFrameAr[2] { };
-	PngResource hitConnectedFrameArMini[2] { };
-	PngResource hitConnectedBlackFrameAr[2] { };
-	PngResource hitConnectedBlackFrameArMini[2] { };
+	PngResource hitConnectedFrameAr[2] { PngResource{}, PngResource{} };
+	PngResource hitConnectedFrameArMini[2] { PngResource{}, PngResource{} };
+	PngResource hitConnectedBlackFrameAr[2] { PngResource{}, PngResource{} };
+	PngResource hitConnectedBlackFrameArMini[2] { PngResource{}, PngResource{} };
 	{
 		for (int isMiniIter = 0; isMiniIter < miniCount; ++isMiniIter) {
 			const int hitConnectedWidthsCount = type == UITextureType::UITEX_HELP ? 1 : 2;
@@ -17728,8 +18491,29 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 		}
 	}
 	
-	PngResource digits[10] { };
-	PngResource digitsMini[10] { };
+	PngResource digits[10] {
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{} };
+	PngResource digitsMini[10] {
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{},
+		PngResource{}
+	};
 	
 	if (type == UITextureType::UITEX_FRAMEBAR && sizes->drawDigits) {
 		for (int isMiniIter = 0; isMiniIter < miniCount; ++isMiniIter) {
@@ -18976,7 +19760,7 @@ void UI::drawHitboxEditor() {
 	}
 	
 	if (!editEntity) return;
-	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[editEntity.bbscrIndexInAswEng()];
+	FPACSecondaryData& secondaryData = getSecondaryData(editEntity.bbscrIndexInAswEng());
 	FPAC* fpac = editEntity.fpac();
 	if (!fpac || fpac->flag2() || !fpac->useHash()) return;
 	
@@ -20586,7 +21370,7 @@ void UI::hitboxEditorBoxSelect() {
 		return;
 	}
 	
-	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[editEntity.bbscrIndexInAswEng()];
+	FPACSecondaryData& secondaryData = getSecondaryData(editEntity.bbscrIndexInAswEng());
 	FPAC* fpac = secondaryData.Collision->TopData;
 	
 	if (dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_NONE
@@ -21229,7 +22013,7 @@ void UI::hitboxEditProcessPressedCommands() {
 		Entity editEntity = Entity{gifMode.editHitboxesEntity};
 		
 		REDPawn* pawnWorld = editEntity.pawnWorld();
-		FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[editEntity.bbscrIndexInAswEng()];
+		FPACSecondaryData& secondaryData = getSecondaryData(editEntity.bbscrIndexInAswEng());
 		SortedSprite* currentSpriteElement = hitboxEditFindCurrentSprite();
 		
 		if (hitboxEditNewSpritePressed) {
@@ -21471,7 +22255,7 @@ SortedSprite* UI::hitboxEditFindCurrentSprite() {
 }
 
 SortedSprite* UI::hitboxEditFindCurrentSprite(Entity ent) {
-	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[ent.bbscrIndexInAswEng()];
+	FPACSecondaryData& secondaryData = getSecondaryData(ent.bbscrIndexInAswEng());
 	
 	DWORD currentSpriteHash = Entity::hashStringLowercase(ent.spriteName());
 	SortedSprite* currentSpriteElement;
@@ -23070,4 +23854,12 @@ void UI::hitboxEditorButton() {
 			" the right .bbscript and .collision files on the loading screen.");
 	}
 	HelpMarker(searchTooltip(hitboxEditorHelp));
+}
+
+FPACSecondaryData& UI::getSecondaryData(int bbscrIndexInAswEng) {
+	if (bbscrIndexInAswEng == 1 && entityList.slots[0].characterType() == entityList.slots[1].characterType()) {
+		return hitboxEditorFPACSecondaryData[0];
+	} else {
+		return hitboxEditorFPACSecondaryData[bbscrIndexInAswEng];
+	}
 }

@@ -34,8 +34,12 @@ void UndoOperationBase::restoreView() {
 		
 		for (int i = 0; i < entityList.count; ++i) {
 			Entity ent = entityList.list[i];
-			if (ent.bbscrIndexInAswEng() == bbscrIndexInAswEng
-					&& strcmp(ent.spriteName(), "null") == 0) {
+			if (
+					(
+						ent.bbscrIndexInAswEng() == bbscrIndexInAswEng
+						|| ent.bbscrIndexInAswEng() == 1 && bbscrIndexInAswEng == 0
+						&& entityList.slots[0].characterType() == entityList.slots[1].characterType()
+					) && strcmp(ent.spriteName(), "null") == 0) {
 				newEntity = ent;
 				break;
 			}
@@ -44,8 +48,7 @@ void UndoOperationBase::restoreView() {
 	} else {
 		for (int i = 2; i < entityList.count; ++i) {
 			Entity ent = entityList.list[i];
-			if (ent.bbscrIndexInAswEng() == bbscrIndexInAswEng
-					&& ent.hitboxes()->jonbinPtr == jonbin) {
+			if (ent.hitboxes()->jonbinPtr == jonbin) {
 				newEntity = ent;
 				break;
 			}
@@ -55,8 +58,7 @@ void UndoOperationBase::restoreView() {
 			
 			for (int i = 2; i < entityList.count; ++i) {
 				Entity ent = entityList.list[i];
-				if (ent.bbscrIndexInAswEng() == bbscrIndexInAswEng
-						&& ent.bbscrCurrentFunc() == bbscrFunc) {
+				if (ent.bbscrCurrentFunc() == bbscrFunc) {
 					newEntity = ent;
 					break;
 				}
@@ -289,9 +291,12 @@ void UndoOperationBase::fillFromEnt(Entity ent, UndoOperationType type) {
 	this->type = type;
 	backupEntity = ent;
 	bbscrIndexInAswEng = ent.bbscrIndexInAswEng();
+	if (bbscrIndexInAswEng == 1 && entityList.slots[0].characterType() == entityList.slots[1].characterType()) {
+		bbscrIndexInAswEng = 0;
+	}
 	isPawn = ent.isPawn();
 	selectedHitboxes = ui.selectedHitboxes;
-	secondaryData = &ui.hitboxEditorFPACSecondaryData[bbscrIndexInAswEng];
+	secondaryData = &ui.getSecondaryData(bbscrIndexInAswEng);
 	fpac = secondaryData->Collision->TopData;
 	bbscrFunc = ent.bbscrCurrentFunc();
 	animSeqName.low = 0;
@@ -981,7 +986,16 @@ bool SetAnimOperation::combine(const UndoOperationBase& other) {
 bool UndoOperationBase::combineOk(const UndoOperationBase& other, UndoOperationType requiredType) const {
 	return other.type == requiredType
 			&& other.backupEntity == backupEntity
-			&& other.bbscrIndexInAswEng == bbscrIndexInAswEng
+			&& (
+				other.bbscrIndexInAswEng == bbscrIndexInAswEng
+				|| (
+					other.bbscrIndexInAswEng == 0
+					|| other.bbscrIndexInAswEng == 1
+				) && (
+					bbscrIndexInAswEng == 0
+					|| bbscrIndexInAswEng == 1
+				) && entityList.slots[0].characterType() == entityList.slots[1].characterType()
+			)
 			&& strcmp(other.spriteName, spriteName) == 0
 			&& abs((long)other.engineTick - (long)engineTick) < 20;
 }
@@ -1460,7 +1474,16 @@ void MoveResizeBoxesOperation::fill(std::vector<Hitbox>&& oldData, Hitbox* newDa
 bool MoveResizeBoxesOperation::combineOk(Entity ent, DWORD engineTick, int timerRange, UndoOperationType requiredType, int hitboxCount) const {
 	return this->type == type
 			&& backupEntity == ent
-			&& bbscrIndexInAswEng == ent.bbscrIndexInAswEng()
+			&& (
+				bbscrIndexInAswEng == ent.bbscrIndexInAswEng()
+				|| (
+					bbscrIndexInAswEng == 0
+					|| bbscrIndexInAswEng == 1
+				) && (
+					ent.bbscrIndexInAswEng() == 0
+					|| ent.bbscrIndexInAswEng() == 1
+				) && entityList.slots[0].characterType() == entityList.slots[1].characterType()
+			)
 			&& strcmp(spriteName, ent.spriteName()) == 0
 			&& abs((long)engineTick - (long)engineTick) < timerRange
 			&& newData.size() == (size_t)hitboxCount

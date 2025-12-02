@@ -384,6 +384,13 @@ settingsField(bool, displayInputHistoryInSomeOfflineModes, false,
 	"; Tutorial, offline MOM and Mission.\n"
 	"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".")
 	
+settingsField(bool, displayInputHistoryInOnline, false,
+	"Display Input History In Online Modes", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will display only your input history when playing online.\n"
+	"; In online training mode, both players' input history is shown."
+	"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".")
+	
 settingsField(bool, showDurationsInInputHistory, false,
 	"Display Durations In Input History", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
@@ -1367,5 +1374,17 @@ settingsField(bool, enableScriptMods, false,
 	"; This controls whether custom hitboxes (.collision files) and bbscript (.bbscript files)\n"
 	"; will be loaded on battle initialization from the game's Mods folder\n"
 	"; (GUILTY GEAR Xrd -REVELATOR-\\Mods).")
+	
+settingsKeyCombo(fastForwardReplay, "Fast Forward Replay", "",
+	"; A keyboard shortcut.\n"
+	"; Holding down this key during a replay will speed up the playback by a factor specified in\n"
+	"; \"fastForwardReplayFactor\".\n"
+	"; This feature causes danger time entry countdown to go out of sync.")
+	
+settingsField(int, fastForwardReplayFactor, 2,
+	"Fast Forward Replay Factor", SETTINGS_GENERAL,
+	"; Specify a positive whole number. Default value is 2.\n"
+	"; When holding the \"fastForwardReplay\" hotkey during a replay,\n"
+	"; this is by how many times to speed up the replay.")
 	
 #pragma warning(pop)

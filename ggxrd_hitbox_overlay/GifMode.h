@@ -23,6 +23,7 @@ public:
 	bool editHitboxes { false };
 	void* editHitboxesEntity { nullptr };
 	float fps { 60.F };
+	bool speedUpReplay { false };
 };
 
 extern GifMode gifMode;

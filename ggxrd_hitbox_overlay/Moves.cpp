@@ -10347,7 +10347,7 @@ const NamePair* displayNameSelector_taskCAir(PlayerInfo& ent) {
 const NamePair* framebarNameSelector_blueBurst(Entity ent) {
 	int team = ent.team();
 	if (!(team == 0 || team == 1)) return assignName("Blue Burst");
-	return endScene.players[team].wasOtg ? assignName("OTG Burst") : assignName("Blue Burst");
+	return endScene.currentState->players[team].wasOtg ? assignName("OTG Burst") : assignName("Blue Burst");
 }
 const NamePair* displayNameSelector_blueBurst(PlayerInfo& ent) {
 	return ent.wasOtg ? assignName("OTG Burst") : assignName("Blue Burst");

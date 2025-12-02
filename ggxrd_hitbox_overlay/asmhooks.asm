@@ -30,6 +30,11 @@ extrn _activeFrameHitReflectHook:proc
 ; a cdecl with 4 args
 extrn _obtainingOfCounterhitTrainingSettingHook:proc
 
+extrn _isGameModeNetworkHookWhenDecidingStepCountHook:proc
+extern _orig_isGameModeNetwork:dword
+
+extern _orig_replayPauseControlTick:dword
+
 ; caller clears stack. ecx - first arg, esp+4,esp+8 - second and third args
 ; Runs on the main thread
 _drawQuadExecHookAsm proc
@@ -123,5 +128,27 @@ _obtainingOfCounterhitTrainingSettingHookAsm proc
 	add esp,10h
 	ret 8h
 _obtainingOfCounterhitTrainingSettingHookAsm endp
+
+_isGameModeNetworkHookWhenDecidingStepCountHookAsm proc
+	call [_orig_isGameModeNetwork]
+	test EAX,EAX
+	jnz exit
+	cmp dword ptr [ESP + 2ch],EAX  ; aswEngine.gameInfoBattle.PauseMenuActor.bIsActive. Doesn't help with most other replay menu toggles doing double taps
+	jnz exit
+	call [_isGameModeNetworkHookWhenDecidingStepCountHook]
+	mov dword ptr [ESP + 28h],EAX  ; ticks to perform
+	xor EAX,EAX
+	exit:
+	ret
+_isGameModeNetworkHookWhenDecidingStepCountHookAsm endp
+
+_replayPauseControlTickHookAsm proc
+	xor EAX,EAX
+	cmp dword ptr [ESP + 1ch],EAX  ; current tick index. Yes this is a local variable from the calling function
+	jnz return
+	jmp [_orig_replayPauseControlTick]
+	return:
+	ret
+_replayPauseControlTickHookAsm endp
 
 end

@@ -33,7 +33,7 @@ enum FrameMarkerType {
 };
 
 struct DigitFrame {
-	std::unique_ptr<PngResource> thickness[2] { };
+	std::unique_ptr<PngResource> thickness[2] { std::unique_ptr<PngResource>{nullptr}, std::unique_ptr<PngResource>{nullptr} };
 };
 
 struct ButtonSettings {
@@ -334,11 +334,11 @@ private:
 	std::string lastFoundTextLeft;
 	std::string lastFoundTextMid;
 	std::string lastFoundTextRight;
-	std::string searchStack[5] { };
+	std::string searchStack[5] { std::string{}, std::string{}, std::string{}, std::string{}, std::string{} };
 	int searchStackCount = 0;
 	std::string searchField{};
 	struct SearchResult {
-		std::string searchStack[5] { };
+		std::string searchStack[5] { std::string{}, std::string{}, std::string{}, std::string{}, std::string{} };
 		int searchStackCount = 0;
 		std::string field;
 		std::string foundLeft;
@@ -543,6 +543,7 @@ private:
 	} comboBoxExtension;
 	// 3 elements, because one for P1, one for P2 and one for cmn_ef
 	std::array<FPACSecondaryData, 3> hitboxEditorFPACSecondaryData;
+	FPACSecondaryData& getSecondaryData(int bbscrIndexInAswEng);
 	
 	// when updating FPAC data you should also update:
 	// Each Entity's::hitboxes() {
@@ -575,7 +576,7 @@ private:
 	// - SortedSprite::layers - the 'ptr' field points to a Hitbox
 	
 	inline void parseAllSprites(Entity editEntity) {
-		hitboxEditorFPACSecondaryData[editEntity.bbscrIndexInAswEng()].parseAllSprites();
+		getSecondaryData(editEntity.bbscrIndexInAswEng()).parseAllSprites();
 	}
 	void detachFPAC();
 	char renameSpriteBuf[32];

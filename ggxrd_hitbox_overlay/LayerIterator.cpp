@@ -4,10 +4,16 @@
 #if _DEBUG
 #include <stdexcept>
 #endif
+#include "EntityList.h"
 
 LayerIterator::LayerIterator(Entity ent) {
 	
-	FPACSecondaryData& secondaryData = ui.hitboxEditorFPACSecondaryData[ent.bbscrIndexInAswEng()];
+	FPACSecondaryData& secondaryData = ui.hitboxEditorFPACSecondaryData[
+		ent.bbscrIndexInAswEng() == 1
+		&& entityList.slots[0].characterType() == entityList.slots[1].characterType()
+			? 0
+			: ent.bbscrIndexInAswEng()
+	];
 	DWORD hash = Entity::hashStringLowercase(ent.spriteName());
 	auto found = secondaryData.oldNameToSortedSpriteIndex.find(hash);
 	if (found != secondaryData.oldNameToSortedSpriteIndex.end()) {
@@ -23,7 +29,12 @@ LayerIterator::LayerIterator(Entity ent) {
 LayerIterator::LayerIterator(Entity ent, SortedSprite* parent)
 	: parent(parent) {
 	
-	FPACSecondaryData& secondaryData = ui.hitboxEditorFPACSecondaryData[ent.bbscrIndexInAswEng()];
+	FPACSecondaryData& secondaryData = ui.hitboxEditorFPACSecondaryData[
+		ent.bbscrIndexInAswEng() == 1
+		&& entityList.slots[0].characterType() == entityList.slots[1].characterType()
+			? 0
+			: ent.bbscrIndexInAswEng()
+	];
 	secondaryData.parseAllSprites();
 	FPAC* fpac = secondaryData.Collision->TopData;
 	

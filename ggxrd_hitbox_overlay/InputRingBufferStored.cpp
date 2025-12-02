@@ -91,11 +91,11 @@ void InputRingBufferStored::update(const InputRingBuffer& inputRingBuffer, const
 		const Input& input = inputRingBuffer.inputs[sourceIndex];
 		unsigned short framesHeld = inputRingBuffer.framesHeld[sourceIndex];
 		if (framesHeld != 0) {
-			if (framesHeld > timeStart + 1) {
-				timeStart = 0;
-				framesHeld = (unsigned short)timeStart + 1;
+			if (timeStart < (DWORD)framesHeld - 1) {
+				framesHeld = (unsigned short)timeStart;
+				timeStart = 1;
 			} else {
-				timeStart -= framesHeld + 1;
+				timeStart -= framesHeld - 1;
 			}
 		}
 		if (lastClearTime != 0xFFFFFFFF && timeStart < lastClearTime) {

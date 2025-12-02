@@ -411,8 +411,8 @@ void Settings::readSettings(bool isFirstEverRead) {
 	if (framebarStoredFramesCount < 1) {
 		framebarStoredFramesCount = 1;
 	}
-	if (framebarStoredFramesCount > _countof(Framebar::frames)) {
-		framebarStoredFramesCount = _countof(Framebar::frames);
+	if (framebarStoredFramesCount > _countof(PlayerFramebar::frames)) {
+		framebarStoredFramesCount = _countof(PlayerFramebar::frames);
 	}
 	
 	if (framebarDisplayedFramesCount < 1) {

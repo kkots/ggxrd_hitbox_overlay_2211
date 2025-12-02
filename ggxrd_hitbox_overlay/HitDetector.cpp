@@ -90,9 +90,9 @@ bool HitDetector::onDllMain() {
 }
 
 void HitDetector::clearAllBoxes() {
-	hitboxesThatHit.clear();
-	hurtboxesThatGotHit.clear();
-	rejections.clear();
+	endScene.currentState->hitDetector.hitboxesThatHit.clear();
+	endScene.currentState->hitDetector.hurtboxesThatGotHit.clear();
+	endScene.currentState->hitDetector.rejections.clear();
 }
 
 HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, DWORD* hitFlags, int* hpPtr) {
@@ -117,9 +117,10 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 			
 			// "CounterGuard..."  +  "..Stand", "..Air", "..Crouch"
 			if (strncmp(otherEntity.animationName(), "CounterGuard", 12) == 0) {
-				for (auto it = hitDetector.rejections.begin(); it != hitDetector.rejections.end(); ++it) {
+				auto itEnd = endScene.currentState->hitDetector.rejections.end();
+				for (auto it = endScene.currentState->hitDetector.rejections.begin(); it != itEnd; ++it) {
 					if (it->owner == otherEntity) {
-						hitDetector.rejections.erase(it);
+						endScene.currentState->hitDetector.rejections.erase(it);
 						break;
 					}
 				}
@@ -140,7 +141,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				newRejection.hatched = false;
 				newRejection.originX = posX;
 				newRejection.originY = posY;
-				hitDetector.rejections.push_back(newRejection);
+				endScene.currentState->hitDetector.rejections.push_back(newRejection);
 			}
 		}
 	}
@@ -176,7 +177,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
 				boxes.previousTime = thisEntity.currentAnimDuration();
 				boxes.hitboxesCount = hitboxesCount;
-				hitDetector.hitboxesThatHit.push_back(boxes);
+				endScene.currentState->hitDetector.hitboxesThatHit.push_back(boxes);
 				
 				if (!boxes.isPawn && (boxes.team == 0 || boxes.team == 1)) {
 					entityList.populate();
@@ -223,7 +224,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 									boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
 									boxes.previousTime = p.currentAnimDuration();
 									boxes.hitboxesCount = otherHitboxesCount;
-									hitDetector.hitboxesThatHit.push_back(boxes);
+									endScene.currentState->hitDetector.hitboxesThatHit.push_back(boxes);
 									break;
 								}
 							}
@@ -250,9 +251,10 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				theHurtbox.outlineColor = replaceAlpha(255, COLOR_HURTBOX_OLD);
 				theHurtbox.hatched = false;
 				if (!theHurtbox.data.empty()) {
-					for (auto it = hitDetector.hurtboxesThatGotHit.begin(); it != hitDetector.hurtboxesThatGotHit.end(); ++it) {
+					auto itEnd = endScene.currentState->hitDetector.hurtboxesThatGotHit.end();
+					for (auto it = endScene.currentState->hitDetector.hurtboxesThatGotHit.begin(); it != itEnd; ++it) {
 						if (it->entity == otherEntity) {
-							hitDetector.hurtboxesThatGotHit.erase(it);
+							endScene.currentState->hitDetector.hurtboxesThatGotHit.erase(it);
 							break;
 						}
 					}
@@ -264,7 +266,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 					boxes.counter = DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT;
 					boxes.previousTime = otherEntity.currentAnimDuration();
 
-					hitDetector.hurtboxesThatGotHit.push_back(boxes);
+					endScene.currentState->hitDetector.hurtboxesThatGotHit.push_back(boxes);
 				}
 			}
 		}
@@ -293,10 +295,11 @@ void HitDetector::HookHelp::dealHitHook(void* attacker, BOOL isInHitstun) {
 }
 
 HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox) {
-	for (auto it = hurtboxesThatGotHit.cbegin(); it != hurtboxesThatGotHit.cend(); ++it) {
+	auto itEnd = endScene.currentState->hitDetector.hurtboxesThatGotHit.cend();
+	for (auto it = endScene.currentState->hitDetector.hurtboxesThatGotHit.cbegin(); it != itEnd; ++it) {
 		if (ent == it->entity) {
 			if (currentHurtbox == it->hitboxes && it->counter < DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT) {
-				hurtboxesThatGotHit.erase(it);
+				endScene.currentState->hitDetector.hurtboxesThatGotHit.erase(it);
 				return { false, DrawHitboxArrayCallParams{} };
 			}
 			return {true, it->hitboxes};
@@ -306,15 +309,16 @@ HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const Draw
 }
 
 void HitDetector::prepareDrawHits() {
-	timeHasChanged = false;
-	unsigned int currentTime = *(DWORD*)(*aswEngine + 4 + game.aswEngineTickCountOffset);
-	if (previousTime != currentTime) {
-		previousTime = currentTime;
+	bool timeHasChanged = false;
+	DWORD currentTime = endScene.getAswEngineTick();
+	if (endScene.currentState->hitDetector.previousTime != currentTime) {
+		endScene.currentState->hitDetector.previousTime = currentTime;
 		timeHasChanged = true;
 	}
+	endScene.currentState->hitDetector.timeHasChanged = timeHasChanged;
 	
-	auto it = hitboxesThatHit.begin();
-	while (it != hitboxesThatHit.end()) {
+	auto it = endScene.currentState->hitDetector.hitboxesThatHit.begin();
+	while (it != endScene.currentState->hitDetector.hitboxesThatHit.end()) {
 		DetectedHitboxes& hitboxThatHit = *it;
 
 		it->entityInTheList = false;
@@ -341,7 +345,7 @@ void HitDetector::prepareDrawHits() {
 				++it->activeTime;
 			}
 			if (it->activeTime >= hitboxMinActiveTime || it->isPawn) {
-				it = hitboxesThatHit.erase(it);
+				it = endScene.currentState->hitDetector.hitboxesThatHit.erase(it);
 			} else {
 				++it;
 			}
@@ -355,22 +359,13 @@ void HitDetector::prepareDrawHits() {
 }
 
 void HitDetector::drawHits() {
-	auto rejIt = rejections.begin();
-	while (rejIt != rejections.end()) {
+	auto rejIt = endScene.currentState->hitDetector.rejections.begin();
+	while (rejIt != endScene.currentState->hitDetector.rejections.end()) {
 		Rejection& rejection = *rejIt;
 		if (invisChipp.needToHide(rejection.owner)) {
-			rejIt = rejections.erase(rejIt);
+			rejIt = endScene.currentState->hitDetector.rejections.erase(rejIt);
 			continue;
 		}
-
-		if (timeHasChanged && !rejection.firstFrame) {
-			--rejection.counter;
-			if (rejection.counter <= 0) {
-				rejIt = rejections.erase(rejIt);
-				continue;
-			}
-		}
-		rejection.firstFrame = false;
 
 		if (rejection.counter != rejection.skipFrame) {
 			DrawBoxCallParams params;
@@ -392,13 +387,45 @@ void HitDetector::drawHits() {
 		++rejIt;
 	}
 
+	auto it = endScene.currentState->hitDetector.hitboxesThatHit.begin();
+	while (it != endScene.currentState->hitDetector.hitboxesThatHit.end()) {
+		DetectedHitboxes& hitboxThatHit = *it;
+
+		if (!it->entityInTheListAndActive) {
+			if (invisChipp.needToHide(hitboxThatHit.team)) {
+				it = endScene.currentState->hitDetector.hitboxesThatHit.erase(it);
+				continue;
+			}
+			endScene.drawDataPrepared.hitboxes.push_back(hitboxThatHit.hitboxes);
+		}
+		++it;
+	}
+	
+}
+
+void HitDetector::drawHitsInside() {
+	auto rejIt = endScene.currentState->hitDetector.rejections.begin();
+	while (rejIt != endScene.currentState->hitDetector.rejections.end()) {
+		Rejection& rejection = *rejIt;
+		if (endScene.currentState->hitDetector.timeHasChanged && !rejection.firstFrame) {
+			--rejection.counter;
+			if (rejection.counter <= 0) {
+				rejIt = endScene.currentState->hitDetector.rejections.erase(rejIt);
+				continue;
+			}
+		}
+		rejection.firstFrame = false;
+		// box collection
+		++rejIt;
+	}
+	
 	{
-		auto it = hurtboxesThatGotHit.begin();
-		while (it != hurtboxesThatGotHit.end()) {
-			if ((*it).timeHasChanged(timeHasChanged)) {
+		auto it = endScene.currentState->hitDetector.hurtboxesThatGotHit.begin();
+		while (it != endScene.currentState->hitDetector.hurtboxesThatGotHit.end()) {
+			if (it->timeHasChanged(endScene.currentState->hitDetector.timeHasChanged)) {
 				--it->counter;
 				if (it->counter == 0) {
-					it = hurtboxesThatGotHit.erase(it);
+					it = endScene.currentState->hitDetector.hurtboxesThatGotHit.erase(it);
 					continue;
 				}
 			}
@@ -406,33 +433,31 @@ void HitDetector::drawHits() {
 		}
 	}
 	
-	auto it = hitboxesThatHit.begin();
-	while (it != hitboxesThatHit.end()) {
-		DetectedHitboxes& hitboxThatHit = *it;
-
-		if (!it->entityInTheListAndActive) {
-			if (invisChipp.needToHide(hitboxThatHit.team)) {
-				it = hitboxesThatHit.erase(it);
-				continue;
-			}
-			endScene.drawDataPrepared.hitboxes.push_back(hitboxThatHit.hitboxes);
-
-			if (hitboxThatHit.timeHasChanged(timeHasChanged)) {
-				--hitboxThatHit.counter;
-				if (hitboxThatHit.counter <= 0 || hitboxThatHit.isPawn) {
-					it = hitboxesThatHit.erase(it);
-					continue;
+	{
+		auto it = endScene.currentState->hitDetector.hitboxesThatHit.begin();
+		while (it != endScene.currentState->hitDetector.hitboxesThatHit.end()) {
+			DetectedHitboxes& hitboxThatHit = *it;
+	
+			if (!it->entityInTheListAndActive) {
+				endScene.drawDataPrepared.hitboxes.push_back(hitboxThatHit.hitboxes);
+				
+				if (hitboxThatHit.timeHasChanged(endScene.currentState->hitDetector.timeHasChanged)) {
+					--hitboxThatHit.counter;
+					if (hitboxThatHit.counter <= 0 || hitboxThatHit.isPawn) {
+						it = endScene.currentState->hitDetector.hitboxesThatHit.erase(it);
+						continue;
+					}
 				}
 			}
+			++it;
 		}
-		++it;
 	}
 	
 }
 
-bool HitDetector::DetectedHitboxes::timeHasChanged(bool globalTimeHasChanged) {
+bool DetectedHitboxes::timeHasChanged(bool globalTimeHasChanged) {
 	if (entity) {
-		const unsigned int newTime = entity.currentAnimDuration();
+		DWORD newTime = entity.currentAnimDuration();
 		if (newTime != previousTime) {
 			previousTime = newTime;
 			return true;
@@ -454,7 +479,7 @@ bool HitDetector::isMadeFullInvul(Entity ent) {
 }
 
 bool HitDetector::hasHitboxThatHit(Entity ent) const {
-	for (const DetectedHitboxes& hitboxes : hitboxesThatHit) {
+	for (const DetectedHitboxes& hitboxes : endScene.currentState->hitDetector.hitboxesThatHit) {
 		if (hitboxes.entity == ent) {
 			return true;
 		}
