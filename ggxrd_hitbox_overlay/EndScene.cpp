@@ -7942,8 +7942,11 @@ void EndScene::loadState(EndSceneStoredState* ptr) {
 	int tickDiff = (int)ptr->prevAswEngineTickCount - currentState->prevAswEngineTickCount;
 	currentState = ptr;
 	if (tickDiff != 0) {
+		DWORD currentTick = currentState->prevAswEngineTickCount;
+		int idlePos = EntityFramebar::confinePos(currentState->framebarPosition + currentState->framebarIdleFor);
+		int idleHitstopPos = EntityFramebar::confinePos(currentState->framebarPositionHitstop + currentState->framebarIdleHitstopFor);
 		for (PlayerFramebars& framebars : playerFramebars) {
-			#define piece(framebarName) { \
+			#define piece(framebarName, pos) { \
 				int currentInd = framebars.framebarName.stateHead - framebars.framebarName.states; \
 				currentInd += tickDiff; \
 				if (currentInd < 0) { \
@@ -7952,11 +7955,12 @@ void EndScene::loadState(EndSceneStoredState* ptr) {
 					currentInd -= _countof(framebars.framebarName.states); \
 				} \
 				framebars.framebarName.stateHead = &framebars.framebarName.states[currentInd]; \
+				framebars.framebarName.frames[pos] = framebars.framebarName.stateHead->currentFrame; \
 			}
-			piece(main)
-			piece(hitstop)
-			piece(idle)
-			piece(idleHitstop)
+			piece(main, currentState->framebarPosition)
+			piece(hitstop, currentState->framebarPositionHitstop)
+			piece(idle, idlePos)
+			piece(idleHitstop, idleHitstopPos)
 			#undef piece
 		}
 		for (ThreadUnsafeSharedPtr<ProjectileFramebar>& framebarsPtr : projectileFramebars) {
@@ -7977,6 +7981,21 @@ void EndScene::loadState(EndSceneStoredState* ptr) {
 			piece(framebars.idle)
 			piece(framebars.idleHitstop)
 			#undef piece
+			if (currentTick >= framebars.creationTick && currentTick < framebars.deletionTick) {
+				#define piece(framebarName, pos) { \
+					if (framebars.framebarName.stateHead->idleTime == 0) { \
+						int relPos = framebars.framebarName.toRelative(pos); \
+						if (relPos < framebars.framebarName.stateHead->framesCount) { \
+							framebars.framebarName.frames[pos] = framebars.framebarName.stateHead->currentFrame; \
+						} \
+					} \
+				}
+				piece(main, currentState->framebarPosition)
+				piece(hitstop, currentState->framebarPositionHitstop)
+				piece(idle, idlePos)
+				piece(idleHitstop, idleHitstopPos)
+				#undef piece
+			}
 		}
 	}
 }

@@ -6109,16 +6109,43 @@ void EndScene::prepareDrawDataInside() {
 				entityFramebar->deletionTick = aswEngineTickCount;
 			}
 		}
-	}
-	if (frameHasChanged) {
-		Entity superflashInstigator = getSuperflashInstigator();
+		
 		if (!superflashInstigator) {
 			cs->superfreezeHasBeenGoingFor = 0;
 		} else {
 			cs->lastNonZeroSuperflashInstigator = superflashInstigator;
 			++cs->superfreezeHasBeenGoingFor;
 		}
+		
+		for (PlayerFramebars& entityFramebar : playerFramebars) {
+			#define piece(framebarName, pos) \
+				entityFramebar.framebarName.stateHead->currentFrame = entityFramebar.framebarName.frames[pos];
+			piece(main, cs->framebarPosition)
+			piece(hitstop, cs->framebarPositionHitstop)
+			piece(idle, framebarPosNoHitstop)
+			piece(idleHitstop, framebarPos)
+			#undef piece
+			
+		}
+		for (ThreadUnsafeSharedPtr<ProjectileFramebar>& entityFramebar : projectileFramebars) {
+			if (aswEngineTickCount >= entityFramebar->creationTick && aswEngineTickCount < entityFramebar->deletionTick) {
+				#define piece(framebarName, pos) { \
+					if (entityFramebar->framebarName.stateHead->idleTime == 0) { \
+						int relPos = entityFramebar->framebarName.toRelative(pos); \
+						if (relPos < entityFramebar->framebarName.stateHead->framesCount) { \
+							entityFramebar->framebarName.stateHead->currentFrame = entityFramebar->framebarName.frames[relPos]; \
+						} \
+					} \
+				}
+				piece(main, cs->framebarPosition)
+				piece(hitstop, cs->framebarPositionHitstop)
+				piece(idle, framebarPosNoHitstop)
+				piece(idleHitstop, framebarPos)
+				#undef piece
+			}
+		}
 	}
+	
 	
 #ifdef LOG_PATH
 	didWriteOnce = true;
