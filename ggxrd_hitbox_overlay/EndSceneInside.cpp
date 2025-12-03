@@ -4193,7 +4193,12 @@ void EndScene::prepareDrawDataInside() {
 					&& projectile.ptr
 					&& projectile.ptr == player.pawn.stackEntity(0)
 					|| player.charType == CHARACTER_TYPE_HAEHYUN
-					&& projectile.haehyunCelestialTuningBall1;
+					&& projectile.haehyunCelestialTuningBall1
+					|| player.charType == CHARACTER_TYPE_ELPHELT
+					&& (
+						currentFrame.animName == PROJECTILE_NAME_BERRY
+						|| currentFrame.animName == PROJECTILE_NAME_BERRY_READY
+					);
 				currentFrame.charSpecific2 = player.charType == CHARACTER_TYPE_RAMLETHAL
 					&& projectile.ptr
 					&& projectile.ptr == player.pawn.stackEntity(1)

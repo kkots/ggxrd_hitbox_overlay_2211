@@ -3,7 +3,7 @@
 
 .code
 
-; x86 C/C++ supports inline asm - we don't need a separate .asm file. But what if it inserts some mov ecx,[securityCookie] at the start of the function, before my asm block? How do I read incoming ecx? So I use this instead
+; x86 C/C++ supports inline asm - we don't need a separate .asm file. But what if it inserts some mov ecx,[securityCookie] at the start of the function, before my asm block? How do I read stack from the calling function and incoming state of some weird registers like EDI? So I use this instead
 
 ; reference to a C function declared in C code - in EndScene.cpp, called "drawQuadExecHook"
 ; It's a cdecl with 3 args

@@ -689,7 +689,7 @@ struct Frame : public FrameBase {
 	bool activeDuringSuperfreeze:1;
 	bool powerup:1;
 	bool marker:1;  // either strike invulnerability marker for Jack-O houses, or super armor marker for Dizzy D-Fish
-	bool charSpecific1:1;  // for Ramlethal: is S Sword. For Haehyun: is celestial tuning ball 1. If both are set, then neither
+	bool charSpecific1:1;  // for Ramlethal: is S Sword. For Haehyun: is celestial tuning ball 1. If both are set, then neither. For Elphelt: 1 if pine
 	bool charSpecific2:1;  // for Ramlethal: is H Sword. For Haehyun: is celestial tuning ball 2. If both are set, then neither
 	bool accountedFor:1;  // used by tooltip drawing
 	bool operator==(const Frame& other) const;

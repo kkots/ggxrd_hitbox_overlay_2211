@@ -4101,7 +4101,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Ready", true);
 	move.isDangerous = isDangerous_grenade;
 	move.framebarId = GrenadeBomb_framebarId;
-	move.framebarName = assignName("Berry Pine", "Berry");
+	move.framebarName = PROJECTILE_NAME_BERRY_READY;
 	move.framebarNameSelector = framebarNameSelector_grenadeBombReady;
 	addMove(move);
 	

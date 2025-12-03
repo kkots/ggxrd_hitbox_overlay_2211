@@ -13147,8 +13147,12 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 		if (owningPlayerCharType == CHARACTER_TYPE_INO) {
 			ImGui::TextUnformatted("The note reached the next level on this frame: it will deal one more hit.");
 		} else if (owningPlayerCharType == CHARACTER_TYPE_ELPHELT) {
-			ImGui::TextUnformatted("The Berry Pine reached a powerup on this frame: it will deal significantly more hitstun or blockstun,"
-				" and will have less pushback on air hit, but more pushback on ground hit or block, and the Berry won't bounce off the floor anymore.");
+			if (projectileFrame.charSpecific1) {
+				ImGui::TextUnformatted("The Berry Pine reached a powerup on this frame: it will deal significantly more hitstun or blockstun,"
+					" and will have less pushback on air hit, but more pushback on ground hit or block, and the Berry won't bounce off the floor anymore.");
+			} else {
+				ImGui::TextUnformatted("This is a charged shotgun shot that is buffed by range proximity.");
+			}
 		} else {
 			ImGui::TextUnformatted("The projectile reached some kind of powerup on this frame.");
 		}
