@@ -226,6 +226,7 @@ void EndScene::prepareDrawDataInside() {
 			player.wasEnableNormals = false;
 			player.wasPrevFrameEnableNormals = false;
 			player.wasPrevFrameEnableWhiffCancels = false;
+			player.blitzParried = false;
 		}
 	}
 	bool framebarAdvanced = false;
@@ -1725,8 +1726,8 @@ void EndScene::prepareDrawDataInside() {
 			}
 			
 			// This is needed for animations that create projectiles on frame 1
-			for (EndSceneStoredState::OccuredEvent& event : cs->events) {
-				if (event.type == EndSceneStoredState::OccuredEvent::SET_ANIM
+			for (EndSceneStoredState::OccurredEvent& event : cs->events) {
+				if (event.type == EndSceneStoredState::OccurredEvent::SET_ANIM
 						&& needDisableProjectiles
 						&& event.u.setAnim.pawn == ent) {
 					for (ProjectileInfo& projectile : cs->projectiles) {
@@ -1747,7 +1748,7 @@ void EndScene::prepareDrawDataInside() {
 							projectile.maxHit.clear();
 						}
 					}
-				} else if (event.type == EndSceneStoredState::OccuredEvent::SIGNAL) {
+				} else if (event.type == EndSceneStoredState::OccurredEvent::SIGNAL) {
 					PlayerInfo& playerFrom = findPlayer(event.u.signal.from);
 					ProjectileInfo& projectileFrom = findProjectile(event.u.signal.from);
 					ProjectileInfo& projectileTo = findProjectile(event.u.signal.to);
@@ -5577,7 +5578,10 @@ void EndScene::prepareDrawDataInside() {
 				}
 			}
 			
-			if (player.sinHunger) {
+			if (player.blitzParriedPrevFrame && !superflashInstigator) {
+				player.blitzParriedPrevFrame = false;
+				currentFrame.type = player.hitstop ? FT_ACTIVE_BLITZ_REJECTION_HITSTOP : FT_ACTIVE_BLITZ_REJECTION;
+			} else if (player.sinHunger) {
 				currentFrame.type = FT_RECOVERY;
 				++player.sinHungerRecovery;
 			} else if (player.isInFDWithoutBlockstun) {
@@ -5926,6 +5930,11 @@ void EndScene::prepareDrawDataInside() {
 					player.stoppedMeasuringInvuls = true;
 				}
 			}
+			
+			if (player.blitzParried) {
+				player.blitzParried = false;
+				player.blitzParriedPrevFrame = true;
+			}
 		}
 		
 		for (PlayerInfo& player : cs->players) {
@@ -6103,7 +6112,7 @@ void EndScene::prepareDrawDataInside() {
 				continue;
 			}
 			entityFramebar->main.stateHead->completelyEmpty = entityFramebar->main.lastNFramesCompletelyEmpty(cs->framebarPosition, FRAMES_MAX);
-			entityFramebar->hitstop.stateHead->completelyEmpty = entityFramebar->main.lastNFramesCompletelyEmpty(cs->framebarPositionHitstop, FRAMES_MAX);
+			entityFramebar->hitstop.stateHead->completelyEmpty = entityFramebar->hitstop.lastNFramesCompletelyEmpty(cs->framebarPositionHitstop, FRAMES_MAX);
 			
 			if (entityFramebar->main.stateHead->completelyEmpty && entityFramebar->hitstop.stateHead->completelyEmpty) {
 				entityFramebar->deletionTick = aswEngineTickCount;
@@ -6125,7 +6134,6 @@ void EndScene::prepareDrawDataInside() {
 			piece(idle, framebarPosNoHitstop)
 			piece(idleHitstop, framebarPos)
 			#undef piece
-			
 		}
 		for (ThreadUnsafeSharedPtr<ProjectileFramebar>& entityFramebar : projectileFramebars) {
 			if (aswEngineTickCount >= entityFramebar->creationTick && aswEngineTickCount < entityFramebar->deletionTick) {

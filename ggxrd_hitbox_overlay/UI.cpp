@@ -8923,7 +8923,7 @@ void UI::drawSearchableWindows() {
 			"The startup of the last performed move. The last startup frame is also an active frame.\n"
 			"For moves that cause a superfreeze, such as RC, the startup of the superfreeze is displayed.\n"
 			"The startup of the move may consist of multiple numbers, separated by +. In that case:\n"
-			"1) If the move caused a superfreeze, and that superfreeze occured before active frames,"
+			"1) If the move caused a superfreeze, and that superfreeze occurred before active frames,"
 			" it's displayed as the startup of the superfreeze + startup after superfreeze;\n"
 			"2) If the move only caused a superfreeze and no attack (for example, it's RC), then only the startup of the superfreeze"
 			" is displayed;\n"
@@ -10953,7 +10953,9 @@ void UI::framebarHelpWindow() {
 		for (int i = 0; i < _countof(frameArtNonColorblind); ++i) {
 			FrameArt& art = frameArtNonColorblind[i];
 			if (art.type == FT_PROJECTILE
-					|| art.type == FT_NONE) {
+					|| art.type == FT_NONE
+					|| art.type == FT_ACTIVE_BLITZ_REJECTION
+					|| art.type == FT_INTENTIONALLY_UNUSED_TYPE) {
 				continue;
 			}
 			
@@ -11111,7 +11113,7 @@ void UI::framebarHelpWindow() {
 		hitConnectedFrameArt.help.end);
 	
 	ImGui::SameLine();
-	ImGui::TextUnformatted(searchTooltip("A frame on which an attack connected and a hit occured."
+	ImGui::TextUnformatted(searchTooltip("A frame on which an attack connected and a hit occurred."
 		" In order to improve visibility, this white outline is instead made black when drawn on top"
 		" of frames that are non-dark yellow"));
 	
@@ -17971,6 +17973,20 @@ void UI::prepareSecondaryFrameArts(UITextureType type) {
 		*ptr = arrays[i][FT_ACTIVE_HITSTOP];
 		ptr->description = "Projectile is active, and in hitstop: while the projectile is in hitstop, time doesn't advance for it and"
 			" it doesn't hit enemies.";
+		
+		ptr = &theArray[FT_ACTIVE_BLITZ_REJECTION];
+		*ptr = arrays[i][FT_ACTIVE_HITSTOP];
+		ptr->description = "On this frame Blitz Shield rejects the opponent if the hit was either direct, or their origin point was within"
+			" the rejection box and the hit was by a projectile.";
+		
+		ptr = &theArray[FT_ACTIVE_BLITZ_REJECTION_HITSTOP];
+		*ptr = arrays[i][FT_ACTIVE_HITSTOP];
+		ptr->description = "On this frame Blitz Shield rejects the opponent if the hit was either direct, or their origin point was within"
+			" the rejection box and the hit was by a projectile.";
+		
+		ptr = &theArray[FT_INTENTIONALLY_UNUSED_TYPE];
+		*ptr = arrays[i][FT_ACTIVE_HITSTOP];
+		ptr->description = "You're not supposed to be seeing this frame type.";
 		
 		ptr = &theArray[FT_NON_ACTIVE_PROJECTILE];
 		*ptr = arrays[i][FT_NON_ACTIVE];

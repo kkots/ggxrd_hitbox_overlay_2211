@@ -111,12 +111,14 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 	}
 	
 	if (result == HIT_RESULT_ARMORED) {
-		if (thisEntity.characterType() == -1
-				&& otherEntity
-				&& otherEntity.isPawn()) {
-			
 			// "CounterGuard..."  +  "..Stand", "..Air", "..Crouch"
-			if (strncmp(otherEntity.animationName(), "CounterGuard", 12) == 0) {
+		if (otherEntity && otherEntity.isPawn() && strncmp(otherEntity.animationName(), "CounterGuard", 12) == 0) {
+			PlayerInfo& player = endScene.findPlayer(otherEntity);
+			if (player.pawn) {
+				player.blitzParried = true;
+				player.blitzParriedPrevFrame = false;
+			}
+			if (thisEntity.characterType() == -1) {
 				auto itEnd = endScene.currentState->hitDetector.rejections.end();
 				for (auto it = endScene.currentState->hitDetector.rejections.begin(); it != itEnd; ++it) {
 					if (it->owner == otherEntity) {

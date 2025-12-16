@@ -472,6 +472,7 @@ void Game::TickActorComponentsHookStatic(int param1, int param2, int param3, int
 	game.TickActorComponentsHook(param1, param2, param3, param4);
 }
 
+// AActor* Actor,FLOAT DeltaSeconds (1/60),ELevelTick TickType (2), FDeferredTickList* DeferredList
 void Game::TickActorComponentsHook(int param1, int param2, int param3, int param4) {
 	if (!shutdown) {
 		if (ignoreAllCalls) {

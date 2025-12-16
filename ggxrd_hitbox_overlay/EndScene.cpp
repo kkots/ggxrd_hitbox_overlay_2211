@@ -2827,8 +2827,8 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 			player.setMoveName(player.moveNameIntraFrame, pawn);
 			if (moveJustSitsThere.isIdle(player)) player.wasIdle = true;
 			currentState->events.emplace_back();
-			EndSceneStoredState::OccuredEvent& event = currentState->events.back();
-			event.type = EndSceneStoredState::OccuredEvent::SET_ANIM;
+			EndSceneStoredState::OccurredEvent& event = currentState->events.back();
+			event.type = EndSceneStoredState::OccurredEvent::SET_ANIM;
 			event.u.setAnim.pawn = pawn;
 			memcpy(event.u.setAnim.fromAnim, pawn.animationName(), 32);
 			
@@ -3049,8 +3049,8 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 		ProjectileInfo& newProjectileInfo = onObjectCreated(creatorOfCreatedObject, createdObj, createdObjectAnim, false, true);
 		newProjectilePtr = newProjectileInfo.ptr;
 		currentState->events.emplace_back();
-		EndSceneStoredState::OccuredEvent& event = currentState->events.back();
-		event.type = EndSceneStoredState::OccuredEvent::SIGNAL;
+		EndSceneStoredState::OccurredEvent& event = currentState->events.back();
+		event.type = EndSceneStoredState::OccurredEvent::SIGNAL;
 		event.u.signal.from = creatorOfCreatedObject;
 		event.u.signal.to = createdObj;
 		memcpy(event.u.signal.fromAnim, creatorOfCreatedObject.animationName(), 32);
@@ -3087,8 +3087,8 @@ void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) {
 	if (!shutdown) {
 		if (!sendSignalStack.empty()) {
 			currentState->events.emplace_back();
-			EndSceneStoredState::OccuredEvent& event = currentState->events.back();
-			event.type = EndSceneStoredState::OccuredEvent::SIGNAL;
+			EndSceneStoredState::OccurredEvent& event = currentState->events.back();
+			event.type = EndSceneStoredState::OccurredEvent::SIGNAL;
 			Entity signalSender = sendSignalStack.back();
 			event.u.signal.from = signalSender;
 			event.u.signal.to = pawn;
@@ -3341,8 +3341,8 @@ void EndScene::BBScr_runOnObjectHook(Entity pawn, EntityReferenceType entityRefe
 				ProjectileInfo& projectile = findProjectile(objectBeingRunOn);
 				if (projectile.ptr) {
 					currentState->events.emplace_back();
-					EndSceneStoredState::OccuredEvent& event = currentState->events.back();
-					event.type = EndSceneStoredState::OccuredEvent::SIGNAL;
+					EndSceneStoredState::OccurredEvent& event = currentState->events.back();
+					event.type = EndSceneStoredState::OccurredEvent::SIGNAL;
 					event.u.signal.from = pawn;
 					event.u.signal.to = projectile.ptr;
 					memcpy(event.u.signal.fromAnim, pawn.animationName(), 32);
@@ -3988,8 +3988,8 @@ void EndScene::BBScr_sendSignalHook(Entity pawn, EntityReferenceType referenceTy
 		int team = pawn.team();
 		if (projectile.ptr && (team == 0 || team == 1)) {
 			currentState->events.emplace_back();
-			EndSceneStoredState::OccuredEvent& event = currentState->events.back();
-			event.type = EndSceneStoredState::OccuredEvent::SIGNAL;
+			EndSceneStoredState::OccurredEvent& event = currentState->events.back();
+			event.type = EndSceneStoredState::OccurredEvent::SIGNAL;
 			event.u.signal.from = pawn;
 			event.u.signal.to = projectile.ptr;
 			memcpy(event.u.signal.fromAnim, pawn.animationName(), 32);

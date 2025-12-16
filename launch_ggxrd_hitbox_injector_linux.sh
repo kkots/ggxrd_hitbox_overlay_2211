@@ -25,7 +25,7 @@ GUILTYGEAR_WINEPREFIX=$(
     # The environment variables the process was launched with are stored in
     # /proc/123456789/environ file.
     # Each entry is in the format VARIABLE_NAME=VALUE and the entries are
-    # separated by the null ('\0') character.
+    # separated with the null ('\0') character.
     cat /proc/$GUILTYGEAR_PID/environ                                                              \
                                                                                                    \
      `# Replaces the null character with a newline so that grep can work with it.`                 \

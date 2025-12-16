@@ -125,17 +125,17 @@ struct EndSceneStoredState {
 		DWORD aswEngTick;
 	};
 	std::vector<LeoParry> leoParries;
-	struct OccuredEvent {
-		enum OccuredEventType {
+	struct OccurredEvent {
+		enum OccurredEventType {
 			SET_ANIM,
 			SIGNAL
 		} type;
-		union OccuredEventUnion {
-			struct OccuredEventSetAnim {
+		union OccurredEventUnion {
+			struct OccurredEventSetAnim {
 				Entity pawn;
 				char fromAnim[32];
 			} setAnim;
-			struct OccuredEventSignal {
+			struct OccurredEventSignal {
 				Entity from;
 				Entity to;
 				char fromAnim[32];  // this is needed from Bedman 236H's bomb1 being created by Flying_bomb1.
@@ -143,10 +143,10 @@ struct EndSceneStoredState {
 									// and we get a different animation string ("423wind") when reading from its pointer
 				CreatedProjectileStruct creatorName;
 			} signal;
-			inline OccuredEventUnion() { }
+			inline OccurredEventUnion() { }
 		} u;
 	};
-	std::vector<OccuredEvent> events;
+	std::vector<OccurredEvent> events;
 	int framebarPosition = 0;
 	int framebarTotalFramesUnlimited = 0;
 	int framebarPositionHitstop = 0;

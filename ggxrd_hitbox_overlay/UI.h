@@ -387,7 +387,7 @@ private:
 		bool clashCancelTimer,
 		bool enableJumpCancel,
 		bool enableSpecials,
-		bool hitOccured,
+		bool hitOccurred,
 		bool airborne,
 		const char* canYrc,
 		bool insertSeparators,

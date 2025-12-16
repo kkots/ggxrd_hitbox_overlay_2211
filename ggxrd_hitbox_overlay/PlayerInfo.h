@@ -407,12 +407,15 @@ enum FrameType : char {
 	FT_ACTIVE,
 	FT_ACTIVE_PROJECTILE,
 	FT_EDDIE_ACTIVE,
+	FT_ACTIVE_BLITZ_REJECTION,
 	FT_ACTIVE_HITSTOP,
 	FT_ACTIVE_HITSTOP_PROJECTILE,
 	FT_EDDIE_ACTIVE_HITSTOP,
+	FT_ACTIVE_BLITZ_REJECTION_HITSTOP,
 	FT_ACTIVE_NEW_HIT,
 	FT_ACTIVE_NEW_HIT_PROJECTILE,
 	FT_EDDIE_ACTIVE_NEW_HIT,
+	FT_INTENTIONALLY_UNUSED_TYPE,  // just here for peace of mind
 	FT_STARTUP,
 	FT_STARTUP_ANYTIME_NOW,
 	FT_STARTUP_ANYTIME_NOW_CAN_ACT,
@@ -448,6 +451,8 @@ inline bool frameTypeDiscardable(FrameType type) {  // disposable types, frameba
 inline bool frameTypeAssumesCantAttack(FrameType type) {
 	return type == FT_ACTIVE
 		|| type == FT_ACTIVE_PROJECTILE
+		|| type == FT_ACTIVE_BLITZ_REJECTION
+		|| type == FT_ACTIVE_BLITZ_REJECTION_HITSTOP
 		|| type == FT_STARTUP
 		|| type == FT_STARTUP_ANYTIME_NOW
 		|| type == FT_STARTUP_ANYTIME_NOW_CAN_ACT
@@ -540,9 +545,11 @@ inline FrameType frameMap(FrameType type) {
 		case FT_ACTIVE:                             return FT_ACTIVE;
 		case FT_ACTIVE_PROJECTILE:                  return FT_ACTIVE_PROJECTILE;
 		case FT_EDDIE_ACTIVE:                       return FT_EDDIE_ACTIVE;
+		case FT_ACTIVE_BLITZ_REJECTION:             return FT_ACTIVE;
 		case FT_ACTIVE_HITSTOP:                     return FT_ACTIVE_HITSTOP;
 		case FT_ACTIVE_HITSTOP_PROJECTILE:          return FT_ACTIVE_HITSTOP_PROJECTILE;
 		case FT_EDDIE_ACTIVE_HITSTOP:               return FT_EDDIE_ACTIVE_HITSTOP;
+		case FT_ACTIVE_BLITZ_REJECTION_HITSTOP:     return FT_HITSTOP;
 		case FT_ACTIVE_NEW_HIT:                     return FT_ACTIVE_NEW_HIT;
 		case FT_ACTIVE_NEW_HIT_PROJECTILE:          return FT_ACTIVE_NEW_HIT_PROJECTILE;
 		case FT_EDDIE_ACTIVE_NEW_HIT:               return FT_EDDIE_ACTIVE_NEW_HIT;
@@ -596,9 +603,11 @@ inline FrameType frameMapNoIdle(FrameType type) {
 		case FT_ACTIVE:                             return FT_ACTIVE;
 		case FT_ACTIVE_PROJECTILE:                  return FT_ACTIVE_PROJECTILE;
 		case FT_EDDIE_ACTIVE:                       return FT_EDDIE_ACTIVE;
+		case FT_ACTIVE_BLITZ_REJECTION:             return FT_ACTIVE;
 		case FT_ACTIVE_HITSTOP:                     return FT_ACTIVE_HITSTOP;
 		case FT_ACTIVE_HITSTOP_PROJECTILE:          return FT_ACTIVE_HITSTOP_PROJECTILE;
 		case FT_EDDIE_ACTIVE_HITSTOP:               return FT_EDDIE_ACTIVE_HITSTOP;
+		case FT_ACTIVE_BLITZ_REJECTION_HITSTOP:     return FT_HITSTOP;
 		case FT_ACTIVE_NEW_HIT:                     return FT_ACTIVE_NEW_HIT;
 		case FT_ACTIVE_NEW_HIT_PROJECTILE:          return FT_ACTIVE_NEW_HIT_PROJECTILE;
 		case FT_EDDIE_ACTIVE_NEW_HIT:               return FT_EDDIE_ACTIVE_NEW_HIT;
@@ -2420,6 +2429,8 @@ struct PlayerInfo {
 	bool stoppedMeasuringInvuls:1;
 	bool elpheltShotgunChargeConsumed:1;
 	bool overrideColor:1;
+	bool blitzParried:1;
+	bool blitzParriedPrevFrame:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

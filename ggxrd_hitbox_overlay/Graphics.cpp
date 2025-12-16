@@ -168,7 +168,7 @@ bool Graphics::onDllMain() {
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE);
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, CUSTOM_PIXEL_SHADER);
 	// in OBS dodging mode, when pixel shader was putting 0 alpha in its output, outlines would be invisible, unless we stop using the pixel shader.
-	// Changing alpha to 1 solved that problem. That problem only occured in OBS dodging, and everywhere else - on the screenshots or when not dodging - the outlines would be fine
+	// Changing alpha to 1 solved that problem. That problem only occurred in OBS dodging, and everywhere else - on the screenshots or when not dodging - the outlines would be fine
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, FOR_PIXEL_SHADER);
 	

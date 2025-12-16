@@ -3025,23 +3025,33 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, int frame
 	int undefinedStart;
 	int undefinedEnd;
 	
-	int idleUse;
-	int realUse;
-	if (source.stateHead->idleTime >= scrollX) {
-		idleUse = source.stateHead->idleTime - scrollX;
-		realUse = source.stateHead->framesCount;
+	int idleUseSource;
+	int realUseSource;
+	if (framesTotal < source.stateHead->idleTime + source.stateHead->framesCount) {
+		if (framesTotal >= source.stateHead->idleTime) {
+			idleUseSource = source.stateHead->idleTime;
+			realUseSource = framesTotal - source.stateHead->idleTime;
+			if (realUseSource > source.stateHead->framesCount) {
+				realUseSource = source.stateHead->framesCount;
+			}
+		} else {
+			idleUseSource = framesTotal;
+			realUseSource = 0;
+		}
+	} else {
+		realUseSource = source.stateHead->framesCount;
+		idleUseSource = source.stateHead->idleTime;
+	}
+	
+	int idleUse = idleUseSource;
+	int realUse = realUseSource;
+	if (idleUse >= scrollX) {
+		idleUse = idleUse - scrollX;
+		realUse = realUse;
 	} else {
 		idleUse = 0;
-		realUse = source.stateHead->framesCount - (scrollX - source.stateHead->idleTime);
+		realUse = realUse - (scrollX - idleUse);
 		if (realUse <= 0) return;
-	}
-	if (framesTotal < idleUse + realUse) {
-		if (framesTotal >= idleUse) {
-			realUse = framesTotal - idleUse;
-		} else {
-			realUse = 0;
-			idleUse = framesTotal;
-		}
 	}
 	if (idleUse) {
 		if (idleUse >= (int)_countof(PlayerFramebar::frames)) {
@@ -3183,8 +3193,8 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, int frame
 	int remainingIdleTime;
 	
 	int framesAlreadyIncludedInPreFrame;
-	if (realUse > FRAMES_MAX) {
-		framesAlreadyIncludedInPreFrame = realUse - FRAMES_MAX;
+	if (realUseSource > FRAMES_MAX) {
+		framesAlreadyIncludedInPreFrame = realUseSource - FRAMES_MAX;
 	} else {
 		framesAlreadyIncludedInPreFrame = 0;
 	}
@@ -3197,8 +3207,8 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, int frame
 		remainingIdleTime = 0;
 	}
 	
-	int realFramesToSoakUp = realUse - visibleRealFrames  // if negative, the loop below will simply not run. Also see "can this be negative?" comment above
-		- framesAlreadyIncludedInPreFrame /* the condition when this one is non-0 makes it so we still can't become negative from subtracting this */;
+	int realFramesToSoakUp = realUse - visibleRealFrames  // if negative, the loop below will simply not run
+		- framesAlreadyIncludedInPreFrame; /* the condition when this one is non-0 makes it so we still can't become negative from subtracting this, as scrollX is limited to [0;FRAMES_MAX], framesAlreadyIncludedInPreFrame is essentially realFramesSource - FRAMES_MAX and realFrames = realFramesSource - scrollX at worst */
 	
 	if (realFramesToSoakUp > 0) {
 		
@@ -3206,7 +3216,7 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, int frame
 		// Restore the actual, current playhead position.
 		// The frame that is next after the preFrame will sit at this position
 		posSrcNext = source.toRelative(EntityFramebar::confinePos(
-			framebarPositionWithoutScroll
+			framebarPosition
 			- idleUse
 			- visibleRealFrames
 			- realFramesToSoakUp
@@ -4523,6 +4533,8 @@ void FramebarState::clear() {
 	FramebarBaseState::clear();
 }
 
+static const int growthStrategy[] { 1, 2, 3, 4, 6, 9, 13, 19, 28, 42, 63, 94, 141, _countof(PlayerFramebar::frames) };
+
 // sets framesCount and resizes frames, if needed
 void Framebar::addFrames(int count) {
 	size_t newSize = (size_t)stateHead->framesCount + (size_t)count;
@@ -4532,6 +4544,16 @@ void Framebar::addFrames(int count) {
 	stateHead->framesCount = (int)newSize;
 	if (newSize <= frames.size()) {
 		return;
+	}
+	int currentCapacity = frames.capacity();
+	if (currentCapacity < (int)newSize) {
+		for (int i = 0; i < _countof(growthStrategy); ++i) {
+			int growthThing = growthStrategy[i];
+			if (growthThing >= (int)newSize) {
+				frames.reserve(growthThing);
+				break;
+			}
+		}
 	}
 	frames.resize(newSize);
 }
