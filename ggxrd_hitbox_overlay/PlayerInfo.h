@@ -681,7 +681,7 @@ struct FrameBase {
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
-// This means that types like std::vector require special handling in the clear() method.
+// This means that types like std::vector require special handling in the clear() method and in convertIdleTimeToFrames().
 struct Frame : public FrameBase {
 	const NamePair* animName;
 	Frame* next;
@@ -2442,7 +2442,6 @@ struct PlayerInfo {
 	void addGap(int length = 1);
 	void printGaps(char* buf, size_t bufSize);
 	void clear();
-	void copyTo(PlayerInfo& dest);
 	int startupType() const;
 	void updateLastMoveNameBeforeAfterSuperfreeze(bool disableSlang);
 	const char* getLastPerformedMoveName(bool disableSlang) const;

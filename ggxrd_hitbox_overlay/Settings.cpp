@@ -538,6 +538,7 @@ std::pair<int, int> Settings::trim(std::string& str) {
 
 std::vector<std::string> Settings::split(const std::string& str, char c) {
 	std::vector<std::string> result;
+	if (str.empty()) return std::vector<std::string>{std::string{}};
 	const char* strStart = str.c_str();
 	const char* strEnd = strStart + str.size();
 	const char* prevPtr = strStart;
@@ -1105,7 +1106,19 @@ void Settings::writeSettingsMain() {
 							unsigned int hour;
 							unsigned int minute;
 							unsigned int second;
-							int sscanfResult = sscanf(li.value.start, "%u.%u.%uT%u:%u:%u", &year, &month, &day, &hour, &minute, &second);
+							int sscanfResult;
+							static std::vector<char> sscanfArena;
+							int numChars = li.value.end - li.value.start;
+							if (numChars < 11) {
+								sscanfResult = 0;
+							} else {
+								sscanfArena.resize(numChars
+									+ 1  // add null char
+								);
+								memcpy(sscanfArena.data(), li.value.start, li.value.end - li.value.start);
+								sscanfArena.back() = '\0';
+								sscanfResult = sscanf(sscanfArena.data(), "%u.%u.%uT%u:%u:%u", &year, &month, &day, &hour, &minute, &second);
+							}
 							if (sscanfResult == 6) {
 								needUpdate = list.year != year
 									|| list.month != month

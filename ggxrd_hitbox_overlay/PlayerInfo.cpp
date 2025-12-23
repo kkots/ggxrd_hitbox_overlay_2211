@@ -784,10 +784,6 @@ void PlayerInfo::clear() {
 	counterGuardCrouchMoveIndex = -1;
 }
 
-void PlayerInfo::copyTo(PlayerInfo& dest) {
-	memcpy(&dest, this, sizeof PlayerInfo);
-}
-
 void PrevStartupsInfo::add(short n, bool partOfStance, const NamePair* name) {
 	if (count >= _countof(startups)) {
 		initialSkip += startups[0].startup;
@@ -2707,8 +2703,23 @@ FrameBase& Framebar::getFrame(int index) {
 		throw std::logic_error(buf);
 	}
 }
+
+const FrameBase& Framebar::getFrame(int index) const {
+	int indexRelative = index - positionStart;
+	if (indexRelative < 0) {
+		indexRelative += _countof(PlayerFramebar::frames);
+	}
+	if (indexRelative < (int)frames.size()) {
+		return (const FrameBase&)frames[indexRelative];
+	} else {
+		char buf[1024];
+		sprintf_s(buf, "Accessing a projectile framebar frame out of bounds: requested index %d, positionStart %d, frames.size %u",
+			index, positionStart, frames.size());
+		throw std::logic_error(buf);
+	}
+}
+
 FrameBase& PlayerFramebar::getFrame(int index) { return (FrameBase&)frames[index]; }
-const FrameBase& Framebar::getFrame(int index) const { return (const FrameBase&)frames[index]; }
 const FrameBase& PlayerFramebar::getFrame(int index) const { return (const FrameBase&)frames[index]; }
 
 template<typename T>

@@ -4305,49 +4305,48 @@ CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFrame
 	return bar;
 }
 
-void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entityFramebar,
+void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(PlayerFramebars& entityFramebar,
 		bool framebarAdvanced,
 		bool framebarAdvancedIdle,
 		bool framebarAdvancedHitstop,
 		bool framebarAdvancedIdleHitstop) {
 	
-	bool isPlayer = entityFramebar.belongsToPlayer();
-	FramebarBase& framebar = entityFramebar.getIdleHitstop();
+	PlayerFramebar& framebar = entityFramebar.idleHitstop;
 	const int framebarPos = EntityFramebar::confinePos(currentState->framebarPositionHitstop + currentState->framebarIdleHitstopFor);
-	FrameBase& currentFrame = framebar.getFrame(framebarPos);
-	FrameBase* destinationFrame;
+	PlayerFrame& currentFrame = framebar.frames[framebarPos];
+	PlayerFrame* destinationFrame;
 	
 	
-	destinationFrame = &entityFramebar.getHitstop().getFrame(currentState->framebarPositionHitstop);
+	destinationFrame = &entityFramebar.hitstop.frames[currentState->framebarPositionHitstop];
 	if (framebarAdvancedHitstop) {
 		entityFramebar.copyFrame(*destinationFrame, currentFrame);
-		entityFramebar.getHitstop().processRequests(*destinationFrame);
+		entityFramebar.hitstop.processRequests(*destinationFrame);
 	} else {
 		if (!framebarAdvancedIdleHitstop) {
 			entityFramebar.copyActiveDuringSuperfreeze(*destinationFrame, currentFrame);
 		}
-		entityFramebar.getHitstop().collectRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
+		entityFramebar.hitstop.collectRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
 	}
 	int idlePos = EntityFramebar::confinePos(currentState->framebarPosition + currentState->framebarIdleFor);
-	destinationFrame = &entityFramebar.getIdle().getFrame(idlePos);
+	destinationFrame = &entityFramebar.idle.frames[idlePos];
 	if (framebarAdvancedIdle) {
 		entityFramebar.copyFrame(*destinationFrame, currentFrame);
-		entityFramebar.getIdle().processRequests(*destinationFrame);
+		entityFramebar.idle.processRequests(*destinationFrame);
 	} else {
 		if (!framebarAdvancedIdleHitstop) {
 			entityFramebar.copyActiveDuringSuperfreeze(*destinationFrame, currentFrame);
 		}
-		entityFramebar.getIdle().collectRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
+		entityFramebar.idle.collectRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
 	}
-	destinationFrame = &entityFramebar.getMain().getFrame(currentState->framebarPosition);
+	destinationFrame = &entityFramebar.main.frames[currentState->framebarPosition];
 	if (framebarAdvanced) {
 		entityFramebar.copyFrame(*destinationFrame, currentFrame);
-		entityFramebar.getMain().processRequests(*destinationFrame);
+		entityFramebar.main.processRequests(*destinationFrame);
 	} else {
 		if (!framebarAdvancedIdleHitstop) {
 			entityFramebar.copyActiveDuringSuperfreeze(*destinationFrame, currentFrame);
 		}
-		entityFramebar.getMain().collectRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
+		entityFramebar.main.collectRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
 	}
 	if (framebarAdvancedIdleHitstop) {
 		framebar.clearRequests();
@@ -4360,10 +4359,9 @@ void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(ProjectileFramebar& e
 		bool framebarAdvancedHitstop,
 		bool framebarAdvancedIdleHitstop) {
 	
-	bool isPlayer = entityFramebar.belongsToPlayer();
-	FramebarBase& framebar = entityFramebar.getIdleHitstop();
+	Framebar& framebar = entityFramebar.idleHitstop;
 	const int framebarPos = EntityFramebar::confinePos(currentState->framebarPositionHitstop + currentState->framebarIdleHitstopFor);
-	FrameBase& currentFrame = framebar.getFrame(framebarPos);  // the frame should exist
+	Frame& currentFrame = (Frame&)framebar.getFrame(framebarPos);  // the frame should exist
 	Frame* destinationFrame;
 	
 	if (framebarAdvancedHitstop) {
@@ -7986,7 +7984,7 @@ void EndScene::loadState(EndSceneStoredState* ptr) {
 					if (framebars.framebarName.stateHead->idleTime == 0) { \
 						int relPos = framebars.framebarName.toRelative(pos); \
 						if (relPos < framebars.framebarName.stateHead->framesCount) { \
-							framebars.framebarName.frames[pos] = framebars.framebarName.stateHead->currentFrame; \
+							framebars.framebarName.frames[relPos] = framebars.framebarName.stateHead->currentFrame; \
 						} \
 					} \
 				}

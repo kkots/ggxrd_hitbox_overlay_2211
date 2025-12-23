@@ -547,7 +547,7 @@ private:
 	ProjectileFramebar& findProjectileFramebar(ProjectileInfo& projectile, bool needCreate);
 	CombinedProjectileFramebar& findCombinedFramebar(const ProjectileFramebar& source, bool hitstop,
 			int scrollX, int framebarPosition, int framesTotal);
-	void copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entityFramebar,
+	void copyIdleHitstopFrameToTheRestOfSubframebars(PlayerFramebars& entityFramebar,
 		bool framebarAdvanced,
 		bool framebarAdvancedIdle,
 		bool framebarAdvancedHitstop,
