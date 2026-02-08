@@ -1637,3 +1637,82 @@ bool Game::isOnlineTrainingMode_Part() const {
 	}
 	return false;
 }
+
+uintptr_t Game::findSelectedCharaLocation() {
+	static bool sigscannedSelectedCharaLocation = false;
+	static uintptr_t selectedCharaLocation = 0;
+	if (sigscannedSelectedCharaLocation) return selectedCharaLocation;
+	sigscannedSelectedCharaLocation = true;
+	
+	uintptr_t stringLoc = sigscanStrOffset(
+		"GuiltyGearXrd.exe:.rdata",
+		"UI_Profile_Chr%02d",
+		nullptr,
+		"SelectedCharaLocationLighthouse",
+		nullptr);
+	if (!stringLoc) return 0;
+	std::vector<char> sig(6);
+	std::vector<char> mask(6);
+	std::vector<char> maskForCaching;
+	byteSpecificationToSigMask("68 rel(?? ?? ?? ??)", sig, mask, nullptr, 0, &maskForCaching);
+	substituteWildcard(sig.data(), mask.data(), 0, (void*)stringLoc);
+	uintptr_t codeLoc = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		sig.data(), mask.data(),
+		nullptr,
+		"SelectedCharaLocationCode",
+		maskForCaching.data());
+	if (!codeLoc) return 0;
+	uintptr_t finalPlace = sigscanBackwards(codeLoc, "e8 ?? ?? ?? ?? 0f be 90 8a 00 00 00", 30);
+	if (!finalPlace) return 0;
+	uintptr_t funcAddr = followRelativeCall(finalPlace);
+	if (*(BYTE*)funcAddr == 0xb8  // MOV EAX,????
+			&& *(BYTE*)(funcAddr + 5) == 0xc3) {  // RET
+		finishedSigscanning();
+		selectedCharaLocation = *(uintptr_t*)(funcAddr + 1);
+		return selectedCharaLocation;
+	}
+	return 0;
+}
+
+uintptr_t Game::findSaveCharaFunc() {
+	static bool triedScanning = false;
+	uintptr_t lastResult = 0;
+	if (triedScanning) return lastResult;
+	triedScanning = true;
+	
+	const wchar_t REDGfxMoviePlayer_MenuCharaSelectBaseString[] = L"REDGfxMoviePlayer_MenuCharaSelectBase";
+	uintptr_t stringLoc = sigscan("GuiltyGearXrd.exe:.rdata", (const char*)REDGfxMoviePlayer_MenuCharaSelectBaseString,
+		sizeof REDGfxMoviePlayer_MenuCharaSelectBaseString, "REDGfxMoviePlayer_MenuCharaSelectBaseString", nullptr);
+	if (!stringLoc) return 0;
+	
+	std::vector<char> sig(6);
+	std::vector<char> mask(6);
+	std::vector<char> maskForCaching;
+	byteSpecificationToSigMask("68 rel(?? ?? ?? ??)", sig, mask, nullptr, 0, &maskForCaching);
+	substituteWildcard(sig.data(), mask.data(), 0, (void*)stringLoc);
+	uintptr_t privateStaticClassInitialization = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		sig.data(), mask.data(),
+		nullptr,
+		"REDGfxMoviePlayer_MenuCharaSelectBase_PrivateStaticClassInitialization",
+		maskForCaching.data());
+	if (!privateStaticClassInitialization) return 0;
+	
+	uintptr_t internalConstructorUsage = sigscanBackwards(privateStaticClassInitialization,
+		"68 ?? ?? ?? ?? 68 84 40 08 04", 30);
+	if (!internalConstructorUsage) return 0;
+	
+	uintptr_t internalConstructor = *(uintptr_t*)(internalConstructorUsage + 1);
+	
+	uintptr_t vtableAssignment = sigscanForward(internalConstructor, "c7 06", 0x20);  // MOV dword ptr [ESI],????
+	if (!vtableAssignment) return 0;
+	
+	lastResult = *(uintptr_t*)(
+		*(uintptr_t*)(
+			vtableAssignment + 2  // read vtable itself
+		) + 0x380  // Network_SetMyChara
+	);
+	return lastResult;
+	
+}

@@ -2730,6 +2730,135 @@ void UI::drawSearchableWindows() {
 			}
 		}
 		popSearchStack();
+		pushSearchStack("Quick Character Select");
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("Quick Character Select")) || searching) {
+			static bool sigscannedSelectedCharaLocation = false;
+			static uintptr_t selectedCharaLocation = 0;
+			static bool failedToFindSaveFunction = false;
+			if (!sigscannedSelectedCharaLocation) {
+				sigscannedSelectedCharaLocation = true;
+				selectedCharaLocation = game.findSelectedCharaLocation();
+				if (selectedCharaLocation) selectedCharaLocation += 4;
+			}
+			if (!selectedCharaLocation) {
+				ImGui::TextUnformatted("Failed to find where the selected online character is at.");
+			} else {
+				ImGui::TextUnformatted("For online 'Player Match' mode.");
+				ImGui::PushItemWidth(80);
+				CharacterType currentChar = (CharacterType)*(BYTE*)selectedCharaLocation;
+				CharacterType selectedChar = currentChar;
+				sprintf_s(strbuf, "  %s", selectedCharaLocation == -1 ? "Random" : characterNames[currentChar]);
+				float lineHeight = ImGui::GetTextLineHeight();
+				ImVec2 comboBoxPos = ImGui::GetCursorPos();
+				ImVec2 windowPos = ImGui::GetWindowPos();
+				float scrollX = ImGui::GetScrollX();
+				float scrollY = ImGui::GetScrollY();
+				const ImGuiStyle& style = ImGui::GetStyle();
+				if (ImGui::BeginCombo(searchFieldTitle("##charselectcombobox"), strbuf)) {
+					ImVec2 popupPos = ImGui::GetWindowPos();
+					float popupScrollX = ImGui::GetScrollX();
+					float popupScrollY = ImGui::GetScrollY();
+					imguiContextMenuOpen = true;
+					for (int i = -1; i < 25; ++i) {
+						ImGui::PushID(i);
+						sprintf_s(strbuf, "  %s", i == -1 ? "Random" : characterNames[i]);
+						ImVec2 selectablePos = ImGui::GetCursorPos();
+						
+						if (ImGui::Selectable(strbuf, i == (int)currentChar)) {
+							selectedChar = (CharacterType)i;
+						}
+						if (i == (int)currentChar) {
+							// from imgui_demo.cpp:
+							// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+							ImGui::SetItemDefaultFocus();
+						}
+						GGIcon selectableCharIcon = scaleGGIconToHeight(getCharIcon((CharacterType)i), lineHeight);
+						ImDrawList* drawListPopup = ImGui::GetWindowDrawList();
+						drawListPopup->AddImage(TEXID_GGICON, {
+								popupPos.x + selectablePos.x - popupScrollX + 1.F,
+								popupPos.y + selectablePos.y - popupScrollY + 1.F
+							}, {
+								popupPos.x + selectablePos.x - popupScrollX + 1.F + lineHeight,
+								popupPos.y + selectablePos.y - popupScrollY + 1.F + lineHeight
+							},
+							selectableCharIcon.uvStart,
+							selectableCharIcon.uvEnd);
+						ImGui::PopID();
+					}
+					ImGui::EndCombo();
+				}
+				if (selectedChar != currentChar) {
+					static bool scannedSaveChara = false;
+					
+					struct FString {
+						wchar_t* text;
+						int len;
+						int allocatedSize;
+					} myString;
+					
+					typedef void (__thiscall*saveCharaFunc_t)(
+						void* thisArg,
+						FString* charaType,
+						int ColorID,
+						int bg_id,
+						int BGM_ID,
+						int CostumeID,
+						BOOL isStylish,
+						BOOL isRankmatch,
+						BOOL isTournament,
+						BOOL isLobbyBattle,
+						BOOL isWelcomeMode);
+					
+					static saveCharaFunc_t saveCharaFunc = nullptr;
+					if (!scannedSaveChara) {
+						saveCharaFunc = (saveCharaFunc_t)game.findSaveCharaFunc();
+					}
+					if (!saveCharaFunc) {
+						failedToFindSaveFunction = true;
+					} else {
+						wchar_t youCanModifyIfYouWant[7] { L'\0' };
+						const wchar_t* srcString = selectedChar == -1 ? L"RANDOM"
+							: characterNamesCodeWideUpper[selectedChar];
+						wcscpy(youCanModifyIfYouWant, srcString);
+						myString.text = youCanModifyIfYouWant;
+						myString.len = wcslen(myString.text);
+						myString.allocatedSize = 7;
+						
+						saveCharaFunc(
+							nullptr,
+							&myString,
+							*(BYTE*)(selectedCharaLocation + 1 + selectedChar),
+							*(BYTE*)(selectedCharaLocation + 0x41),
+							*(BYTE*)(selectedCharaLocation + 0x42),
+							*(BYTE*)(selectedCharaLocation + 0x21 + selectedChar),
+							*(BYTE*)(selectedCharaLocation + 0x43),
+							FALSE,
+							FALSE,
+							FALSE,
+							FALSE);
+							
+					}
+				}
+				ImDrawList* drawList = ImGui::GetWindowDrawList();
+				GGIcon currentCharIcon = scaleGGIconToHeight(getCharIcon(currentChar), lineHeight);
+				drawList->AddImage(TEXID_GGICON, {
+						windowPos.x + comboBoxPos.x - scrollX + style.ItemInnerSpacing.x * 0.5F,
+						windowPos.y + comboBoxPos.y - scrollY + style.FramePadding.y
+					}, {
+						windowPos.x + comboBoxPos.x - scrollX + style.ItemInnerSpacing.x * 0.5F + lineHeight,
+						windowPos.y + comboBoxPos.y - scrollY + style.FramePadding.y + lineHeight
+					},
+					currentCharIcon.uvStart,
+					currentCharIcon.uvEnd);
+				ImGui::PopItemWidth();
+				if (failedToFindSaveFunction) {
+					ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
+					ImGui::TextUnformatted("Failed to find the selected character save function.");
+					ImGui::PopStyleColor();
+				}
+			}
+		}
+		popSearchStack();
 		if (!searching) {
 			if (ImGui::Button("Search")) {
 				toggleOpenManually(PinnedWindowEnum_Search);
@@ -9729,6 +9858,35 @@ const char* characterNamesCode[25] {
 	"dzy",  // 22
 	"bkn",  // 23
 	"ans"   // 24
+};
+
+// from the game's table of 4 chara ID strings per character, these are the first of the 4 elements for each character
+const wchar_t* characterNamesCodeWideUpper[25] {
+	L"SOL",
+	L"KYK",
+	L"MAY",
+	L"MLL",
+	L"ZAT",
+	L"POT",
+	L"CHP",
+	L"FAU",
+	L"AXL",
+	L"VEN",
+	L"SLY",
+	L"INO",
+	L"BED",
+	L"RAM",
+	L"SIN",
+	L"ELP",
+	L"LEO",
+	L"JHN",
+	L"JKO",
+	L"JAM",
+	L"KUM",
+	L"RVN",
+	L"DZY",
+	L"BKN",
+	L"ANS"
 };
 
 const char* characterNamesFull[25] {

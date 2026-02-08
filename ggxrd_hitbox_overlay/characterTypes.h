@@ -4,6 +4,8 @@ extern const char* characterNames[];
 
 extern const char* characterNamesCode[];
 
+extern const wchar_t* characterNamesCodeWideUpper[];
+
 extern const char* characterNamesFull[];
 
 // Important! Character names may be subject to copyright
