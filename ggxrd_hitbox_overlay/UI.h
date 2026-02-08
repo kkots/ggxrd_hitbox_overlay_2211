@@ -187,6 +187,7 @@ public:
 	}
 	void showErrorDlg(const char* msg, bool isManual);
 	void onAddBoxWithoutLayers(BYTE* jonbin);
+	void activateQuickCharSelect();
 private:
 	friend class UndoOperationBase;
 	friend class DeleteLayersOperation;
@@ -513,7 +514,6 @@ private:
 	bool hasAtLeastOnePinnedOpenWindow() const;
 	bool hasAtLeastOnePinnedWindowThatIsNotTheMainWindow() const;
 	bool hasAtLeastOneUnpinnedOpenWindow() const;
-	bool hasAtLeastOneOpenWindow() const;
 	void drawHitboxEditor();
 	void freezeGameAndAllowNextFrameControls();
 	bool showHitboxEditorSettings = false;
@@ -540,7 +540,7 @@ private:
 		bool fastScrollWithKeys();
 		void endFrame();
 		inline void beginFrame() { comboBoxBeganThisFrame = false; }
-	} comboBoxExtension;
+	} comboBoxExtension, comboBoxExtensionQuickCharSelect;
 	// 3 elements, because one for P1, one for P2 and one for cmn_ef
 	std::array<FPACSecondaryData, 3> hitboxEditorFPACSecondaryData;
 	FPACSecondaryData& getSecondaryData(int bbscrIndexInAswEng);
@@ -771,6 +771,9 @@ private:
 	bool selectedHitboxesAlreadyAtTheTop(SortedSprite* sortedSprite);
 	bool selectedHitboxesAlreadyAtTheBottom(SortedSprite* sortedSprite);
 	void hitboxEditorButton();
+	bool drawQuickCharSelect();
+	bool quickCharSelectFocusRequested = false;
+	bool feck = false;
 };
 
 extern UI ui;

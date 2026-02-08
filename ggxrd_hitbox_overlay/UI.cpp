@@ -2506,6 +2506,7 @@ void UI::drawSearchableWindows() {
 				keyComboControl(settings.hitboxEditMoveCameraBack);
 				keyComboControl(settings.hitboxEditMoveCameraForward);
 				keyComboControl(settings.fastForwardReplay);
+				keyComboControl(settings.openQuickCharSelect);
 			}
 			popSearchStack();
 			if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
@@ -2731,132 +2732,17 @@ void UI::drawSearchableWindows() {
 		}
 		popSearchStack();
 		pushSearchStack("Quick Character Select");
-		if (ImGui::CollapsingHeader(searchCollapsibleSection("Quick Character Select")) || searching) {
-			static bool sigscannedSelectedCharaLocation = false;
-			static uintptr_t selectedCharaLocation = 0;
-			static bool failedToFindSaveFunction = false;
-			if (!sigscannedSelectedCharaLocation) {
-				sigscannedSelectedCharaLocation = true;
-				selectedCharaLocation = game.findSelectedCharaLocation();
-				if (selectedCharaLocation) selectedCharaLocation += 4;
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("Quick Character Select##section")) || searching) {
+			drawQuickCharSelect();
+			ImGui::PushTextWrapPos(0.F);
+			static std::string desc;
+			if (desc.empty()) {
+				desc = settings.convertToUiDescription("You can set a hotkey to open this in a separate window in \"openQuickCharSelect\".");
 			}
-			if (!selectedCharaLocation) {
-				ImGui::TextUnformatted("Failed to find where the selected online character is at.");
-			} else {
-				ImGui::TextUnformatted("For online 'Player Match' mode.");
-				ImGui::PushItemWidth(80);
-				CharacterType currentChar = (CharacterType)*(BYTE*)selectedCharaLocation;
-				CharacterType selectedChar = currentChar;
-				sprintf_s(strbuf, "  %s", selectedCharaLocation == -1 ? "Random" : characterNames[currentChar]);
-				float lineHeight = ImGui::GetTextLineHeight();
-				ImVec2 comboBoxPos = ImGui::GetCursorPos();
-				ImVec2 windowPos = ImGui::GetWindowPos();
-				float scrollX = ImGui::GetScrollX();
-				float scrollY = ImGui::GetScrollY();
-				const ImGuiStyle& style = ImGui::GetStyle();
-				if (ImGui::BeginCombo(searchFieldTitle("##charselectcombobox"), strbuf)) {
-					ImVec2 popupPos = ImGui::GetWindowPos();
-					float popupScrollX = ImGui::GetScrollX();
-					float popupScrollY = ImGui::GetScrollY();
-					imguiContextMenuOpen = true;
-					for (int i = -1; i < 25; ++i) {
-						ImGui::PushID(i);
-						sprintf_s(strbuf, "  %s", i == -1 ? "Random" : characterNames[i]);
-						ImVec2 selectablePos = ImGui::GetCursorPos();
-						
-						if (ImGui::Selectable(strbuf, i == (int)currentChar)) {
-							selectedChar = (CharacterType)i;
-						}
-						if (i == (int)currentChar) {
-							// from imgui_demo.cpp:
-							// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-							ImGui::SetItemDefaultFocus();
-						}
-						GGIcon selectableCharIcon = scaleGGIconToHeight(getCharIcon((CharacterType)i), lineHeight);
-						ImDrawList* drawListPopup = ImGui::GetWindowDrawList();
-						drawListPopup->AddImage(TEXID_GGICON, {
-								popupPos.x + selectablePos.x - popupScrollX + 1.F,
-								popupPos.y + selectablePos.y - popupScrollY + 1.F
-							}, {
-								popupPos.x + selectablePos.x - popupScrollX + 1.F + lineHeight,
-								popupPos.y + selectablePos.y - popupScrollY + 1.F + lineHeight
-							},
-							selectableCharIcon.uvStart,
-							selectableCharIcon.uvEnd);
-						ImGui::PopID();
-					}
-					ImGui::EndCombo();
-				}
-				if (selectedChar != currentChar) {
-					static bool scannedSaveChara = false;
-					
-					struct FString {
-						wchar_t* text;
-						int len;
-						int allocatedSize;
-					} myString;
-					
-					typedef void (__thiscall*saveCharaFunc_t)(
-						void* thisArg,
-						FString* charaType,
-						int ColorID,
-						int bg_id,
-						int BGM_ID,
-						int CostumeID,
-						BOOL isStylish,
-						BOOL isRankmatch,
-						BOOL isTournament,
-						BOOL isLobbyBattle,
-						BOOL isWelcomeMode);
-					
-					static saveCharaFunc_t saveCharaFunc = nullptr;
-					if (!scannedSaveChara) {
-						saveCharaFunc = (saveCharaFunc_t)game.findSaveCharaFunc();
-					}
-					if (!saveCharaFunc) {
-						failedToFindSaveFunction = true;
-					} else {
-						wchar_t youCanModifyIfYouWant[7] { L'\0' };
-						const wchar_t* srcString = selectedChar == -1 ? L"RANDOM"
-							: characterNamesCodeWideUpper[selectedChar];
-						wcscpy(youCanModifyIfYouWant, srcString);
-						myString.text = youCanModifyIfYouWant;
-						myString.len = wcslen(myString.text);
-						myString.allocatedSize = 7;
-						
-						saveCharaFunc(
-							nullptr,
-							&myString,
-							*(BYTE*)(selectedCharaLocation + 1 + selectedChar),
-							*(BYTE*)(selectedCharaLocation + 0x41),
-							*(BYTE*)(selectedCharaLocation + 0x42),
-							*(BYTE*)(selectedCharaLocation + 0x21 + selectedChar),
-							*(BYTE*)(selectedCharaLocation + 0x43),
-							FALSE,
-							FALSE,
-							FALSE,
-							FALSE);
-							
-					}
-				}
-				ImDrawList* drawList = ImGui::GetWindowDrawList();
-				GGIcon currentCharIcon = scaleGGIconToHeight(getCharIcon(currentChar), lineHeight);
-				drawList->AddImage(TEXID_GGICON, {
-						windowPos.x + comboBoxPos.x - scrollX + style.ItemInnerSpacing.x * 0.5F,
-						windowPos.y + comboBoxPos.y - scrollY + style.FramePadding.y
-					}, {
-						windowPos.x + comboBoxPos.x - scrollX + style.ItemInnerSpacing.x * 0.5F + lineHeight,
-						windowPos.y + comboBoxPos.y - scrollY + style.FramePadding.y + lineHeight
-					},
-					currentCharIcon.uvStart,
-					currentCharIcon.uvEnd);
-				ImGui::PopItemWidth();
-				if (failedToFindSaveFunction) {
-					ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
-					ImGui::TextUnformatted("Failed to find the selected character save function.");
-					ImGui::PopStyleColor();
-				}
-			}
+			ImGui::TextUnformatted(desc.c_str());
+			sprintf_s(strbuf, "Current hotkey: %s", comborepr(settings.openQuickCharSelect));
+			ImGui::TextUnformatted(strbuf);
+			ImGui::PopTextWrapPos();
 		}
 		popSearchStack();
 		if (!searching) {
@@ -9200,6 +9086,21 @@ void UI::drawSearchableWindows() {
 		customEnd();
 	}
 	popSearchStack();
+	
+	searchCollapsibleSection(PinnedWindowEnum_QuickCharacterSelect);
+	if (windows[PinnedWindowEnum_QuickCharacterSelect].isOpen || searching) {
+		ImGui::SetNextWindowSize({ 300.F, 0.F }, ImGuiCond_FirstUseEver);
+		if (quickCharSelectFocusRequested) ImGui::SetNextWindowFocus();
+		customBegin(PinnedWindowEnum_QuickCharacterSelect);
+		bool needClose = drawQuickCharSelect();
+		customEnd();
+		if (needClose) {
+			setOpen(PinnedWindowEnum_QuickCharacterSelect, false, false);
+		}
+	}
+	popSearchStack();
+	quickCharSelectFocusRequested = false;
+	
 	if (searching) {
 		ImGui::PopID();
 	}
@@ -19336,16 +19237,6 @@ bool UI::hasAtLeastOneUnpinnedOpenWindow() const {
 	return false;
 }
 
-bool UI::hasAtLeastOneOpenWindow() const {
-	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
-		const WindowStruct& windowStruct = windows[i];
-		if (windowStruct.isOpen) {
-			return true;
-		}
-	}
-	return false;
-}
-
 void UI::onVisibilityToggleKeyboardShortcutPressed() {
 	WindowStruct& mainWindow = windows[PinnedWindowEnum_MainWindow];
 	if (hasAtLeastOnePinnedOpenWindow() && hasAtLeastOneUnpinnedOpenWindow()) {
@@ -24040,4 +23931,231 @@ FPACSecondaryData& UI::getSecondaryData(int bbscrIndexInAswEng) {
 	} else {
 		return hitboxEditorFPACSecondaryData[bbscrIndexInAswEng];
 	}
+}
+
+void UI::activateQuickCharSelect() {
+	toggleOpen(PinnedWindowEnum_QuickCharacterSelect, true);
+	quickCharSelectFocusRequested = true;
+}
+
+bool UI::drawQuickCharSelect() {
+	bool returnResult = false;
+	static bool sigscannedSelectedCharaLocation = false;
+	static uintptr_t selectedCharaLocation = 0;
+	static bool failedToFindSaveFunction = false;
+	if (!sigscannedSelectedCharaLocation) {
+		sigscannedSelectedCharaLocation = true;
+		selectedCharaLocation = game.findSelectedCharaLocation();
+		if (selectedCharaLocation) selectedCharaLocation += 4;
+	}
+	if (!selectedCharaLocation) {
+		ImGui::TextUnformatted("Failed to find where the selected online character is at.");
+	} else {
+		static int keyboardHighlight = -2;
+		if (quickCharSelectFocusRequested) {
+			const ImGuiID id = ImGui::GetID("##charselectcombobox");
+			extern ImGuiID ImHashStr(const char* data_p, size_t data_size, ImGuiID seed);
+			const ImGuiID popup_id = ImHashStr("##ComboPopup", 0, id);
+			ImGui::OpenPopup(popup_id, ImGuiPopupFlags_None);
+		}
+		ImGui::TextUnformatted("For online 'Player Match' mode.");
+		ImGui::PushItemWidth(80);
+		CharacterType currentChar = (CharacterType)*(BYTE*)selectedCharaLocation;
+		if (currentChar == 0xFF) currentChar = (CharacterType)-1;
+		CharacterType selectedChar = currentChar;
+		sprintf_s(strbuf, "  %s", currentChar == -1 ? "Random" : characterNames[currentChar]);
+		float lineHeight = ImGui::GetTextLineHeight();
+		ImVec2 comboBoxPos = ImGui::GetCursorPos();
+		ImVec2 windowPos = ImGui::GetWindowPos();
+		float scrollX = ImGui::GetScrollX();
+		float scrollY = ImGui::GetScrollY();
+		const ImGuiStyle& style = ImGui::GetStyle();
+		comboBoxExtensionQuickCharSelect.beginFrame();
+		bool needClosePopup = false;
+		if (ImGui::BeginCombo(searchFieldTitle("##charselectcombobox"), strbuf)) {
+			comboBoxExtensionQuickCharSelect.onComboBoxBegin();
+			imguiActiveTemp = true;
+			if (ImGui::IsWindowAppearing()) {
+				keyboardHighlight = currentChar;
+			}
+			comboBoxExtensionQuickCharSelect.totalCount = 25;
+			comboBoxExtensionQuickCharSelect.selectedIndex = keyboardHighlight + 1;
+			ImVec2 popupPos = ImGui::GetWindowPos();
+			float popupScrollX = ImGui::GetScrollX();
+			float popupScrollY = ImGui::GetScrollY();
+			imguiContextMenuOpen = true;
+			static std::chrono::time_point<std::chrono::system_clock> lastTimePressedKey;
+			static bool lastTimePressedKeyEmpty = true;
+			static char pressedKeysBuffer[20] { '\0' };
+			bool pickMatchingName = false;
+			for (int keyCode = ImGuiKey_A; keyCode <= ImGuiKey_Z; ++keyCode) {
+				if (ImGui::IsKeyPressed((ImGuiKey)keyCode, false)) {
+					std::chrono::time_point<std::chrono::system_clock> currentTime = std::chrono::system_clock::now();
+					if (lastTimePressedKeyEmpty
+							|| std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastTimePressedKey).count() > 2000) {
+						lastTimePressedKey = currentTime;
+						lastTimePressedKeyEmpty = false;
+						memset(pressedKeysBuffer, 0, sizeof pressedKeysBuffer);
+					}
+					int len = strlen(pressedKeysBuffer);
+					if (len < sizeof pressedKeysBuffer - 1) {
+						pickMatchingName = true;
+						pressedKeysBuffer[len] = 'A' + keyCode - ImGuiKey_A;
+					}
+				}
+			}
+			if (pickMatchingName) {
+				int matchedCharsMax = 0;
+				int matchedChar = -2;
+				for (int i = -1; i < 25; ++i) {
+					const char* srcPtr = i == -1 ? "Random" : characterNames[i];
+					const char* searchPtr = pressedKeysBuffer;
+					int matchedCharsCount = 0;
+					while (*srcPtr != '\0' && *searchPtr != '\0') {
+						char srcChar = *srcPtr;
+						if (srcChar >= 'a' && srcChar <= 'z') srcChar = 'A' + srcChar - 'a';
+						if (srcChar < 'A' || srcChar > 'Z') {
+							++srcPtr;
+							continue;
+						}
+						char searchChar = *searchPtr;
+						if (searchChar >= 'a' && searchChar <= 'z') searchChar = 'A' + searchChar - 'a';
+						if (searchChar < 'A' || searchChar > 'Z') {
+							++searchPtr;
+							continue;
+						}
+						
+						if (srcChar == searchChar) {
+							++srcPtr;
+							++searchPtr;
+							++matchedCharsCount;
+							continue;
+						}
+						break;
+					}
+					if (matchedCharsCount > matchedCharsMax) {
+						matchedCharsMax = matchedCharsCount;
+						matchedChar = i;
+					}
+				}
+				keyboardHighlight = matchedChar == -2 ? currentChar : matchedChar;
+				comboBoxExtensionQuickCharSelect.selectedIndex = keyboardHighlight + 1;
+				comboBoxExtensionQuickCharSelect.requestAutoScroll();
+			}
+			for (int i = -1; i < 25; ++i) {
+				ImGui::PushID(i);
+				sprintf_s(strbuf, "  %s", i == -1 ? "Random" : characterNames[i]);
+				ImVec2 selectablePos = ImGui::GetCursorPos();
+				
+				if (ImGui::Selectable(strbuf, i == (int)currentChar, keyboardHighlight == i && i != (int)currentChar ? ImGuiSelectableFlags_Highlight : 0)) {
+					selectedChar = (CharacterType)i;
+					comboBoxExtensionQuickCharSelect.selectedIndex = i + 1;
+					keyboardHighlight = i;
+				}
+				if (i == (int)currentChar) {
+					// from imgui_demo.cpp:
+					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+					ImGui::SetItemDefaultFocus();
+				}
+				
+				GGIcon selectableCharIcon = scaleGGIconToHeight(getCharIcon((CharacterType)i), lineHeight);
+				ImDrawList* drawListPopup = ImGui::GetWindowDrawList();
+				drawListPopup->AddImage(TEXID_GGICON, {
+						popupPos.x + selectablePos.x - popupScrollX + 1.F,
+						popupPos.y + selectablePos.y - popupScrollY + 1.F
+					}, {
+						popupPos.x + selectablePos.x - popupScrollX + 1.F + lineHeight,
+						popupPos.y + selectablePos.y - popupScrollY + 1.F + lineHeight
+					},
+					selectableCharIcon.uvStart,
+					selectableCharIcon.uvEnd);
+				ImGui::PopID();
+			}
+			if (ImGui::IsKeyPressed(ImGuiKey_Enter, false)) {
+				selectedChar = (CharacterType)keyboardHighlight;
+				ImGui::CloseCurrentPopup();
+			}
+			
+			if (comboBoxExtensionQuickCharSelect.fastScrollWithKeys()) {
+				keyboardHighlight = comboBoxExtensionQuickCharSelect.selectedIndex - 1;
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::SameLine();
+		HelpMarker("You can type the first few letters of the character name (excluding dashes (-) and digits, just skip those) to quickly select an item in the list."
+			" You can use up and down arrow keys to change the current selected item and hit Enter to confirm it. Hitting Enter will close the 'Quick Character Select'"
+			" window if it was opened using a preconfigured hotkey.");
+		comboBoxExtensionQuickCharSelect.endFrame();
+		if (selectedChar != currentChar) {
+			static bool scannedSaveChara = false;
+			
+			struct FString {
+				wchar_t* text;
+				int len;
+				int allocatedSize;
+			} myString;
+			
+			typedef void (__thiscall*saveCharaFunc_t)(
+				void* thisArg,
+				FString* charaType,
+				int ColorID,
+				int bg_id,
+				int BGM_ID,
+				int CostumeID,
+				BOOL isStylish,
+				BOOL isRankmatch,
+				BOOL isTournament,
+				BOOL isLobbyBattle,
+				BOOL isWelcomeMode);
+			
+			static saveCharaFunc_t saveCharaFunc = nullptr;
+			if (!scannedSaveChara) {
+				scannedSaveChara = true;
+				saveCharaFunc = (saveCharaFunc_t)game.findSaveCharaFunc();
+			}
+			if (!saveCharaFunc) {
+				failedToFindSaveFunction = true;
+			} else {
+				wchar_t youCanModifyIfYouWant[7] { L'\0' };
+				const wchar_t* srcString = selectedChar == -1 ? L"RANDOM"
+					: characterNamesCodeWideUpper[selectedChar];
+				wcscpy(youCanModifyIfYouWant, srcString);
+				myString.text = youCanModifyIfYouWant;
+				myString.len = wcslen(myString.text);
+				myString.allocatedSize = 7;
+				
+				saveCharaFunc(
+					nullptr,
+					&myString,
+					*(BYTE*)(selectedCharaLocation + 1 + selectedChar),
+					*(BYTE*)(selectedCharaLocation + 0x41),
+					*(BYTE*)(selectedCharaLocation + 0x42),
+					*(BYTE*)(selectedCharaLocation + 0x21 + selectedChar),
+					*(BYTE*)(selectedCharaLocation + 0x43),
+					FALSE,
+					FALSE,
+					FALSE,
+					FALSE);
+				returnResult = true;
+			}
+		}
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		GGIcon currentCharIcon = scaleGGIconToHeight(getCharIcon(currentChar), lineHeight);
+		drawList->AddImage(TEXID_GGICON, {
+				windowPos.x + comboBoxPos.x - scrollX + style.ItemInnerSpacing.x * 0.5F,
+				windowPos.y + comboBoxPos.y - scrollY + style.FramePadding.y
+			}, {
+				windowPos.x + comboBoxPos.x - scrollX + style.ItemInnerSpacing.x * 0.5F + lineHeight,
+				windowPos.y + comboBoxPos.y - scrollY + style.FramePadding.y + lineHeight
+			},
+			currentCharIcon.uvStart,
+			currentCharIcon.uvEnd);
+		ImGui::PopItemWidth();
+		if (failedToFindSaveFunction) {
+			ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
+			ImGui::TextUnformatted("Failed to find the function that saves selected character.");
+			ImGui::PopStyleColor();
+		}
+	}
+	return returnResult;
 }

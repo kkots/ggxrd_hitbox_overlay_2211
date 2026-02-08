@@ -1836,6 +1836,9 @@ void EndScene::processKeyStrokes() {
 	if (gifMode.speedUpReplay) {
 		onSpeedUpReplayChanged();
 	}
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.openQuickCharSelect)) {
+		ui.activateQuickCharSelect();
+	}
 	if (needWriteSettings && keyboard.thisProcessWindow) {
 		PostMessageW(keyboard.thisProcessWindow, WM_APP_UI_STATE_CHANGED, FALSE, TRUE);
 	}

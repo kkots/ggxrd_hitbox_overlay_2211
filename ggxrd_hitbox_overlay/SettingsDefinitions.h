@@ -1387,4 +1387,7 @@ settingsField(int, fastForwardReplayFactor, 2,
 	"; When holding the \"fastForwardReplay\" hotkey during a replay,\n"
 	"; this is by how many times to speed up the replay.")
 	
+settingsKeyCombo(openQuickCharSelect, "Open Quick Character Select", "",
+	"; A keyboard shortcut to open the Quick Character Select window.")
+	
 #pragma warning(pop)

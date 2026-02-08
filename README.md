@@ -1493,6 +1493,9 @@ fastForwardReplay =
 ; When holding the "fastForwardReplay" hotkey during a replay,
 ; this is by how many times to speed up the replay.
 fastForwardReplayFactor = 2
+
+; A keyboard shortcut to open the Quick Character Select window.
+openQuickCharSelect = 
 ```
 
 </details>

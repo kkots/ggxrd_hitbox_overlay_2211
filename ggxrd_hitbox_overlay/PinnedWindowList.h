@@ -25,7 +25,8 @@
 	pinnableWindowsFunc(Error, "Error") \
 	pinnableWindowsFunc(ShaderCompilationError, "Shader compilation error") \
 	pinnableWindowsFunc(RankIconDrawingHookError, "Failed to hook rank icon drawing") \
-	pinnableWindowsFunc(HitboxEditor, "Hitbox Editor")
+	pinnableWindowsFunc(HitboxEditor, "Hitbox Editor") \
+	pinnableWindowsFunc(QuickCharacterSelect, "Quick Character Select")
 
 enum PinnedWindowEnum {
 	#define pinnableWindowsFunc(name, title) PinnedWindowEnum_##name,
