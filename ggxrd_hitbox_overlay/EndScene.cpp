@@ -3547,7 +3547,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 		if (*aswEngine) {
 			isFading = game.isFading();
 			logic();
-			uiWillBeDrawnOnTopOfPauseMenu = isFading || settings.displayUIOnTopOfPauseMenu && pauseMenuOpen && ui.isVisible();
+			uiWillBeDrawnOnTopOfPauseMenu = isFading || settings.displayUIOnTopOfPauseMenu && pauseMenuOpen && ui.isVisibleAnything();
 		} else {
 			if (gifMode.editHitboxes) {
 				ui.stopHitboxEditMode();
@@ -3559,7 +3559,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			ui.drawData = nullptr;
 			ui.pauseMenuOpen = pauseMenuOpen;
 			ui.drawingPostponed = drawingPostponedLocal;
-			ui.needSplitFramebar = uiWillBeDrawnOnTopOfPauseMenu && !drawingPostponedLocal && pauseMenuOpen && ui.isVisible();
+			ui.needSplitFramebar = uiWillBeDrawnOnTopOfPauseMenu && !drawingPostponedLocal && pauseMenuOpen && ui.isVisibleAnything();
 			ui.needShowFramebarCached = ui.needShowFramebar();
 			ui.needUpdateGraphicsFramebarTexture = false;
 			ui.prepareDrawData();

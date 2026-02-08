@@ -232,6 +232,12 @@ void Keyboard::updateKeyStatuses() {
 		}
 		status.isPressed = isPressed;
 	}
+	if (ignoreNextEscapePress) {
+		KeyStatus* status = getStatus(VK_ESCAPE);
+		if (status) {
+			status->gotPressed = false;
+		}
+	}
 }
 
 void Keyboard::removeAllKeyCodes() {

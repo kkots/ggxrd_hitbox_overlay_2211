@@ -188,6 +188,8 @@ public:
 	void showErrorDlg(const char* msg, bool isManual);
 	void onAddBoxWithoutLayers(BYTE* jonbin);
 	void activateQuickCharSelect();
+	inline bool quickCharSelectVisible() { return windows[PinnedWindowEnum_QuickCharacterSelect].isOpen; }
+	bool isVisibleAnything();
 private:
 	friend class UndoOperationBase;
 	friend class DeleteLayersOperation;
@@ -771,9 +773,9 @@ private:
 	bool selectedHitboxesAlreadyAtTheTop(SortedSprite* sortedSprite);
 	bool selectedHitboxesAlreadyAtTheBottom(SortedSprite* sortedSprite);
 	void hitboxEditorButton();
-	bool drawQuickCharSelect();
+	bool drawQuickCharSelect(bool isWindow);
 	bool quickCharSelectFocusRequested = false;
-	bool feck = false;
+	bool closedQuickCharSelectOnPreviousFrame = false;
 };
 
 extern UI ui;

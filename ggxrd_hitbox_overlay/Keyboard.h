@@ -121,6 +121,7 @@ public:
 	bool imguiHovered = false;
 	bool imguiContextMenuOpen = false;
 	bool imguiActive = false;
+	bool ignoreNextEscapePress = false;
 private:
 	struct KeyStatus {
 		int code = 0;

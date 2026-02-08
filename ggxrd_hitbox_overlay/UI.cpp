@@ -922,7 +922,9 @@ void UI::prepareDrawData() {
 	drewFramebar = false;
 	drewFrameTooltip = false;
 	popupsOpen = false;
-	if (!isVisible() && !needShowFramebarCached && !boxMouseDown || gifMode.modDisabled) {
+	keyboard.ignoreNextEscapePress = closedQuickCharSelectOnPreviousFrame;
+	closedQuickCharSelectOnPreviousFrame = false;
+	if (!isVisibleAnything() && !needShowFramebarCached && !boxMouseDown || gifMode.modDisabled) {
 		takeScreenshot = false;
 		takeScreenshotPress = false;
 		imguiActive = false;
@@ -2733,7 +2735,7 @@ void UI::drawSearchableWindows() {
 		popSearchStack();
 		pushSearchStack("Quick Character Select");
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Quick Character Select##section")) || searching) {
-			drawQuickCharSelect();
+			drawQuickCharSelect(false);
 			ImGui::PushTextWrapPos(0.F);
 			static std::string desc;
 			if (desc.empty()) {
@@ -9092,11 +9094,13 @@ void UI::drawSearchableWindows() {
 		ImGui::SetNextWindowSize({ 300.F, 0.F }, ImGuiCond_FirstUseEver);
 		if (quickCharSelectFocusRequested) ImGui::SetNextWindowFocus();
 		customBegin(PinnedWindowEnum_QuickCharacterSelect);
-		bool needClose = drawQuickCharSelect();
-		customEnd();
-		if (needClose) {
-			setOpen(PinnedWindowEnum_QuickCharacterSelect, false, false);
+		bool needClose = drawQuickCharSelect(true);
+		if (needClose) lastWindowClosed = true;
+		if (lastWindowClosed) {
+			closedQuickCharSelectOnPreviousFrame = true;
 		}
+		customEnd();
+		keyboard.ignoreNextEscapePress = true;
 	}
 	popSearchStack();
 	quickCharSelectFocusRequested = false;
@@ -9119,7 +9123,7 @@ void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9*
 
 // Runs on the main thread
 void UI::initialize() {
-	if (imguiInitialized || windowShowMode == WindowShowMode_None && !needShowFramebarCached || !keyboard.thisProcessWindow || gifMode.modDisabled) return;
+	if (imguiInitialized || !isVisibleAnything() && !needShowFramebarCached || !keyboard.thisProcessWindow || gifMode.modDisabled) return;
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
 	ImGui_ImplWin32_Init(keyboard.thisProcessWindow);
@@ -23938,7 +23942,7 @@ void UI::activateQuickCharSelect() {
 	quickCharSelectFocusRequested = true;
 }
 
-bool UI::drawQuickCharSelect() {
+bool UI::drawQuickCharSelect(bool isWindow) {
 	bool returnResult = false;
 	static bool sigscannedSelectedCharaLocation = false;
 	static uintptr_t selectedCharaLocation = 0;
@@ -24075,6 +24079,7 @@ bool UI::drawQuickCharSelect() {
 			if (ImGui::IsKeyPressed(ImGuiKey_Enter, false)) {
 				selectedChar = (CharacterType)keyboardHighlight;
 				ImGui::CloseCurrentPopup();
+				returnResult = true;
 			}
 			
 			if (comboBoxExtensionQuickCharSelect.fastScrollWithKeys()) {
@@ -24116,6 +24121,7 @@ bool UI::drawQuickCharSelect() {
 			}
 			if (!saveCharaFunc) {
 				failedToFindSaveFunction = true;
+				returnResult = false;
 			} else {
 				wchar_t youCanModifyIfYouWant[7] { L'\0' };
 				const wchar_t* srcString = selectedChar == -1 ? L"RANDOM"
@@ -24158,5 +24164,14 @@ bool UI::drawQuickCharSelect() {
 			ImGui::PopStyleColor();
 		}
 	}
+	if (isWindow) {
+		if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+			returnResult = true;
+		}
+	}
 	return returnResult;
+}
+
+bool UI::isVisibleAnything() {
+	return isVisible() || quickCharSelectVisible();
 }
