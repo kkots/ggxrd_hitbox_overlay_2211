@@ -23975,8 +23975,12 @@ bool UI::drawQuickCharSelect() {
 		if (ImGui::BeginCombo(searchFieldTitle("##charselectcombobox"), strbuf)) {
 			comboBoxExtensionQuickCharSelect.onComboBoxBegin();
 			imguiActiveTemp = true;
+			static std::chrono::time_point<std::chrono::system_clock> lastTimePressedKey;
+			static bool lastTimePressedKeyEmpty = true;
+			static char pressedKeysBuffer[20] { '\0' };
 			if (ImGui::IsWindowAppearing()) {
 				keyboardHighlight = currentChar;
+				lastTimePressedKeyEmpty = true;
 			}
 			comboBoxExtensionQuickCharSelect.totalCount = 25;
 			comboBoxExtensionQuickCharSelect.selectedIndex = keyboardHighlight + 1;
@@ -23984,9 +23988,6 @@ bool UI::drawQuickCharSelect() {
 			float popupScrollX = ImGui::GetScrollX();
 			float popupScrollY = ImGui::GetScrollY();
 			imguiContextMenuOpen = true;
-			static std::chrono::time_point<std::chrono::system_clock> lastTimePressedKey;
-			static bool lastTimePressedKeyEmpty = true;
-			static char pressedKeysBuffer[20] { '\0' };
 			bool pickMatchingName = false;
 			for (int keyCode = ImGuiKey_A; keyCode <= ImGuiKey_Z; ++keyCode) {
 				if (ImGui::IsKeyPressed((ImGuiKey)keyCode, false)) {
@@ -24127,10 +24128,10 @@ bool UI::drawQuickCharSelect() {
 				saveCharaFunc(
 					nullptr,
 					&myString,
-					*(BYTE*)(selectedCharaLocation + 1 + selectedChar),
+					selectedChar == -1 ? 0 : *(BYTE*)(selectedCharaLocation + 1 + selectedChar),
 					*(BYTE*)(selectedCharaLocation + 0x41),
 					*(BYTE*)(selectedCharaLocation + 0x42),
-					*(BYTE*)(selectedCharaLocation + 0x21 + selectedChar),
+					selectedChar == -1 ? 0 : *(BYTE*)(selectedCharaLocation + 0x21 + selectedChar),
 					*(BYTE*)(selectedCharaLocation + 0x43),
 					FALSE,
 					FALSE,
