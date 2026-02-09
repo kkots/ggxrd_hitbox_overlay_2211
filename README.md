@@ -6,7 +6,7 @@
 
 Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 12'th February 2025).  
 Adds framebar and framedata display (see [Framebar](#framebar) section).
-Also can freeze the game and play it frame-by-frame (with box display turned off for example) (see [Default Hotkeys](#default-hotkeys) section).  
+Also can freeze the game and play it frame-by-frame (with box display turned off for example) (see main mod's UI window - Hitboxes section within the mod).  
 Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).  
 Also contains position reset mod (see [Position Reset Mod](#position-reset-mod) section).  
 Also contains input history mod (see [Input History Mod](#input-history-mod) section) which can display input history when observing online matches, and it can display durations of each input in the input history.  
@@ -18,6 +18,7 @@ Also it can change the FPS in Training Mode.
 The mod can optionally hide its output from OBS recording (can be turned on in 'UI - Settings - General Settings - Dodge OBS Recording').
 Includes Hitbox Editor that can save/load edited hitboxes to/from .collision and .json files.
 Can speed up replay playback.
+Has Quick Character Select popup for 'Player Match' online mode (no default hotkey, need to assign one in 'Settings - Keyboard Shortcuts').
 
 ## Credits
 
@@ -51,7 +52,7 @@ For Ubuntu/Linux you need to be running the Windows version of Guilty Gear Xrd (
 
 Read the [Hitboxes](#hitboxes) section to understand what the colors mean.  
 Read the [Default Hotkeys](#default-hotkeys) section to know what the default hotkeys are.  
-You can also play the game frame-by-frame (described in [Default Hotkeys](#default-hotkeys)).
+You can also play the game frame-by-frame (use main mod UI window - 'Hitboxes' section for that, no default hotkeys, but they can be set up in 'Settings - Keyboard Shortcuts').
 
 To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.
 
@@ -240,7 +241,8 @@ Answer's and I-No's air command grabs cannot grab behind them.
 
 ### Frame-by-frame animation playback
 
-You can force the game to play one frame at a time (in training mode only). You can either use the 'Mod UI - Hitboxes - Freeze Game' checkbox to pause/resume the game and 'Next Frame' button to advance to the next frame, or you can set up hotkeys for those buttons, as described in [Hotkey configuration](#hotkey-configuration).
+You can force the game to play one frame at a time (in training mode only). You can either use the 'Mod UI - Hitboxes - Freeze Game' checkbox to pause/resume the game and 'Next Frame' button to advance to the next frame, or you can set up hotkeys for those buttons, as described in [Hotkey configuration](#hotkey-configuration).  
+Holding directions and attack buttons while advancing to the next frame will produce those inputs on that frame. Playback and recording buttons for controlling the training dummy work while the game is paused, and in order to position reset via Playback + Recording button combination, hold it while advancing to the next frame.
 
 ## Default Hotkeys
 
