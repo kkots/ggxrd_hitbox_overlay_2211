@@ -283,13 +283,16 @@ void Keyboard::removeUnusedKeyCodes() {
 				lastIt = it;
 			}
 			codeToStatus[status.code] = 0;
-		} else if (lastIt != endIt) {
-			int itIndex = it - statuses.begin();
-			int erasedCount = it - lastIt;
-			statuses.erase(lastIt, it);
-			it = statuses.begin() + itIndex - erasedCount;
-			endIt = statuses.end();
-			lastIt = endIt;
+		} else {
+			if (lastIt != endIt) {
+				int itIndex = it - statuses.begin();
+				int erasedCount = it - lastIt;
+				statuses.erase(lastIt, it);
+				it = statuses.begin() + itIndex - erasedCount;
+				endIt = statuses.end();
+				lastIt = endIt;
+			}
+			codeToStatus[status.code] = it - statuses.begin() + 1;
 		}
 	}
 	if (lastIt != endIt) {
