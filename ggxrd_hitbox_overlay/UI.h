@@ -775,7 +775,9 @@ private:
 	void hitboxEditorButton();
 	bool drawQuickCharSelect(bool isWindow);
 	bool quickCharSelectFocusRequested = false;
-	bool closedQuickCharSelectOnPreviousFrame = false;
+	bool drawQuickCharSelectControllerFriendly();
+	uintptr_t getSelectedCharaLocation();
+	void quickCharSelect_save(CharacterType newCharType);
 };
 
 extern UI ui;

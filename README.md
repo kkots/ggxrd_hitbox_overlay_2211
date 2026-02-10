@@ -1498,6 +1498,50 @@ fastForwardReplayFactor = 2
 
 ; A keyboard shortcut to open the Quick Character Select window.
 openQuickCharSelect = 
+
+; Specify true or false. Default value is true.
+; Setting this to true will change the appearance of the character select window,
+; and make it automatically close when the hotkey that was used to open it
+; is released, confirming the current selection.
+useControllerFriendlyQuickCharSelect = true
+
+; Specify true or false. Default value is true.
+; Setting this to true will allow you to use the compuer mouse to move the cursor
+; in the 'Controller-Friendly' version of the 'Quick Character Select' (that you
+; can turn on using the "useControllerFriendlyQuickCharSelect" setting).
+enableMouseInControllerFriendlyQuickCharSelect = true
+
+; A keyboard shortcut to move the cursor left in the Quick Character Select window.
+; More settings can be found in Main Mod UI - Quick Character Select.
+quickCharSelect_moveLeft = LeftStickLeft
+
+; A keyboard shortcut to move the cursor up in the Quick Character Select window.
+; More settings can be found in Main Mod UI - Quick Character Select.
+quickCharSelect_moveUp = LeftStickUp
+
+; A keyboard shortcut to move the cursor right in the Quick Character Select window.
+; More settings can be found in Main Mod UI - Quick Character Select.
+quickCharSelect_moveRight = LeftStickRight
+
+; A keyboard shortcut to move the cursor down in the Quick Character Select window.
+; More settings can be found in Main Mod UI - Quick Character Select.
+quickCharSelect_moveDown = LeftStickDown
+
+; An alternative keyboard shortcut to move the cursor left in the Quick Character Select window.
+; More settings can be found in Main Mod UI - Quick Character Select.
+quickCharSelect_moveLeft_2 = DPadLeft
+
+; An alternative keyboard shortcut to move the cursor up in the Quick Character Select window.
+; More settings can be found in Main Mod UI - Quick Character Select.
+quickCharSelect_moveUp_2 = DPadUp
+
+; An alternative keyboard shortcut to move the cursor right in the Quick Character Select window.
+; More settings can be found in Main Mod UI - Quick Character Select.
+quickCharSelect_moveRight_2 = DPadRight
+
+; An alternative keyboard shortcut to move the cursor down in the Quick Character Select window.
+; More settings can be found in Main Mod UI - Quick Character Select.
+quickCharSelect_moveDown_2 = DPadDown
 ```
 
 </details>
@@ -2019,3 +2063,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2025 December 23: Version 7.18: Fixed a crash that was happening when the mod is present during an online non-observer match, caused by changes since version 7.17. It was caused by writing past the bounds of a projectile framebar's 'frames' heap buffer when reverting framebars to a previous state in correspondence with the game's rollback.
 - 2026 February 8: Version 7.19: Added "Quick Character Select" tab to the main mod UI window.
 - 2026 February 9: Version 7.20: Fixed "Quick Character Select" popup not appearing upon hotkey press if all mod's windows have been closed.
+- 2026 February 10: Version 7.21: Added a new mode for "Quick Character Select" that appears only when the hotkey/hotbutton is held and disappears when not held, and the selection is changed using the gamepad controls, and it captures gamepad input to hide it from the game, and stopping holding the hotkey/hotbutton confirms the character selection. This new mode is the default setting. It can be changed in Main Mod UI - Quick Character Select - 'Use Controller-Friendly Quick Char Select'.

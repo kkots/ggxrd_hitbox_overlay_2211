@@ -227,7 +227,7 @@ void Settings::readSettings(bool isFirstEverRead) {
 		it->second.isParsed = false;
 	}
 	if (!keyboard.isInitialized()) keyboard.initialize();
-	keyboard.removeAllKeyCodes();
+	keyboard.markAllKeyCodesUnused();
 	
 	
 	#define settingsKeyCombo(name, displayName, defaultValue, description)
@@ -494,6 +494,7 @@ void Settings::readSettings(bool isFirstEverRead) {
 		}
 		keyboard.addNewKeyCodes(*it->second.keyCombo);
 	}
+	keyboard.removeUnusedKeyCodes();
 	
 	firstSettingsParse = false;
 }

@@ -4,6 +4,7 @@
 #include "Settings.h"
 #include "memoryFunctions.h"
 #include "KeyDefinitions.h"
+#include "Detouring.h"
 
 Keyboard keyboard;
 
@@ -22,6 +23,17 @@ BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 	return TRUE;
 }
 
+extern "C" void getJoyStateHookAsm();  // defined in asmhooks.asm
+extern "C" HRESULT __cdecl getJoyStateHook(void* getDeviceStatePtr, void* directInputDevice, size_t size, DIJOYSTATE2* joyState) {  // defined here
+	typedef HRESULT (__stdcall*GetDeviceState_t)(void*,size_t,void*);
+	HRESULT result = ((GetDeviceState_t)getDeviceStatePtr)(directInputDevice, size, joyState);
+	memcpy(&keyboard.joy, joyState, sizeof DIJOYSTATE2);
+	if (keyboard.captureJoyInput) {
+		Keyboard::resetJoyStruct(joyState);
+	}
+	return result;
+}
+
 bool Keyboard::onDllMain() {
 	thisProcessId = GetCurrentProcessId();
 	EnumWindows(EnumWindowsFindMyself, NULL);
@@ -32,6 +44,14 @@ bool Keyboard::onDllMain() {
 	if (!isInitialized()) {
 		initialize();
 	}
+	
+	HMODULE xrd = GetModuleHandleA("GuiltyGearXrd.exe");
+	uintptr_t patchPlace = 0x00d4845a - 0x400000 + (uintptr_t)xrd;
+	std::vector<char> newBytes(9);
+	memcpy(newBytes.data(), "\xe8\x00\x00\x00\x00\x90\x90\x90\x90", 9);
+	int offset = calculateRelativeCallOffset(patchPlace, (uintptr_t)getJoyStateHookAsm);
+	memcpy(newBytes.data() + 1, &offset, 4);
+	detouring.patchPlace(patchPlace, newBytes);
 	
 	return true;
 }
@@ -88,10 +108,6 @@ void Keyboard::updateKeyStatuses() {
 	}
 	
 	const bool windowActive = isWindowActive();
-	DIJOYSTATE2 joy;
-	if (hasJoyKeys && windowActive && !statuses.empty()) {
-		getJoyState(&joy);
-	}
 	for (KeyStatus& status : statuses) {
 		status.moveAmount = 0;
 		status.gotPressed = false;
@@ -232,11 +248,12 @@ void Keyboard::updateKeyStatuses() {
 		}
 		status.isPressed = isPressed;
 	}
-	if (ignoreNextEscapePress) {
-		KeyStatus* status = getStatus(VK_ESCAPE);
-		if (status) {
-			status->gotPressed = false;
-		}
+}
+
+void Keyboard::markAllKeyCodesUnused() {
+	// only settings.cpp is going to use this, and other actors can't add or remove elements, so no need for mutexes
+	for (KeyStatus& status : statuses) {
+		status.unused = true;
 	}
 }
 
@@ -249,7 +266,35 @@ void Keyboard::removeAllKeyCodes() {
 		codeToStatus[status.code] = 0;
 	}
 	statuses.clear();
-	hasJoyKeys = false;
+}
+
+void Keyboard::removeUnusedKeyCodes() {
+	std::unique_lock<std::mutex> guard;
+	if (!mutexLockedFromOutside)
+		guard = std::unique_lock<std::mutex>(mutex);
+	
+	auto it = statuses.begin();
+	auto endIt = statuses.end();
+	auto lastIt = endIt;
+	for (; it != statuses.end(); ++it) {
+		KeyStatus& status = *it;
+		if (status.unused) {
+			if (lastIt == endIt) {
+				lastIt = it;
+			}
+			codeToStatus[status.code] = 0;
+		} else if (lastIt != endIt) {
+			int itIndex = it - statuses.begin();
+			int erasedCount = it - lastIt;
+			statuses.erase(lastIt, it);
+			it = statuses.begin() + itIndex - erasedCount;
+			endIt = statuses.end();
+			lastIt = endIt;
+		}
+	}
+	if (lastIt != endIt) {
+		statuses.erase(lastIt, endIt);
+	}
 }
 
 void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
@@ -268,14 +313,14 @@ void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
 			codeToStatus[codeToStatusIndex] = (int)statuses.size() + 1;
 			
 			statuses.push_back(KeyStatus{ codeToStatusIndex, false, false, codeToMovable[codeToStatusIndex] });
-			if (code >= JOY_START && code <= JOY_END) {
-				hasJoyKeys = true;
-			}
+		} else {
+			statuses[codeToStatus[codeToStatusIndex] - 1].unused = false;
 		}
 	}
 }
 
 bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
+	if (imguiOwner && imguiOwner != owner) return false;
 	std::unique_lock<std::mutex> guard;
 	std::unique_lock<std::mutex> guardSettings;
 	// reading from the main thread does not require locking, as the data won't be modified
@@ -316,6 +361,7 @@ bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
 }
 
 bool Keyboard::isHeld(const std::vector<int>& keyCodes) {
+	if (imguiOwner && imguiOwner != owner) return false;
 	std::unique_lock<std::mutex> guard;
 	std::unique_lock<std::mutex> guardSettings;
 	// reading from the main thread does not require locking the mutex, as the data won't be modified
@@ -332,6 +378,7 @@ bool Keyboard::isHeld(const std::vector<int>& keyCodes) {
 }
 
 float Keyboard::moveAmount(const std::vector<int>& keyCodes, MultiplicationGoal goal) {
+	if (imguiOwner && imguiOwner != owner) return 0.F;
 	std::unique_lock<std::mutex> guard;
 	std::unique_lock<std::mutex> guardSettings;
 	// reading from the main thread does not require locking, as the data won't be modified
@@ -356,9 +403,6 @@ float Keyboard::moveAmount(const std::vector<int>& keyCodes, MultiplicationGoal 
 }
 
 bool Keyboard::isKeyCodePressed(int code) const {
-	if (imguiActive) {
-		return false;
-	}
 	return (GetKeyState(code) & 0x8000) != 0;
 }
 
@@ -390,10 +434,7 @@ Keyboard::MutexLockedFromOutsideGuard::~MutexLockedFromOutsideGuard() {
 
 void Keyboard::getJoyState(DIJOYSTATE2* state) {
 	
-	memset(state, 0, sizeof DIJOYSTATE2);
-	state->lX = 32767;
-	state->lY = 32767;
-	state->rgdwPOV[0] = -1;
+	resetJoyStruct(state);
 	
 	if (!UWindowsClient_Joysticks) {
 		if (UWindowsClient_Joysticks_HookAttempted) {
@@ -427,6 +468,25 @@ void Keyboard::getJoyState(DIJOYSTATE2* state) {
 	
 }
 
+void Keyboard::clearJoyState() {
+	
+	if (!UWindowsClient_Joysticks) return;
+	
+	int ArrayNum = *(int*)(UWindowsClient_Joysticks + 4);
+	BYTE* FJoystickInfo = *(BYTE**)UWindowsClient_Joysticks;
+	while (ArrayNum >= 0) {
+		if (*(void**)FJoystickInfo != nullptr  // LPDIRECTINPUTDEVICE8W DirectInput8Joystick
+				&& *(BOOL*)(FJoystickInfo + 0x1f0)) {  // BOOL bIsConnected
+			memset(FJoystickInfo + 0xc, 0, 4*16);
+		}
+		
+		FJoystickInfo += 0x1fc;
+		--ArrayNum;
+	}
+	
+}
+
+
 bool Keyboard::getMousePos(POINT* result) {
 	if (!GetCursorPos(result)) return false;
 	if (!ScreenToClient(thisProcessWindow, result)) return false;
@@ -443,4 +503,11 @@ bool Keyboard::getMousePos(POINT* result) {
 		
 	}
 	return true;
+}
+
+void Keyboard::resetJoyStruct(DIJOYSTATE2* ptr) {
+	memset(ptr, 0, sizeof DIJOYSTATE2);
+	ptr->lX = 32767;
+	ptr->lY = 32767;
+	ptr->rgdwPOV[0] = -1;
 }

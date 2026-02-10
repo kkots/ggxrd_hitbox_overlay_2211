@@ -9,6 +9,19 @@
 
 extern char** aswEngine;
 
+typedef void (__thiscall*saveCharaFunc_t)(
+	void* thisArg,
+	FString* charaType,
+	int ColorID,
+	int bg_id,
+	int BGM_ID,
+	int CostumeID,
+	BOOL isStylish,
+	BOOL isRankmatch,
+	BOOL isTournament,
+	BOOL isLobbyBattle,
+	BOOL isWelcomeMode);
+
 enum ELevelTick {
 	LEVELTICK_TimeOnly,
 	LEVELTICK_ViewportsOnly,
@@ -170,7 +183,7 @@ public:
 	// first check if the game mode is network at all, and that you're in a match (although it would also tell if you're just in the lobby)
 	bool isOnlineTrainingMode_Part() const;
 	uintptr_t findSelectedCharaLocation();
-	uintptr_t findSaveCharaFunc();
+	saveCharaFunc_t findSaveCharaFunc();
 private:
 	getPlayerPadID_t getPlayerPadIDPtr = nullptr;
 	class HookHelp {

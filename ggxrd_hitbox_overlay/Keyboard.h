@@ -37,6 +37,8 @@ public:
 	float moveAmount(const std::vector<int>& keyCodes, MultiplicationGoal goal);
 	void addNewKeyCodes(const std::vector<int>& keyCodes);
 	void removeAllKeyCodes();
+	void markAllKeyCodesUnused();
+	void removeUnusedKeyCodes();
 	inline bool isInitialized() const { return initialized; }
 	void initialize();
 	std::mutex mutex;
@@ -121,7 +123,11 @@ public:
 	bool imguiHovered = false;
 	bool imguiContextMenuOpen = false;
 	bool imguiActive = false;
-	bool ignoreNextEscapePress = false;
+	int imguiOwner = 0;
+	DIJOYSTATE2 joy;
+	bool captureJoyInput = false;
+	static void resetJoyStruct(DIJOYSTATE2* ptr);
+	int owner = 0;
 private:
 	struct KeyStatus {
 		int code = 0;
@@ -129,9 +135,9 @@ private:
 		bool gotPressed = false;
 		MultiplicationWhat movable = MULTIPLICATION_WHAT_NONE;
 		int moveAmount = 0;
+		bool unused = false;;
 	};
 	std::vector<KeyStatus> statuses;
-	bool hasJoyKeys = false;
 	bool isKeyCodePressed(int code) const;
 	bool isWindowActive() const;
 	bool isModifierKey(int code) const;
@@ -139,6 +145,7 @@ private:
 	BYTE* UWindowsClient_Joysticks = nullptr;
 	bool UWindowsClient_Joysticks_HookAttempted = false;
 	void getJoyState(DIJOYSTATE2* state);
+	void clearJoyState();
 	std::vector<int> codeToStatus;
 	std::vector<MultiplicationWhat> codeToMovable;
 	bool initialized = false;

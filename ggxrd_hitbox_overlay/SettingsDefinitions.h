@@ -1390,4 +1390,50 @@ settingsField(int, fastForwardReplayFactor, 2,
 settingsKeyCombo(openQuickCharSelect, "Open Quick Character Select", "",
 	"; A keyboard shortcut to open the Quick Character Select window.")
 	
+settingsField(bool, useControllerFriendlyQuickCharSelect, true,
+	"Use Controller-Friendly Quick Char Select", SETTINGS_GENERAL,
+	"; Specify true or false. Default value is true.\n"
+	"; Setting this to true will change the appearance of the character select window,\n"
+	"; and make it automatically close when the hotkey that was used to open it\n"
+	"; is released, confirming the current selection.")
+	
+settingsField(bool, enableMouseInControllerFriendlyQuickCharSelect, true,
+	"Enable Mouse In Controller-Friendly Quick Char Select", SETTINGS_GENERAL,
+	"; Specify true or false. Default value is true.\n"
+	"; Setting this to true will allow you to use the compuer mouse to move the cursor\n"
+	"; in the 'Controller-Friendly' version of the 'Quick Character Select' (that you\n"
+	"; can turn on using the \"useControllerFriendlyQuickCharSelect\" setting).")
+	
+settingsKeyCombo(quickCharSelect_moveLeft, "Quick Character Select - Move Left", "LeftStickLeft",
+	"; A keyboard shortcut to move the cursor left in the Quick Character Select window.\n"
+	"; More settings can be found in Main Mod UI - Quick Character Select.")
+	
+settingsKeyCombo(quickCharSelect_moveUp, "Quick Character Select - Move Up", "LeftStickUp",
+	"; A keyboard shortcut to move the cursor up in the Quick Character Select window.\n"
+	"; More settings can be found in Main Mod UI - Quick Character Select.")
+	
+settingsKeyCombo(quickCharSelect_moveRight, "Quick Character Select - Move Right", "LeftStickRight",
+	"; A keyboard shortcut to move the cursor right in the Quick Character Select window.\n"
+	"; More settings can be found in Main Mod UI - Quick Character Select.")
+	
+settingsKeyCombo(quickCharSelect_moveDown, "Quick Character Select - Move Down", "LeftStickDown",
+	"; A keyboard shortcut to move the cursor down in the Quick Character Select window.\n"
+	"; More settings can be found in Main Mod UI - Quick Character Select.")
+	
+settingsKeyCombo(quickCharSelect_moveLeft_2, "Quick Character Select - Move Left (2)", "DPadLeft",
+	"; An alternative keyboard shortcut to move the cursor left in the Quick Character Select window.\n"
+	"; More settings can be found in Main Mod UI - Quick Character Select.")
+	
+settingsKeyCombo(quickCharSelect_moveUp_2, "Quick Character Select - Move Up (2)", "DPadUp",
+	"; An alternative keyboard shortcut to move the cursor up in the Quick Character Select window.\n"
+	"; More settings can be found in Main Mod UI - Quick Character Select.")
+	
+settingsKeyCombo(quickCharSelect_moveRight_2, "Quick Character Select - Move Right (2)", "DPadRight",
+	"; An alternative keyboard shortcut to move the cursor right in the Quick Character Select window.\n"
+	"; More settings can be found in Main Mod UI - Quick Character Select.")
+	
+settingsKeyCombo(quickCharSelect_moveDown_2, "Quick Character Select - Move Down (2)", "DPadDown",
+	"; An alternative keyboard shortcut to move the cursor down in the Quick Character Select window.\n"
+	"; More settings can be found in Main Mod UI - Quick Character Select.")
+	
 #pragma warning(pop)

@@ -1675,9 +1675,9 @@ uintptr_t Game::findSelectedCharaLocation() {
 	return 0;
 }
 
-uintptr_t Game::findSaveCharaFunc() {
+saveCharaFunc_t Game::findSaveCharaFunc() {
 	static bool triedScanning = false;
-	uintptr_t lastResult = 0;
+	static saveCharaFunc_t lastResult = 0;
 	if (triedScanning) return lastResult;
 	triedScanning = true;
 	
@@ -1708,7 +1708,7 @@ uintptr_t Game::findSaveCharaFunc() {
 	uintptr_t vtableAssignment = sigscanForward(internalConstructor, "c7 06", 0x20);  // MOV dword ptr [ESI],????
 	if (!vtableAssignment) return 0;
 	
-	lastResult = *(uintptr_t*)(
+	lastResult = (saveCharaFunc_t)*(uintptr_t*)(
 		*(uintptr_t*)(
 			vtableAssignment + 2  // read vtable itself
 		) + 0x380  // Network_SetMyChara

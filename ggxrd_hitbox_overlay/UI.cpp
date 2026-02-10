@@ -915,6 +915,8 @@ void UI::onDllDetachNonGraphics() {
 
 // Runs on the main thread
 void UI::prepareDrawData() {
+	keyboard.imguiOwner = 0;
+	keyboard.captureJoyInput = false;
 	if (!keyboard.screenSizeKnown) return;
 	convertedBoxesPrepared = false;
 	lastOverallSelectionBoxReady = false;
@@ -922,8 +924,6 @@ void UI::prepareDrawData() {
 	drewFramebar = false;
 	drewFrameTooltip = false;
 	popupsOpen = false;
-	keyboard.ignoreNextEscapePress = closedQuickCharSelectOnPreviousFrame;
-	closedQuickCharSelectOnPreviousFrame = false;
 	if (!isVisibleAnything() && !needShowFramebarCached && !boxMouseDown || gifMode.modDisabled) {
 		takeScreenshot = false;
 		takeScreenshotPress = false;
@@ -2509,6 +2509,14 @@ void UI::drawSearchableWindows() {
 				keyComboControl(settings.hitboxEditMoveCameraForward);
 				keyComboControl(settings.fastForwardReplay);
 				keyComboControl(settings.openQuickCharSelect);
+				keyComboControl(settings.quickCharSelect_moveLeft);
+				keyComboControl(settings.quickCharSelect_moveUp);
+				keyComboControl(settings.quickCharSelect_moveRight);
+				keyComboControl(settings.quickCharSelect_moveDown);
+				keyComboControl(settings.quickCharSelect_moveLeft_2);
+				keyComboControl(settings.quickCharSelect_moveUp_2);
+				keyComboControl(settings.quickCharSelect_moveRight_2);
+				keyComboControl(settings.quickCharSelect_moveDown_2);
 			}
 			popSearchStack();
 			if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
@@ -2745,6 +2753,9 @@ void UI::drawSearchableWindows() {
 			sprintf_s(strbuf, "Current hotkey: %s", comborepr(settings.openQuickCharSelect));
 			ImGui::TextUnformatted(strbuf);
 			ImGui::PopTextWrapPos();
+			
+			booleanSettingPreset(settings.useControllerFriendlyQuickCharSelect);
+			booleanSettingPreset(settings.enableMouseInControllerFriendlyQuickCharSelect);
 		}
 		popSearchStack();
 		if (!searching) {
@@ -9091,16 +9102,38 @@ void UI::drawSearchableWindows() {
 	
 	searchCollapsibleSection(PinnedWindowEnum_QuickCharacterSelect);
 	if (windows[PinnedWindowEnum_QuickCharacterSelect].isOpen || searching) {
-		ImGui::SetNextWindowSize({ 300.F, 0.F }, ImGuiCond_FirstUseEver);
 		if (quickCharSelectFocusRequested) ImGui::SetNextWindowFocus();
-		customBegin(PinnedWindowEnum_QuickCharacterSelect);
-		bool needClose = drawQuickCharSelect(true);
-		if (needClose) lastWindowClosed = true;
-		if (lastWindowClosed) {
-			closedQuickCharSelectOnPreviousFrame = true;
+		bool isOpen = true;
+		bool useFriendlyVer = !searching && settings.useControllerFriendlyQuickCharSelect;
+		if (useFriendlyVer) {
+			ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
+			ImGui::Begin("QuickCharSelectControllerFriendly", &isOpen,
+				ImGuiWindowFlags_NoBackground
+				| ImGuiWindowFlags_NoTitleBar
+				| ImGuiWindowFlags_NoScrollbar);
+			pushOutlinedText(true);
+			lastWindowClosed = false;
+		} else {
+			ImGui::SetNextWindowSize({ 300.F, 0.F }, ImGuiCond_FirstUseEver);
+			customBegin(PinnedWindowEnum_QuickCharacterSelect);
 		}
-		customEnd();
-		keyboard.ignoreNextEscapePress = true;
+		bool needClose;
+		if (useFriendlyVer) {
+			needClose = drawQuickCharSelectControllerFriendly();
+		} else {
+			needClose = drawQuickCharSelect(true);
+		}
+		
+		if (needClose) lastWindowClosed = true;
+		if (useFriendlyVer) {
+			popOutlinedText();
+			ImGui::End();
+			if (lastWindowClosed) {
+				setOpen(PinnedWindowEnum_QuickCharacterSelect, false, false);
+			}
+		} else{
+			customEnd();
+		}
 	}
 	popSearchStack();
 	quickCharSelectFocusRequested = false;
@@ -23942,25 +23975,40 @@ void UI::activateQuickCharSelect() {
 	quickCharSelectFocusRequested = true;
 }
 
-bool UI::drawQuickCharSelect(bool isWindow) {
-	bool returnResult = false;
+uintptr_t UI::getSelectedCharaLocation() {
 	static bool sigscannedSelectedCharaLocation = false;
 	static uintptr_t selectedCharaLocation = 0;
-	static bool failedToFindSaveFunction = false;
 	if (!sigscannedSelectedCharaLocation) {
 		sigscannedSelectedCharaLocation = true;
 		selectedCharaLocation = game.findSelectedCharaLocation();
 		if (selectedCharaLocation) selectedCharaLocation += 4;
 	}
+	return selectedCharaLocation;
+}
+
+bool UI::drawQuickCharSelect(bool isWindow) {
+	struct ResetKeyboardOwner {
+		~ResetKeyboardOwner() {
+			keyboard.owner = 0;
+		}
+	} resetKeyboardOwner;
+	static int dirHeldFor = 0;
+	static int dirHeld = 0;
+	if (!searching) keyboard.owner = 1;
+	static bool failedToFindSaveFunction = false;
+	bool returnResult = false;
+	uintptr_t selectedCharaLocation = getSelectedCharaLocation();
 	if (!selectedCharaLocation) {
 		ImGui::TextUnformatted("Failed to find where the selected online character is at.");
 	} else {
+		if (ImGui::IsWindowAppearing()) dirHeldFor = 0;
 		static int keyboardHighlight = -2;
 		if (quickCharSelectFocusRequested) {
 			const ImGuiID id = ImGui::GetID("##charselectcombobox");
 			extern ImGuiID ImHashStr(const char* data_p, size_t data_size, ImGuiID seed);
 			const ImGuiID popup_id = ImHashStr("##ComboPopup", 0, id);
 			ImGui::OpenPopup(popup_id, ImGuiPopupFlags_None);
+			dirHeldFor = 0;
 		}
 		ImGui::TextUnformatted("For online 'Player Match' mode.");
 		ImGui::PushItemWidth(80);
@@ -23977,6 +24025,7 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 		comboBoxExtensionQuickCharSelect.beginFrame();
 		bool needClosePopup = false;
 		if (ImGui::BeginCombo(searchFieldTitle("##charselectcombobox"), strbuf)) {
+			keyboard.imguiOwner = 1;
 			comboBoxExtensionQuickCharSelect.onComboBoxBegin();
 			imguiActiveTemp = true;
 			static std::chrono::time_point<std::chrono::system_clock> lastTimePressedKey;
@@ -23986,7 +24035,7 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 				keyboardHighlight = currentChar;
 				lastTimePressedKeyEmpty = true;
 			}
-			comboBoxExtensionQuickCharSelect.totalCount = 25;
+			comboBoxExtensionQuickCharSelect.totalCount = 26;
 			comboBoxExtensionQuickCharSelect.selectedIndex = keyboardHighlight + 1;
 			ImVec2 popupPos = ImGui::GetWindowPos();
 			float popupScrollX = ImGui::GetScrollX();
@@ -24082,8 +24131,45 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 				returnResult = true;
 			}
 			
-			if (comboBoxExtensionQuickCharSelect.fastScrollWithKeys()) {
-				keyboardHighlight = comboBoxExtensionQuickCharSelect.selectedIndex - 1;
+			struct ResetOwner {
+				~ResetOwner() {
+					keyboard.owner = 0;
+				}
+			} resetOwner;
+			keyboard.owner = 1;
+			bool downHeld = ImGui::IsKeyPressed(ImGuiKey_DownArrow, true)
+				|| keyboard.isHeld(settings.quickCharSelect_moveDown)
+				|| keyboard.isHeld(settings.quickCharSelect_moveDown_2);
+			bool upHeld = ImGui::IsKeyPressed(ImGuiKey_UpArrow, true)
+				|| keyboard.isHeld(settings.quickCharSelect_moveUp)
+				|| keyboard.isHeld(settings.quickCharSelect_moveUp_2);
+			
+			int currentDirHeld = downHeld || upHeld
+				? downHeld ? 1 : -1
+				: 0;
+			
+			if (currentDirHeld != dirHeld) {
+				dirHeldFor = 0;
+			}
+			
+			if (currentDirHeld) {
+				dirHeldFor++;
+			}
+			dirHeld = currentDirHeld;
+			
+			int pressedDir = 0;
+			if (dirHeldFor == 1 || dirHeldFor > 30 && dirHeldFor % 10 == 0) {
+				pressedDir = dirHeld;
+			}
+			
+			bool scrolledSuccessfully = false;
+			if (comboBoxExtensionQuickCharSelect.selectedIndex != -1) {
+				int newInd = comboBoxExtensionQuickCharSelect.selectedIndex + pressedDir;
+				if (newInd >= 0 && newInd < (int)comboBoxExtensionQuickCharSelect.totalCount) {
+					comboBoxExtensionQuickCharSelect.selectedIndex = newInd;
+					comboBoxExtensionQuickCharSelect.requestAutoScroll();
+					keyboardHighlight = comboBoxExtensionQuickCharSelect.selectedIndex - 1;
+				}
 			}
 			ImGui::EndCombo();
 		}
@@ -24093,56 +24179,11 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 			" window if it was opened using a preconfigured hotkey.");
 		comboBoxExtensionQuickCharSelect.endFrame();
 		if (selectedChar != currentChar) {
-			static bool scannedSaveChara = false;
-			
-			struct FString {
-				wchar_t* text;
-				int len;
-				int allocatedSize;
-			} myString;
-			
-			typedef void (__thiscall*saveCharaFunc_t)(
-				void* thisArg,
-				FString* charaType,
-				int ColorID,
-				int bg_id,
-				int BGM_ID,
-				int CostumeID,
-				BOOL isStylish,
-				BOOL isRankmatch,
-				BOOL isTournament,
-				BOOL isLobbyBattle,
-				BOOL isWelcomeMode);
-			
-			static saveCharaFunc_t saveCharaFunc = nullptr;
-			if (!scannedSaveChara) {
-				scannedSaveChara = true;
-				saveCharaFunc = (saveCharaFunc_t)game.findSaveCharaFunc();
-			}
-			if (!saveCharaFunc) {
+			if (!game.findSaveCharaFunc()) {
 				failedToFindSaveFunction = true;
 				returnResult = false;
 			} else {
-				wchar_t youCanModifyIfYouWant[7] { L'\0' };
-				const wchar_t* srcString = selectedChar == -1 ? L"RANDOM"
-					: characterNamesCodeWideUpper[selectedChar];
-				wcscpy(youCanModifyIfYouWant, srcString);
-				myString.text = youCanModifyIfYouWant;
-				myString.len = wcslen(myString.text);
-				myString.allocatedSize = 7;
-				
-				saveCharaFunc(
-					nullptr,
-					&myString,
-					selectedChar == -1 ? 0 : *(BYTE*)(selectedCharaLocation + 1 + selectedChar),
-					*(BYTE*)(selectedCharaLocation + 0x41),
-					*(BYTE*)(selectedCharaLocation + 0x42),
-					selectedChar == -1 ? 0 : *(BYTE*)(selectedCharaLocation + 0x21 + selectedChar),
-					*(BYTE*)(selectedCharaLocation + 0x43),
-					FALSE,
-					FALSE,
-					FALSE,
-					FALSE);
+				quickCharSelect_save(selectedChar);
 				returnResult = true;
 			}
 		}
@@ -24174,4 +24215,1206 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 
 bool UI::isVisibleAnything() {
 	return isVisible() || quickCharSelectVisible();
+}
+
+POINT middlePoint(POINT& a, POINT& b) {
+	return { (a.x + b.x) >> 1, (a.y + b.y) >> 1 };
+}
+
+POINT middlePoint(POINT& a, POINT& b, POINT c) {
+	return { (a.x + b.x + c.x) / 3, (a.y + b.y + c.y) / 3 };
+}
+
+struct HexData {
+	CharacterType charType;
+	int graphicalMinX;
+	int graphicalMinY;
+	int graphicalMaxX;
+	int graphicalMaxY;
+	int collisionMinX;
+	int collisionMinY;
+	int collisionMaxX;
+	int collisionMaxY;
+	POINT graphicalPoints[6];  // start at top left corner, clockwise
+	POINT graphicalCenter;
+	POINT* collisionPoints[6];  // start at top left corner, clockwise
+	ImVec2 uvs[6];
+	ImVec2 uvCenter;
+	ImVec2 cachedGraphicalVertices[6];
+	ImVec2 cachedGraphicalCenter;
+	ImVec2 cachedGraphicalVerticesOuterFar[6];
+	ImVec2 cachedGraphicalVerticesOuterNear[6];
+	ImVec2 cachedGraphicalVerticesInner[6];
+	HexData(CharacterType charType,
+		int x0, int y0,
+		int x1, int y1,
+		int x2, int y2,
+		int x3, int y3,
+		int x4, int y4,
+		int x5, int y5) : charType(charType),
+		graphicalPoints{
+			{ x0, y0 },
+			{ x1, y1 },
+			{ x2, y2 },
+			{ x3, y3 },
+			{ x4, y4 },
+			{ x5, y5 }} {
+	}
+};
+
+float quickCharSelect_posWithMarginX;
+float quickCharSelect_posWithMarginY;
+int quickCharSelect_graphicalMinX = INT_MAX;
+int quickCharSelect_graphicalMinY = INT_MAX;
+float quickCharSelect_graphicalW;
+float quickCharSelect_graphicalH;
+float quickCharSelect_scaledW;
+float quickCharSelect_scaledH;
+float quickCharSelect_lineThickness;
+float quickCharSelect_lineThicknessHalf;
+
+
+void quickCharSelect_projectPointToScreen(int srcX, int srcY, float* dstX, float* dstY) {
+	*dstX = quickCharSelect_posWithMarginX + (float)(srcX - quickCharSelect_graphicalMinX) / quickCharSelect_graphicalW * quickCharSelect_scaledW;
+	*dstY = quickCharSelect_posWithMarginY + (float)(srcY - quickCharSelect_graphicalMinY) / quickCharSelect_graphicalH * quickCharSelect_scaledH;
+}
+
+void quickCharSelect_projectPointFromScreen(float srcX, float srcY, LONG* dstX, LONG* dstY) {
+	*dstX = (LONG)(
+		(srcX - quickCharSelect_posWithMarginX) * quickCharSelect_graphicalW / quickCharSelect_scaledW + (float)quickCharSelect_graphicalMinX
+	);
+	*dstY = (LONG)(
+		(srcY - quickCharSelect_posWithMarginY) * quickCharSelect_graphicalH / quickCharSelect_scaledH + (float)quickCharSelect_graphicalMinY
+	);
+}
+
+void quickCharSelect_projectPointFromScreen(float srcX, float srcY, int* dstX, int* dstY) {
+	#if 1
+	C_ASSERT(sizeof(LONG) == sizeof(int));
+	quickCharSelect_projectPointFromScreen(srcX, srcY, (LONG*)dstX, (LONG*)dstY);
+	#else
+	LONG dstXLong;
+	LONG dstYLong;
+	quickCharSelect_projectPointFromScreen(srcX, srcY, &dstXLong, &dstYLong);
+	*dstX = (int)dstXLong;
+	*dstY = (int)dstYLong;
+	#endif
+}
+
+void quickCharSelect_projectPointToScreen(const POINT& srcPnt, ImVec2* dstPnt) {
+	quickCharSelect_projectPointToScreen(srcPnt.x, srcPnt.y, &dstPnt->x, &dstPnt->y);
+}
+
+void quickCharSelect_projectPointFromScreen(const ImVec2& srcPnt, POINT* dstPnt) {
+	quickCharSelect_projectPointFromScreen(srcPnt.x, srcPnt.y, &dstPnt->x, &dstPnt->y);
+}
+
+void quickCharSelectCalculateHexDataCache(HexData& data,
+		const POINT* graphicalPointsInput,  // can't override the center, graphicalCenter is always read from the 'data'
+		ImVec2* cachedGraphicalVerticesOutput,
+		ImVec2* cachedGraphicalVerticesOuterFarOutput,
+		ImVec2* cachedGraphicalVerticesOuterNearOutput,
+		ImVec2* cachedGraphicalVerticesInnerOutput) {
+	for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+		quickCharSelect_projectPointToScreen(graphicalPointsInput[pntIndex], &cachedGraphicalVerticesOutput[pntIndex]);
+	}
+	quickCharSelect_projectPointToScreen(data.graphicalCenter, &data.cachedGraphicalCenter);
+	float curX_memory[6];
+	float curY_memory[6];
+	float nextX_memory[6];
+	float nextY_memory[6];
+	BYTE unitVectorsXStorage[
+		(
+			sizeof (float)
+		) * 8
+		+ 31
+	];
+	float* unitVectorsX = (float*)(
+		(
+			(uintptr_t)unitVectorsXStorage + 31
+		) & ~31
+	);
+	BYTE unitVectorsYStorage[
+		(
+			sizeof (float)
+		) * 8
+		+ 31
+	];
+	float* unitVectorsY = (float*)(
+		(
+			(uintptr_t)unitVectorsYStorage + 31
+		) & ~31
+	);
+	for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+		const ImVec2& cur = cachedGraphicalVerticesOutput[pntIndex];
+		const ImVec2& next = cachedGraphicalVerticesOutput[pntIndex == 5 ? 0 : pntIndex + 1];
+		curX_memory[pntIndex] = cur.x;
+		curY_memory[pntIndex] = cur.y;
+		nextX_memory[pntIndex] = next.x;
+		nextY_memory[pntIndex] = next.y;
+        if (pntIndex == 3 || pntIndex == 5) {
+        	__m128 curX_m128;
+        	__m128 curY_m128;
+        	__m128 nextX_m128;
+        	__m128 nextY_m128;
+        	if (pntIndex == 3) {
+	        	curX_m128 = _mm_set_ps(
+	        		curX_memory[3], curX_memory[2], curX_memory[1], curX_memory[0]
+        		);
+	        	curY_m128 = _mm_set_ps(
+	        		curY_memory[3], curY_memory[2], curY_memory[1], curY_memory[0]
+        		);
+	        	nextX_m128 = _mm_set_ps(
+	        		nextX_memory[3], nextX_memory[2], nextX_memory[1], nextX_memory[0]
+        		);
+	        	nextY_m128 = _mm_set_ps(
+	        		nextY_memory[3], nextY_memory[2], nextY_memory[1], nextY_memory[0]
+        		);
+        	} else {
+	        	curX_m128 = _mm_set_ps(
+	        		0.F, 0.F, curX_memory[5], curX_memory[4]
+        		);
+	        	curY_m128 = _mm_set_ps(
+	        		0.F, 0.F, curY_memory[5], curY_memory[4]
+        		);
+	        	nextX_m128 = _mm_set_ps(
+	        		0.F, 0.F, nextX_memory[5], nextX_memory[4]
+        		);
+	        	nextY_m128 = _mm_set_ps(
+	        		0.F, 0.F, nextY_memory[5], nextY_memory[4]
+        		);
+        	}
+        	__m128 dx = _mm_sub_ps(nextX_m128, curX_m128);
+        	__m128 dy = _mm_sub_ps(nextY_m128, curY_m128);
+        	__m128 sqx = _mm_mul_ps(dx, dx);
+        	__m128 sqy = _mm_mul_ps(dy, dy);
+        	__m128 sqLen = _mm_add_ps(sqx, sqy);
+        	__m128 invLens = _mm_rsqrt_ps(sqLen);
+        	__m128 unitVectorsX_m128 = _mm_mul_ps(invLens, dx);
+        	__m128 unitVectorsY_m128 = _mm_mul_ps(invLens, dy);
+        	
+        	int indexOffset = pntIndex == 3 ? 0 : 4;
+        	_mm_store_ps(unitVectorsX + indexOffset, unitVectorsX_m128);
+        	_mm_store_ps(unitVectorsY + indexOffset, unitVectorsY_m128);
+        }
+	}
+	BYTE dumpOutputStorage[
+		(
+			sizeof (float)
+		) * 8
+		+ 31
+	];
+	float* dumpOutput = (float*)(
+		(
+			(uintptr_t)dumpOutputStorage + 31
+		) & ~31
+	);
+	for (int go = 0; go < 2; ++go) {
+		__m128 unitVecCurX;
+		__m128 unitVecCurY;
+		__m128 unitVecPrevX;
+		__m128 unitVecPrevY;
+		int start = go == 0 ? 0 : 4;
+		int end = go == 0 ? 4 : 6;
+		if (go == 0) {
+        	unitVecCurX = _mm_set_ps(
+        		unitVectorsX[3], unitVectorsX[2], unitVectorsX[1], unitVectorsX[0]
+    		);
+        	unitVecCurY = _mm_set_ps(
+        		unitVectorsY[3], unitVectorsY[2], unitVectorsY[1], unitVectorsY[0]
+    		);
+			unitVecPrevX = _mm_set_ps(
+				unitVectorsX[2], unitVectorsX[1], unitVectorsX[0], unitVectorsX[5]
+			);
+			unitVecPrevY = _mm_set_ps(
+				unitVectorsY[2], unitVectorsY[1], unitVectorsY[0], unitVectorsY[5]
+			);
+		} else {
+        	unitVecCurX = _mm_set_ps(
+        		0.F, 0.F, unitVectorsX[5], unitVectorsX[4]
+    		);
+        	unitVecCurY = _mm_set_ps(
+        		0.F, 0.F, unitVectorsY[5], unitVectorsY[4]
+    		);
+			unitVecPrevX = _mm_set_ps(
+				0.F, 0.F, unitVectorsX[4], unitVectorsX[3]
+			);
+			unitVecPrevY = _mm_set_ps(
+				0.F, 0.F, unitVectorsY[4], unitVectorsY[3]
+			);
+		}
+		__m128 sumX = _mm_add_ps(unitVecCurX, unitVecPrevX);
+		__m128 sumY = _mm_add_ps(unitVecCurY, unitVecPrevY);
+		__m128 sumXSq = _mm_mul_ps(sumX, sumX);
+		__m128 sumYSq = _mm_mul_ps(sumY, sumY);
+		__m128 sumSq = _mm_add_ps(sumXSq, sumYSq);
+		__m128 sumInvLen = _mm_rsqrt_ps(sumSq);
+		__m128 zero_m128 = _mm_set_ps1(0.F);
+		__m128 sumXNeg = _mm_sub_ps(zero_m128, sumX);
+		__m128 sumYNeg = _mm_sub_ps(zero_m128, sumY);
+		__m128 reusable_pre_line_thickness = _mm_mul_ps(sumInvLen, sumInvLen);
+		__m128 innerX = _mm_mul_ps(sumYNeg, reusable_pre_line_thickness);
+		__m128 innerY = _mm_mul_ps(sumX, reusable_pre_line_thickness);
+		__m128 outerX = _mm_sub_ps(zero_m128, innerX);
+		__m128 outerY = _mm_sub_ps(zero_m128, innerY);
+		
+    	__m128 curX_m128;
+    	__m128 curY_m128;
+    	if (go == 0) {
+        	curX_m128 = _mm_set_ps(
+        		curX_memory[3], curX_memory[2], curX_memory[1], curX_memory[0]
+    		);
+        	curY_m128 = _mm_set_ps(
+        		curY_memory[3], curY_memory[2], curY_memory[1], curY_memory[0]
+    		);
+    	} else {
+        	curX_m128 = _mm_set_ps(
+        		0.F, 0.F, curX_memory[5], curX_memory[4]
+    		);
+        	curY_m128 = _mm_set_ps(
+        		0.F, 0.F, curY_memory[5], curY_memory[4]
+    		);
+    	}
+    	
+		__m128 thickness_m128 = _mm_set_ps1(quickCharSelect_lineThickness);
+		__m128 finalThing = _mm_add_ps(_mm_mul_ps(outerX, thickness_m128), curX_m128);
+		_mm_store_ps(dumpOutput + start, finalThing);
+		for (int i = start; i < end; ++i) {
+			cachedGraphicalVerticesOuterFarOutput[i].x = dumpOutput[i];
+		}
+		
+		finalThing = _mm_add_ps(_mm_mul_ps(outerY, thickness_m128), curY_m128);
+		_mm_store_ps(dumpOutput + start, finalThing);
+		for (int i = start; i < end; ++i) {
+			cachedGraphicalVerticesOuterFarOutput[i].y = dumpOutput[i];
+		}
+		
+		thickness_m128 = _mm_set_ps1(quickCharSelect_lineThicknessHalf);
+		finalThing = _mm_add_ps(_mm_mul_ps(outerX, thickness_m128), curX_m128);
+		_mm_store_ps(dumpOutput + start, finalThing);
+		for (int i = start; i < end; ++i) {
+			cachedGraphicalVerticesOuterNearOutput[i].x = dumpOutput[i];
+		}
+		
+		finalThing = _mm_add_ps(_mm_mul_ps(outerY, thickness_m128), curY_m128);
+		_mm_store_ps(dumpOutput + start, finalThing);
+		for (int i = start; i < end; ++i) {
+			cachedGraphicalVerticesOuterNearOutput[i].y = dumpOutput[i];
+		}
+		
+		finalThing = _mm_add_ps(_mm_mul_ps(innerX, thickness_m128), curX_m128);
+		_mm_store_ps(dumpOutput + start, finalThing);
+		for (int i = start; i < end; ++i) {
+			cachedGraphicalVerticesInnerOutput[i].x = dumpOutput[i];
+		}
+		
+		finalThing = _mm_add_ps(_mm_mul_ps(innerY, thickness_m128), curY_m128);
+		_mm_store_ps(dumpOutput + start, finalThing);
+		for (int i = start; i < end; ++i) {
+			cachedGraphicalVerticesInnerOutput[i].y = dumpOutput[i];
+		}
+	}
+}
+
+void quickCharSelectCalculateUVs(HexData& data,
+		const POINT* graphicalPointsInput,
+		int graphicalMinX, int graphicalMinY,
+		int graphicalMaxX, int graphicalMaxY,
+		ImVec2* uvsOutput, ImVec2* uvCenterOutput) {
+	const GGIcon& icon = getCharIcon(data.charType);
+	const float iconUVWidth = (icon.uvEnd.x - icon.uvStart.x);
+	const float iconUVHeight = (icon.uvEnd.y - icon.uvStart.y);
+	const float dataWidth = (float)(graphicalMaxX - graphicalMinX);
+	const float dataHeight = (float)(graphicalMaxY - graphicalMinY);
+	const float dataMaxLen = max(dataWidth, dataHeight);
+	const float dataMarginX = (dataMaxLen - dataWidth) * 0.5F;
+	const float dataMarginY = (dataMaxLen - dataHeight) * 0.5F;
+	const float uvMarginX = iconUVWidth * dataMarginX / dataMaxLen;
+	const float uvMarginY = iconUVHeight * dataMarginY / dataMaxLen;
+	const float uvUsedWidth = iconUVWidth - uvMarginX  - uvMarginX;
+	const float uvUsedHeight = iconUVHeight - uvMarginY  - uvMarginY;
+	const float uStart = icon.uvStart.x + uvMarginX;
+	const float vStart = icon.uvStart.y + uvMarginY;
+	for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+		uvsOutput[pntIndex] = {
+			uStart
+				+ uvUsedWidth
+				* (float)(graphicalPointsInput[pntIndex].x - graphicalMinX)
+				/ dataWidth,
+			vStart
+				+ uvUsedHeight
+				* (float)(graphicalPointsInput[pntIndex].y - graphicalMinY)
+				/ dataHeight,
+		};
+	}
+	*uvCenterOutput = {
+		uStart
+			+ uvUsedWidth
+			* (float)(data.graphicalCenter.x - graphicalMinX)
+			/ dataWidth,
+		vStart
+			+ uvUsedHeight
+			* (float)(data.graphicalCenter.y - graphicalMinY)
+			/ dataHeight,
+	};
+}
+
+bool UI::drawQuickCharSelectControllerFriendly() {
+	static bool failedToFindSaveFunction = false;
+	struct ResetKeyboardOwner {
+		~ResetKeyboardOwner() {
+			keyboard.owner = 0;
+		}
+	} resetKeyboardOwner;
+	if (!searching) keyboard.owner = 1;
+	
+	static HexData hexData[26] {
+	{CHARACTER_TYPE_HAEHYUN,
+		350,178,
+		389,169,
+		430,201,
+		430,248,
+		392,256,
+		352,226},
+		
+	{CHARACTER_TYPE_ELPHELT,
+		451,205,
+		493,193,
+		534,226,
+		534,272,
+		492,284,
+		454,251},
+		
+	{CHARACTER_TYPE_SOL,
+		555,227,
+		594,215,
+		635,251,
+		635,286,
+		591,304,
+		558,277},
+		
+	{CHARACTER_TYPE_KY,
+		644,251,
+		685,214,
+		727,227,
+		724,260,
+		687,312,
+		645,293},
+		
+	{CHARACTER_TYPE_RAMLETHAL,
+		743,229,
+		787,193,
+		823,204,
+		826,252,
+		786,284,
+		747,274},
+		
+	{CHARACTER_TYPE_RAVEN,
+		847,202,
+		890,167,
+		928,178,
+		929,224,
+		889,259,
+		850,250},
+		
+	{CHARACTER_TYPE_SIN,
+		402,272,
+		441,261,
+		483,295,
+		483,342,
+		443,352,
+		402,322},
+		
+	{CHARACTER_TYPE_JOHNNY,
+		503,296,
+		543,283,
+		585,314,
+		586,364,
+		545,376,
+		504,342},
+		
+	{CHARACTER_TYPE_MAY,
+		693,319,
+		735,285,
+		773,295,
+		774,328,
+		735,378,
+		693,368},
+		
+	{CHARACTER_TYPE_LEO,
+		793,297,
+		833,260,
+		873,272,
+		873,321,
+		833,351,
+		793,343},
+		
+	{CHARACTER_TYPE_CHIPP,
+		355,342,
+		394,331,
+		435,365,
+		435,414,
+		395,415,
+		355,390},
+		
+	{CHARACTER_TYPE_MILLIA,
+		456,365,
+		496,351,
+		536,387,
+		536,436,
+		497,446,
+		456,414},
+		
+	{CHARACTER_TYPE_BAIKEN,
+		552,390,
+		592,378,
+		633,412,
+		634,460,
+		593,470,
+		552,438},
+		
+	{CHARACTER_TYPE_ANSWER,
+		644,413,
+		686,377,
+		725,389,
+		727,438,
+		685,471,
+		646,460},
+		
+	{CHARACTER_TYPE_ZATO,
+		739,389,
+		780,355,
+		819,366,
+		820,415,
+		780,445,
+		740,436},
+		
+	{CHARACTER_TYPE_POTEMKIN,
+		840,365,
+		881,332,
+		920,342,
+		920,390,
+		881,435,
+		841,412},
+		
+	{CHARACTER_TYPE_INO,
+		402,436,
+		443,424,
+		482,460,
+		482,506,
+		443,517,
+		402,483},
+		
+	{CHARACTER_TYPE_SLAYER,
+		504,458,
+		544,446,
+		586,481,
+		586,529,
+		546,538,
+		506,505},
+		
+	{CHARACTER_TYPE_VENOM,
+		692,482,
+		733,448,
+		771,459,
+		771,506,
+		731,539,
+		692,529},
+		
+	{CHARACTER_TYPE_AXL,
+		793,460,
+		834,424,
+		873,436,
+		875,485,
+		835,516,
+		795,506},
+		
+	{CHARACTER_TYPE_DIZZY,
+		348,507,
+		387,495,
+		429,530,
+		429,576,
+		389,587,
+		349,555},
+		
+	{CHARACTER_TYPE_FAUST,
+		450,531,
+		488,519,
+		529,554,
+		529,599,
+		492,611,
+		450,580},
+		
+	{CHARACTER_TYPE_BEDMAN,
+		553,552,
+		592,540,
+		634,576,
+		633,618,
+		595,628,
+		553,601},
+		
+	{CHARACTER_TYPE_JACKO,
+		644,575,
+		685,541,
+		724,553,
+		723,601,
+		688,628,
+		644,618},
+		
+	{CHARACTER_TYPE_JAM,
+		745,554,
+		787,520,
+		827,530,
+		826,577,
+		786,610,
+		748,599},
+		
+	{(CharacterType)-1,
+		847,530,
+		887,496,
+		927,507,
+		929,554,
+		887,588,
+		848,578}
+	};
+	
+	static bool calculatedParams = false;
+	
+	static int graphicalMaxX = 0;
+	static int graphicalMaxY = 0;
+	
+	// add 1 to char type
+	static HexData* charTypeToHexData[26];
+	
+	static POINT collisionPoints[42+9+9+9+9];  // starts with Haehyun's top left point, then goes around the contour, then does first row's shared corners, and so on
+	
+	bool returnResult = !keyboard.isHeld(settings.openQuickCharSelect);
+	uintptr_t selectedCharaLocation = getSelectedCharaLocation();
+	if (!selectedCharaLocation) {
+		ImGui::TextUnformatted("Failed to find where the selected online character is at.");
+	} else {
+		if (!calculatedParams) {
+			calculatedParams = true;
+			
+			for (int i = 0; i < 26; ++i) {
+				HexData* data = hexData + i;
+				charTypeToHexData[data->charType == (CharacterType)-1 ? 0 : (int)data->charType + 1] = data;
+			}
+			
+			int elemIndex = 0;
+			for (int row = 0; row < 5; ++row) {
+				int elemIndexStart = elemIndex;
+				int elemCountOnRow = row % 2 == 0 ? 6 : 4;
+				int iEnd = elemCountOnRow >> 1;
+				for (int i = 0; i < iEnd; ++i) {
+					HexData& data = hexData[elemIndex + i];
+					HexData& oppositeData = hexData[elemIndexStart + elemCountOnRow - i - 1];
+					// straighten the symmetry a bit
+					POINT* dp = data.graphicalPoints;
+					POINT* odp = oppositeData.graphicalPoints;
+					dp[1].y = odp[1].y = (dp[1].y + odp[1].y) >> 1;
+					dp[2].y = odp[0].y = (dp[2].y + odp[0].y) >> 1;
+					dp[0].y = odp[2].y = (dp[0].y + odp[2].y) >> 1;
+					dp[3].y = odp[5].y = (dp[3].y + odp[5].y) >> 1;
+					dp[4].y = odp[4].y = (dp[4].y + odp[4].y) >> 1;
+					dp[5].y = odp[3].y = (dp[5].y + odp[3].y) >> 1;
+				}
+				for (int i = 0; i < elemCountOnRow - 1; ++i) {
+					HexData& data = hexData[elemIndex + i];
+					HexData& nextData = hexData[elemIndex + i + 1];
+					POINT* dp = data.graphicalPoints;
+					POINT* ndp = nextData.graphicalPoints;
+					dp[3].y = ndp[5].y = (dp[3].y + ndp[5].y) >> 1;
+				}
+				elemIndex += elemCountOnRow;
+			}
+			
+			for (int i = 0; i < 26; ++i) {
+				HexData& data = hexData[i];
+				
+				// straighten the vertical lines a bit
+				POINT* dp = data.graphicalPoints;
+				dp[0].x = dp[5].x = (dp[0].x + dp[5].x) >> 1;
+				dp[2].x = dp[3].x = (dp[2].x + dp[3].x) >> 1;
+			}
+			
+			#define p(hexDataIndex, graphicalPointsIndex) hexData[hexDataIndex].graphicalPoints[graphicalPointsIndex]
+			// contour, starting with Haehyun's top left corner, clockwise
+			collisionPoints[0] = p(0, 0);
+			int pntIndex = 1;
+			for (int i = 0; i < 5; ++i) {
+				collisionPoints[pntIndex++] = p(i, 1);
+				collisionPoints[pntIndex++] = middlePoint(p(i, 2), p(i + 1, 0));
+			}
+			collisionPoints[pntIndex++] = p(5, 1);
+			collisionPoints[pntIndex++] = p(5, 2);
+			collisionPoints[pntIndex++] = p(5, 3);
+			collisionPoints[pntIndex++] = middlePoint(p(5, 4), p(9, 2));
+			collisionPoints[pntIndex++] = middlePoint(p(9, 3), p(15, 1));
+			collisionPoints[pntIndex++] = p(15, 2);
+			collisionPoints[pntIndex++] = p(15, 3);
+			collisionPoints[pntIndex++] = middlePoint(p(15, 4), p(19, 2));
+			collisionPoints[pntIndex++] = middlePoint(p(19, 3), p(25, 1));
+			collisionPoints[pntIndex++] = p(25, 2);
+			collisionPoints[pntIndex++] = p(25, 3);
+			for (int i = 0; i < 5; ++i) {
+				collisionPoints[pntIndex++] = hexData[25 - i].graphicalPoints[4];
+				collisionPoints[pntIndex++] = middlePoint(hexData[25 - i].graphicalPoints[5], hexData[24 - i].graphicalPoints[3]);
+			}
+			collisionPoints[pntIndex++] = p(20, 4);
+			collisionPoints[pntIndex++] = p(20, 5);
+			collisionPoints[pntIndex++] = p(20, 0);
+			collisionPoints[pntIndex++] = middlePoint(p(20, 1), p(16, 5));
+			collisionPoints[pntIndex++] = middlePoint(p(16, 0), p(10, 4));
+			collisionPoints[pntIndex++] = p(10, 5);
+			collisionPoints[pntIndex++] = p(10, 0);
+			collisionPoints[pntIndex++] = middlePoint(p(10, 1), p(6, 5));
+			collisionPoints[pntIndex++] = middlePoint(p(6, 0), p(0, 4));
+			collisionPoints[pntIndex++] = p(0, 5);
+			
+			// shared corners, all lie within the overall contour, per row, left to right
+			for (int doubleRow = 0; doubleRow < 2; ++doubleRow) {
+				int topLeftGuy = 10 * doubleRow;
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy,         3), p(topLeftGuy + 1,     5), p(topLeftGuy + 6,     1));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 1,     4), p(topLeftGuy + 6,     2), p(topLeftGuy + 6 + 1, 0));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 1,     3), p(topLeftGuy + 2,     5), p(topLeftGuy + 6 + 1, 1));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 6 + 1, 2), p(topLeftGuy + 2,     4));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 2,     3), p(topLeftGuy + 3,     5));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 3,     4), p(topLeftGuy + 6 + 2, 0));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 3,     3), p(topLeftGuy + 4,     5), p(topLeftGuy + 6 + 2, 1));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 4,     4), p(topLeftGuy + 6 + 2, 2), p(topLeftGuy + 6 + 3, 0));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 4,     3), p(topLeftGuy + 5,     5), p(topLeftGuy + 6 + 3, 1));
+				
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 6,      4), p(topLeftGuy + 10,     2), p(topLeftGuy + 10 + 1, 0));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 6,      3), p(topLeftGuy + 6 + 1,  5), p(topLeftGuy + 10 + 1, 1));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 6 + 1,  4), p(topLeftGuy + 10 + 1, 2), p(topLeftGuy + 10 + 2, 0));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 6 + 1,  3), p(topLeftGuy + 10 + 2, 1));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 10 + 2, 2), p(topLeftGuy + 10 + 3, 0));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 10 + 3, 1), p(topLeftGuy + 6 + 2,  5));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 10 + 3, 2), p(topLeftGuy + 6 + 2,  4), p(topLeftGuy + 10 + 4, 0));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 6 + 2,  3), p(topLeftGuy + 10 + 4, 1), p(topLeftGuy + 6 + 3,  5));
+				collisionPoints[pntIndex++] = middlePoint(p(topLeftGuy + 10 + 4, 2), p(topLeftGuy + 6 + 3,  4), p(topLeftGuy + 10 + 5, 0));
+			}
+			#undef p
+			
+			// all points clockwise, per HexData
+			static const int collisionIndices[26][6] {
+				{ 0, 1, 2, 42, 40, 41 },
+				{ 2, 3, 4, 44, 43, 42 },
+				{ 4, 5, 6, 46, 45, 44 },
+				{ 6, 7, 8, 48, 47, 46 },
+				{ 8, 9, 10, 50, 49, 48 },
+				{ 10, 11, 12, 13, 14, 50 },
+				{ 40, 42, 43, 52, 51, 39 },
+				{ 43, 44, 45, 54, 53, 52 },
+				{ 47, 48, 49, 58, 57, 56 },
+				{ 49, 50, 14, 15, 59, 58 },
+				{ 38, 39, 51, 60, 36, 37 },
+				{ 51, 52, 53, 62, 61, 60 },
+				{ 53, 54, 55, 64, 63, 62 },
+				{ 55, 56, 57, 66, 65, 64 },
+				{ 57, 58, 59, 68, 67, 66 },
+				{ 59, 15, 16, 17, 18, 68 },
+				{ 36, 60, 61, 70, 69, 35 },
+				{ 61, 62, 63, 72, 71, 70 },
+				{ 65, 66, 67, 76, 75, 74 },
+				{ 67, 68, 18, 19, 77, 76 },
+				{ 34, 35, 69, 31, 32, 33 },
+				{ 69, 70, 71, 29, 30, 31 },
+				{ 71, 72, 73, 27, 28, 29 },
+				{ 73, 74, 75, 25, 26, 27 },
+				{ 75, 76, 77, 23, 24, 25 },
+				{ 77, 19, 20, 21, 22, 23 }
+			};
+			for (int i = 0; i < 26; ++i) {
+				for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+					hexData[i].collisionPoints[pntIndex] = collisionPoints + collisionIndices[i][pntIndex];
+				}
+			}
+			
+			for (int i = 0; i < 26; ++i) {
+				HexData& data = hexData[i];
+				int xSum = 0;
+				int ySum = 0;
+				for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+					const POINT& pnt = data.graphicalPoints[pntIndex];
+					xSum += pnt.x;
+					ySum += pnt.y;
+				}
+				data.graphicalCenter.x = xSum / 6;
+				data.graphicalCenter.y = ySum / 6;
+			}
+			
+			for (int i = 0; i < 26; ++i) {
+				HexData& data = hexData[i];
+				
+				int thisMinX = INT_MAX;
+				int thisMinY = INT_MAX;
+				int thisMaxX = 0;
+				int thisMaxY = 0;
+			
+				for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+					const POINT& pnt = data.graphicalPoints[pntIndex];
+					
+					if (pnt.x < thisMinX) thisMinX = pnt.x;
+					if (pnt.y < thisMinY) thisMinY = pnt.y;
+					if (pnt.x > thisMaxX) thisMaxX = pnt.x;
+					if (pnt.y > thisMaxY) thisMaxY = pnt.y;
+				}
+				
+				data.graphicalMinX = thisMinX;
+				data.graphicalMinY = thisMinY;
+				data.graphicalMaxX = thisMaxX;
+				data.graphicalMaxY = thisMaxY;
+				
+				if (thisMinX < quickCharSelect_graphicalMinX) quickCharSelect_graphicalMinX = thisMinX;
+				if (thisMinY < quickCharSelect_graphicalMinY) quickCharSelect_graphicalMinY = thisMinY;
+				if (thisMaxX > graphicalMaxX) graphicalMaxX = thisMaxX;
+				if (thisMaxY > graphicalMaxY) graphicalMaxY = thisMaxY;
+			}
+			
+			for (int i = 0; i < 26; ++i) {
+				HexData& data = hexData[i];
+				
+				int thisMinX = INT_MAX;
+				int thisMinY = INT_MAX;
+				int thisMaxX = 0;
+				int thisMaxY = 0;
+			
+				for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+					const POINT& pnt = *data.collisionPoints[pntIndex];
+					
+					if (pnt.x < thisMinX) thisMinX = pnt.x;
+					if (pnt.y < thisMinY) thisMinY = pnt.y;
+					if (pnt.x > thisMaxX) thisMaxX = pnt.x;
+					if (pnt.y > thisMaxY) thisMaxY = pnt.y;
+				}
+				
+				data.collisionMinX = thisMinX;
+				data.collisionMinY = thisMinY;
+				data.collisionMaxX = thisMaxX;
+				data.collisionMaxY = thisMaxY;
+				
+			}
+			
+			for (int i = 0; i < 26; ++i) {
+				HexData& data = hexData[i];
+				quickCharSelectCalculateUVs(data,
+					data.graphicalPoints,
+					data.graphicalMinX, data.graphicalMinY,
+					data.graphicalMaxX, data.graphicalMaxY,
+					data.uvs, &data.uvCenter);
+			}
+			
+		}
+		
+		float windowW = ImGui::GetWindowWidth();
+		float windowH = ImGui::GetWindowHeight();
+		ImVec2 windowPos = ImGui::GetWindowPos();
+		quickCharSelect_graphicalW = (float)(graphicalMaxX - quickCharSelect_graphicalMinX);
+		quickCharSelect_graphicalH = (float)(graphicalMaxY - quickCharSelect_graphicalMinY);
+		
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		bool drawFullBorder = ImGui::IsMouseDown(ImGuiMouseButton_Left)
+			&& ImGui::IsWindowFocused()
+			&& ImGui::IsMouseHoveringRect({ 0.F, 0.F }, { FLT_MAX, FLT_MAX }, true);
+		if (drawFullBorder) {
+			drawList->AddLine({ windowPos.x, windowPos.y + 1.F },
+				{ windowPos.x + windowW, windowPos.y + 1.F },
+				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+				1.F);
+			drawList->AddLine({ windowPos.x, windowPos.y + windowH - 2.F },
+				{ windowPos.x + windowW, windowPos.y + windowH - 2.F },
+				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+				1.F);
+			drawList->AddLine({ windowPos.x + 1.F, windowPos.y + 1.F },
+				{ windowPos.x + 1.F, windowPos.y + windowH - 2.F },
+				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+				1.F);
+			drawList->AddLine({ windowPos.x + windowW - 2.F, windowPos.y + 1.F },
+				{ windowPos.x + windowW - 2.F, windowPos.y + windowH - 2.F },
+				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+				1.F);
+		}
+		const float origLineThickness = 8.F;
+		const float graphicalWWithLine = quickCharSelect_graphicalW + origLineThickness + 1.F;
+		const float graphicalHWithLine = quickCharSelect_graphicalH + origLineThickness + 1.F;
+		const float origRatio = graphicalWWithLine / graphicalHWithLine;
+		const float windowWCorrected = windowW - 1.F;
+		const float windowHCorrected = windowH - 1.F;
+		const float windowRatio = windowWCorrected / windowHCorrected;
+		float scale;
+		if (origRatio > windowRatio) {
+			scale = windowWCorrected / graphicalWWithLine;
+		} else {
+			scale = windowHCorrected / graphicalHWithLine;
+		}
+		const float scaledWWithLine = graphicalWWithLine * scale;
+		const float scaledHWithLine = graphicalHWithLine * scale;
+		quickCharSelect_lineThickness = origLineThickness * scale;
+		quickCharSelect_scaledW = scaledWWithLine - quickCharSelect_lineThickness;
+		quickCharSelect_scaledH = scaledHWithLine - quickCharSelect_lineThickness;
+		if (quickCharSelect_lineThickness < 2.F) quickCharSelect_lineThickness = 2.F;
+		const float allMarginX = (windowWCorrected - quickCharSelect_scaledW) * 0.5F;
+		const float allMarginY = (windowHCorrected - quickCharSelect_scaledH) * 0.5F;
+		quickCharSelect_lineThicknessHalf = quickCharSelect_lineThickness * 0.62F;
+		
+		static POINT selectionPnt { 0, 0 };
+		static CharacterType selectedChar = (CharacterType)-1;
+		static BYTE intensity[] {
+			127, 132, 138, 144, 150, 155, 160, 165, 170,
+			175, 179, 184, 189, 194, 199, 203, 207, 211, 215, 219, 224, 228, 231, 234, 237, 239, 241, 243,
+			245, 247, 249, 251, 252, 253, 254, 255
+		};
+		static bool goingBack = false;
+		static bool mirrored = true;
+		static BYTE* intensityPtr = intensity;
+		static int selAnimTimer = 0;
+		
+		static ImVec2 cachedWindowPos { 0.F, 0.F };
+		static float cachedWindowW = 0.F;
+		static float cachedWindowH = 0.F;
+		if (cachedWindowPos.x != windowPos.x
+				|| cachedWindowPos.y != windowPos.y
+				|| cachedWindowW != windowW
+				|| cachedWindowH != windowH) {
+			cachedWindowPos = windowPos;
+			
+			if (quickCharSelect_scaledW > 0.F) {
+				quickCharSelect_posWithMarginX = windowPos.x + allMarginX;
+				quickCharSelect_posWithMarginY = windowPos.y + allMarginY;
+				for (int i = 0; i < 26; ++i) {
+					HexData& data = hexData[i];
+					quickCharSelectCalculateHexDataCache(data,
+						data.graphicalPoints,
+						data.cachedGraphicalVertices,
+						data.cachedGraphicalVerticesOuterFar,
+						data.cachedGraphicalVerticesOuterNear,
+						data.cachedGraphicalVerticesInner);
+				}
+				
+			}
+		}
+		if (quickCharSelect_scaledW > 0.F) {
+			static ImVec2 mousePos { 0.F, 0.F };
+			static bool mouseMovedForTheFirstTime = false;
+			if (ImGui::IsWindowAppearing()) {
+				selectedChar = (CharacterType)*(BYTE*)selectedCharaLocation;
+				if (selectedChar == 0xFF) selectedChar = (CharacterType)-1;
+				const HexData* selectedData = charTypeToHexData[(int)selectedChar + 1];
+				selectionPnt = selectedData->graphicalCenter;
+					
+				goingBack = false;
+				mirrored = true;
+				intensityPtr = intensity + sizeof intensity - 1;
+				mousePos = ImGui::GetMousePos();
+				mouseMovedForTheFirstTime = false;
+			}
+				
+			for (int i = 0; i < 26; ++i) {
+				HexData& data = hexData[i];
+				bool isSelected = data.charType == selectedChar;
+				ImVec2* cachedGraphicalVerticesUse = data.cachedGraphicalVertices;
+				ImVec2* cachedGraphicalVerticesOuterFarUse = data.cachedGraphicalVerticesOuterFar;
+				ImVec2* cachedGraphicalVerticesOuterNearUse = data.cachedGraphicalVerticesOuterNear;
+				ImVec2* cachedGraphicalVerticesInnerUse = data.cachedGraphicalVerticesInner;
+				ImVec2* uvsUse = data.uvs;
+				ImVec2* uvCenterUse = &data.uvCenter;
+				static POINT graphicalPointsAnim[6];
+				static ImVec2 cachedGraphicalVerticesAnim[6];
+				static ImVec2 cachedGraphicalVerticesOuterFarAnim[6];
+				static ImVec2 cachedGraphicalVerticesOuterNearAnim[6];
+				static ImVec2 cachedGraphicalVerticesInnerAnim[6];
+				static ImVec2 uvsAnim[6];
+				static ImVec2 uvCenterAnim;
+				if (isSelected) {
+					cachedGraphicalVerticesUse = cachedGraphicalVerticesAnim;
+					cachedGraphicalVerticesOuterFarUse = cachedGraphicalVerticesOuterFarAnim;
+					cachedGraphicalVerticesOuterNearUse = cachedGraphicalVerticesOuterNearAnim;
+					cachedGraphicalVerticesInnerUse = cachedGraphicalVerticesInnerAnim;
+					uvsUse = uvsAnim;
+					uvCenterUse = &uvCenterAnim;
+					selAnimTimer++;
+					if (selAnimTimer > 60) selAnimTimer = 0;
+					int graphicalMinXAnim = INT_MAX;
+					int graphicalMinYAnim = INT_MAX;
+					int graphicalMaxXAnim = 0;
+					int graphicalMaxYAnim = 0;
+					for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+						const POINT& cur = data.graphicalPoints[pntIndex];
+						const POINT& next = data.graphicalPoints[pntIndex == 5 ? 0 : pntIndex + 1];
+						POINT diff { next.x - cur.x, next.y - cur.y };
+						POINT& dst = graphicalPointsAnim[pntIndex];
+						dst = {
+							cur.x + diff.x * selAnimTimer / 60,
+							cur.y + diff.y * selAnimTimer / 60
+						};
+						if (dst.x < graphicalMinXAnim) graphicalMinXAnim = dst.x;
+						if (dst.y < graphicalMinYAnim) graphicalMinYAnim = dst.y;
+						if (dst.x > graphicalMaxXAnim) graphicalMaxXAnim = dst.x;
+						if (dst.y > graphicalMaxYAnim) graphicalMaxYAnim = dst.y;
+					}
+					quickCharSelectCalculateHexDataCache(data,
+						graphicalPointsAnim,
+						cachedGraphicalVerticesAnim,
+						cachedGraphicalVerticesOuterFarAnim,
+						cachedGraphicalVerticesOuterNearAnim,
+						cachedGraphicalVerticesInnerAnim);
+					
+					quickCharSelectCalculateUVs(data,
+						graphicalPointsAnim,
+						graphicalMinXAnim, graphicalMinYAnim,
+						graphicalMaxXAnim, graphicalMaxYAnim,
+						uvsAnim, &uvCenterAnim);
+				}
+				drawList->AddImageHex(TEXID_GGICON,
+					cachedGraphicalVerticesUse[0],
+					cachedGraphicalVerticesUse[1],
+					cachedGraphicalVerticesUse[2],
+					cachedGraphicalVerticesUse[3],
+					cachedGraphicalVerticesUse[4],
+					cachedGraphicalVerticesUse[5],
+					data.cachedGraphicalCenter,
+					uvsUse[0],
+					uvsUse[1],
+					uvsUse[2],
+					uvsUse[3],
+					uvsUse[4],
+					uvsUse[5],
+					*uvCenterUse,
+					-1);
+				drawList->AddPolylineCached(cachedGraphicalVerticesOuterFarUse, cachedGraphicalVerticesUse, 6,
+					isSelected ? 0xFF333333 : 0xFF000000);
+				if (isSelected) {
+					drawList->AddPolylineCached(cachedGraphicalVerticesOuterNearUse, cachedGraphicalVerticesUse, 6, 0xFF00FFFF);
+					drawList->AddPolylineCached(cachedGraphicalVerticesUse, cachedGraphicalVerticesInnerUse, 6, 0xAA000000);
+					BYTE curIntensity = *intensityPtr;
+					if (mirrored) {
+						curIntensity = 255 - curIntensity;
+					}
+					curIntensity = curIntensity * 50 / 100 + 15;
+					if (!goingBack) {
+						int intensityIndex = intensityPtr - intensity;
+						if (intensityIndex + 1 >= sizeof intensity) {
+							goingBack = true;
+							--intensityPtr;
+						} else {
+							++intensityPtr;
+						}
+					} else {
+						if (intensityPtr == intensity) {
+							goingBack = false;
+							mirrored = !mirrored;
+							++intensityPtr;
+						} else {
+							--intensityPtr;
+						}
+					}
+					drawList->AddConvexPolyFilled(cachedGraphicalVerticesUse, 6, curIntensity << 24 | 0xFFFFFF);
+				}
+			}
+			#if 0
+			for (int i = 0; i < 26; ++i) {
+				if (true) {
+					HexData& data = hexData[i];
+					ImVec2 collisionPointsLaidOut[6];
+					for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+						const POINT* pnt = data.collisionPoints[pntIndex];
+						quickCharSelect_projectPointToScreen(*pnt, &collisionPointsLaidOut[pntIndex]);
+					}
+					drawList->AddPolylineClosedLoop(collisionPointsLaidOut, 6, 0xFF0000FF, 1.F);
+				}
+			}
+			#endif
+			
+			ImVec2 selectionPntFloat;
+			quickCharSelect_projectPointToScreen(selectionPnt, &selectionPntFloat);
+			float pointLengthHalf = 18.F / 452.F * quickCharSelect_scaledW * 0.5F;
+			float pointThickness = quickCharSelect_lineThickness * 0.6F;
+			if (pointThickness < 1.F) pointThickness = 1.F;
+			
+			drawList->AddLine({
+				selectionPntFloat.x - pointLengthHalf,
+				selectionPntFloat.y - pointLengthHalf
+			}, {
+				selectionPntFloat.x + pointLengthHalf,
+				selectionPntFloat.y + pointLengthHalf
+			}, 0xFF00FFFF, pointThickness);
+			
+			drawList->AddLine({
+				selectionPntFloat.x + pointLengthHalf,
+				selectionPntFloat.y - pointLengthHalf
+			}, {
+				selectionPntFloat.x - pointLengthHalf,
+				selectionPntFloat.y + pointLengthHalf
+			}, 0xFF00FFFF, pointThickness);
+			
+			float horizDir = 0;
+			float vertDir = 0;
+			if (keyboard.isHeld(settings.quickCharSelect_moveLeft)) {
+				horizDir = -keyboard.moveAmount(settings.quickCharSelect_moveLeft, MULTIPLICATION_GOAL_CAMERA_MOVE);
+			} else if (keyboard.isHeld(settings.quickCharSelect_moveLeft_2)) {
+				horizDir = -keyboard.moveAmount(settings.quickCharSelect_moveLeft_2, MULTIPLICATION_GOAL_CAMERA_MOVE);
+			} else if (keyboard.isHeld(settings.quickCharSelect_moveRight)) {
+				horizDir = keyboard.moveAmount(settings.quickCharSelect_moveRight, MULTIPLICATION_GOAL_CAMERA_MOVE);
+			} else if (keyboard.isHeld(settings.quickCharSelect_moveRight_2)) {
+				horizDir = keyboard.moveAmount(settings.quickCharSelect_moveRight_2, MULTIPLICATION_GOAL_CAMERA_MOVE);
+			}
+			if (keyboard.isHeld(settings.quickCharSelect_moveUp)) {
+				vertDir = -keyboard.moveAmount(settings.quickCharSelect_moveUp, MULTIPLICATION_GOAL_CAMERA_MOVE);
+			} else if (keyboard.isHeld(settings.quickCharSelect_moveUp_2)) {
+				vertDir = -keyboard.moveAmount(settings.quickCharSelect_moveUp_2, MULTIPLICATION_GOAL_CAMERA_MOVE);
+			} else if (keyboard.isHeld(settings.quickCharSelect_moveDown)) {
+				vertDir = keyboard.moveAmount(settings.quickCharSelect_moveDown, MULTIPLICATION_GOAL_CAMERA_MOVE);
+			} else if (keyboard.isHeld(settings.quickCharSelect_moveDown_2)) {
+				vertDir = keyboard.moveAmount(settings.quickCharSelect_moveDown_2, MULTIPLICATION_GOAL_CAMERA_MOVE);
+			}
+			static const float moveSpeed = 2.F;
+			
+			int moveX = (int)(horizDir * moveSpeed);
+			int moveY = (int)(vertDir * moveSpeed);
+			if (horizDir != 0.F && !moveX) moveX = horizDir < 0.F ? -1 : 1;
+			if (vertDir != 0.F && !moveY) moveY = vertDir < 0.F ? -1 : 1;
+			
+			selectionPnt.x += moveX;
+			selectionPnt.y += moveY;
+			
+			ImVec2 newMousePos = ImGui::GetMousePos();
+			if (settings.enableMouseInControllerFriendlyQuickCharSelect) {
+				ImVec2 mouseDelta {
+					newMousePos.x - mousePos.x,
+					newMousePos.y - mousePos.y
+				};
+				if (mouseDelta.x < 0.F) mouseDelta.x = -mouseDelta.x;
+				if (mouseDelta.y < 0.F) mouseDelta.y = -mouseDelta.y;
+				if (mouseDelta.x > 1.F || mouseDelta.y > 1.F) {
+					mouseMovedForTheFirstTime = true;
+				}
+				if (mouseMovedForTheFirstTime && (mouseDelta.x != 0.F || mouseDelta.y != 0.F)) {
+					quickCharSelect_projectPointFromScreen(newMousePos, &selectionPnt);
+				}
+			} else {
+				mouseMovedForTheFirstTime = true;
+			}
+			mousePos = newMousePos;
+			
+			if (selectionPnt.x < quickCharSelect_graphicalMinX) selectionPnt.x = quickCharSelect_graphicalMinX;
+			if (selectionPnt.y < quickCharSelect_graphicalMinY) selectionPnt.y = quickCharSelect_graphicalMinY;
+			if (selectionPnt.x > graphicalMaxX) selectionPnt.x = graphicalMaxX;
+			if (selectionPnt.y > graphicalMaxY) selectionPnt.y = graphicalMaxY;
+			keyboard.captureJoyInput = true;
+			keyboard.imguiOwner = 1;
+			imguiActiveTemp = true;
+			
+			for (int i = 0; i < 26; ++i) {
+				const HexData& data = hexData[i];
+				if (!(
+					selectionPnt.x >= data.collisionMinX
+					&& selectionPnt.y >= data.collisionMinY
+					&& selectionPnt.x <= data.collisionMaxX
+					&& selectionPnt.y <= data.collisionMaxY
+				)) {
+					continue;
+				}
+				int intersectionCount = 0;
+				for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
+					const POINT* cur = data.collisionPoints[pntIndex];
+					const POINT* next = data.collisionPoints[pntIndex == 5 ? 0 : pntIndex + 1];
+					bool intersectedTheSide = false;
+					if (selectionPnt.y == next->y) {
+						const POINT* prev = data.collisionPoints[pntIndex == 0
+								? 5
+								: pntIndex - 1
+						];
+						
+						bool pointIsCursed = false;;
+						bool prevHorizontal = cur->y == prev->y;
+						bool prevGoUp = cur->y > prev->y;
+						bool curHorizontal = next->y == cur->y;
+						bool curGoUp = next->y > cur->y;
+						if (prevHorizontal || curHorizontal) {
+							pointIsCursed = true;
+						} else if (prevGoUp != curGoUp) {
+							pointIsCursed = true;
+						}
+						if (!pointIsCursed) {
+							intersectedTheSide = true;
+						}
+					} else {
+						int minY;
+						int maxY;
+						if (cur->y < next->y) {
+							minY = cur->y;
+							maxY = next->y;
+						} else {
+							minY = next->y;
+							maxY = cur->y;
+						}
+						if (selectionPnt.y >= minY && selectionPnt.y <= maxY) {
+							float xOnLineFloat = cur->x + (float)(next->x - cur->x) / (float)(next->y - cur->y) * (selectionPnt.y - cur->y);
+							int xOnLine = (int)xOnLineFloat;
+							if (selectionPnt.x >= xOnLine) {
+								intersectedTheSide = true;
+							}
+						}
+					}
+					if (intersectedTheSide) {
+						intersectionCount++;
+					}
+				}
+				if (intersectionCount % 2 == 1) {
+					if (selectedChar != data.charType) {
+						selAnimTimer = 0;
+						selectedChar = data.charType;
+					}
+					break;
+				}
+			}
+			
+			if (returnResult) {
+				if (selectedChar != (CharacterType)*(BYTE*)selectedCharaLocation) {
+					if (!game.findSaveCharaFunc()) {
+						failedToFindSaveFunction = true;
+					} else {
+						quickCharSelect_save(selectedChar);
+					}
+				}
+			}
+		}
+	}
+	if (failedToFindSaveFunction) {
+		ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
+		ImGui::TextUnformatted("Failed to find the function that saves the selected character.");
+		ImGui::PopStyleColor();
+	}
+	return returnResult;
+}
+
+void UI::quickCharSelect_save(CharacterType newCharType) {
+	uintptr_t selectedCharaLocation = getSelectedCharaLocation();
+	if (!selectedCharaLocation) return;
+	
+	wchar_t youCanModifyIfYouWant[7] { L'\0' };
+	const wchar_t* srcString = newCharType == -1 ? L"RANDOM"
+		: characterNamesCodeWideUpper[newCharType];
+	wcscpy(youCanModifyIfYouWant, srcString);
+	FString myString;
+	myString.Data = youCanModifyIfYouWant;
+	myString.ArrayNum = wcslen(myString.Data);
+	myString.ArrayMax = 7;
+	
+	saveCharaFunc_t saveCharaFunc = game.findSaveCharaFunc();
+	if (!saveCharaFunc) return;
+	saveCharaFunc(
+		nullptr,
+		&myString,
+		newCharType == -1 ? 0 : *(BYTE*)(selectedCharaLocation + 1 + newCharType),
+		*(BYTE*)(selectedCharaLocation + 0x41),
+		*(BYTE*)(selectedCharaLocation + 0x42),
+		newCharType == -1 ? 0 : *(BYTE*)(selectedCharaLocation + 0x21 + newCharType),
+		*(BYTE*)(selectedCharaLocation + 0x43),
+		FALSE,
+		FALSE,
+		FALSE,
+		FALSE);
 }

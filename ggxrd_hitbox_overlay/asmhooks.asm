@@ -35,6 +35,8 @@ extern _orig_isGameModeNetwork:dword
 
 extern _orig_replayPauseControlTick:dword
 
+extrn _getJoyStateHook:proc
+
 ; caller clears stack. ecx - first arg, esp+4,esp+8 - second and third args
 ; Runs on the main thread
 _drawQuadExecHookAsm proc
@@ -150,5 +152,15 @@ _replayPauseControlTickHookAsm proc
 	return:
 	ret
 _replayPauseControlTickHookAsm endp
+
+_getJoyStateHookAsm proc
+	push eax
+	push 110h
+	push edi
+	push ecx
+	call [_getJoyStateHook]
+	add esp,10h
+	ret
+_getJoyStateHookAsm endp
 
 end
