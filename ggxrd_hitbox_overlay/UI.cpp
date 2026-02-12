@@ -25300,53 +25300,19 @@ bool UI::drawQuickCharSelectControllerFriendly() {
 				)) {
 					continue;
 				}
-				int intersectionCount = 0;
+				bool isOnTheInside = true;
 				for (int pntIndex = 0; pntIndex < 6; ++pntIndex) {
 					const POINT* cur = data.collisionPoints[pntIndex];
 					const POINT* next = data.collisionPoints[pntIndex == 5 ? 0 : pntIndex + 1];
-					bool intersectedTheSide = false;
-					if (selectionPnt.y == next->y) {
-						const POINT* prev = data.collisionPoints[pntIndex == 0
-								? 5
-								: pntIndex - 1
-						];
-						
-						bool pointIsCursed = false;;
-						bool prevHorizontal = cur->y == prev->y;
-						bool prevGoUp = cur->y > prev->y;
-						bool curHorizontal = next->y == cur->y;
-						bool curGoUp = next->y > cur->y;
-						if (prevHorizontal || curHorizontal) {
-							pointIsCursed = true;
-						} else if (prevGoUp != curGoUp) {
-							pointIsCursed = true;
-						}
-						if (!pointIsCursed) {
-							intersectedTheSide = true;
-						}
-					} else {
-						int minY;
-						int maxY;
-						if (cur->y < next->y) {
-							minY = cur->y;
-							maxY = next->y;
-						} else {
-							minY = next->y;
-							maxY = cur->y;
-						}
-						if (selectionPnt.y >= minY && selectionPnt.y <= maxY) {
-							float xOnLineFloat = cur->x + (float)(next->x - cur->x) / (float)(next->y - cur->y) * (selectionPnt.y - cur->y);
-							int xOnLine = (int)xOnLineFloat;
-							if (selectionPnt.x >= xOnLine) {
-								intersectedTheSide = true;
-							}
-						}
-					}
-					if (intersectedTheSide) {
-						intersectionCount++;
-					}
+					int cur_next_x = next->x - cur->x;
+					int cur_next_y = next->y - cur->y;
+					int cur_sel_x = selectionPnt.x - cur->x;
+					int cur_sel_y = selectionPnt.y - cur->y;
+					int crossProduct_cur_next_by_cur_sel = cur_next_x * cur_sel_y - cur_next_y * cur_sel_x;
+					isOnTheInside = crossProduct_cur_next_by_cur_sel > 0;
+					if (!isOnTheInside) break;
 				}
-				if (intersectionCount % 2 == 1) {
+				if (isOnTheInside) {
 					if (selectedChar != data.charType) {
 						selAnimTimer = 0;
 						selectedChar = data.charType;
