@@ -2064,3 +2064,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2026 February 8: Version 7.19: Added "Quick Character Select" tab to the main mod UI window.
 - 2026 February 9: Version 7.20: Fixed "Quick Character Select" popup not appearing upon hotkey press if all mod's windows have been closed.
 - 2026 February 10: Version 7.21: Added a new mode for "Quick Character Select" that appears only when the hotkey/hotbutton is held and disappears when not held, and the selection is changed using the gamepad controls, and it captures gamepad input to hide it from the game, and stopping holding the hotkey/hotbutton confirms the character selection. This new mode is the default setting. It can be changed in Main Mod UI - Quick Character Select - 'Use Controller-Friendly Quick Char Select'.
+- 2026 February 12: Version 7.22: Fixed camera moving in player lobby when the mod's controller-friendly 'Quick Character Select' menu is open.

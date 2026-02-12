@@ -3,6 +3,11 @@
 #include <mutex>
 #include <dinput.h>
 
+enum KeyboardOwner {
+	KEYBOARD_OWNER_NONE,
+	KEYBOARD_OWNER_IMGUI
+};
+
 enum MultiplicationWhat {
 	MULTIPLICATION_WHAT_NONE = -1,
 	MULTIPLICATION_WHAT_MOUSE = 0,
@@ -123,11 +128,11 @@ public:
 	bool imguiHovered = false;
 	bool imguiContextMenuOpen = false;
 	bool imguiActive = false;
-	int imguiOwner = 0;
+	KeyboardOwner imguiOwner = KEYBOARD_OWNER_NONE;
 	DIJOYSTATE2 joy;
 	bool captureJoyInput = false;
 	static void resetJoyStruct(DIJOYSTATE2* ptr);
-	int owner = 0;
+	KeyboardOwner owner = KEYBOARD_OWNER_NONE;
 private:
 	struct KeyStatus {
 		int code = 0;
@@ -154,3 +159,34 @@ private:
 };
 
 extern Keyboard keyboard;
+
+// use this to temporarily set the owner in a statement block ({})
+struct KeyboardOwnerGuard {
+	bool isSet = false;
+	inline KeyboardOwnerGuard() { }
+	inline KeyboardOwnerGuard(KeyboardOwner owner) {
+		isSet = true;
+		keyboard.owner = owner;
+	}
+	inline ~KeyboardOwnerGuard() {
+		if (isSet) {
+			keyboard.owner = KEYBOARD_OWNER_NONE;
+		}
+	}
+	inline KeyboardOwnerGuard& operator=(const KeyboardOwnerGuard& other) = delete;
+	inline KeyboardOwnerGuard& operator=(KeyboardOwnerGuard&& other) noexcept {
+		if (isSet && !other.isSet) keyboard.owner = KEYBOARD_OWNER_NONE;
+		isSet = other.isSet;
+		other.isSet = false;
+		return *this;
+	}
+};
+
+// use this to temporarily ignore any presence of an imguiOwner in a statement block ({})
+struct KeyboardIgnoreOwnerGuard {
+	KeyboardOwner oldImguiOwner;
+	inline KeyboardIgnoreOwnerGuard() : oldImguiOwner(keyboard.imguiOwner) { }
+	inline ~KeyboardIgnoreOwnerGuard() {
+		keyboard.imguiOwner = oldImguiOwner;
+	}
+};

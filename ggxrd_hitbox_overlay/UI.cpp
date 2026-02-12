@@ -915,7 +915,7 @@ void UI::onDllDetachNonGraphics() {
 
 // Runs on the main thread
 void UI::prepareDrawData() {
-	keyboard.imguiOwner = 0;
+	keyboard.imguiOwner = KEYBOARD_OWNER_NONE;
 	keyboard.captureJoyInput = false;
 	if (!keyboard.screenSizeKnown) return;
 	convertedBoxesPrepared = false;
@@ -9107,7 +9107,7 @@ void UI::drawSearchableWindows() {
 		bool useFriendlyVer = !searching && settings.useControllerFriendlyQuickCharSelect;
 		if (useFriendlyVer) {
 			ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin("QuickCharSelectControllerFriendly", &isOpen,
+			ImGui::Begin(searching ? "search_QuickCharSelectControllerFriendly" : "QuickCharSelectControllerFriendly", &isOpen,
 				ImGuiWindowFlags_NoBackground
 				| ImGuiWindowFlags_NoTitleBar
 				| ImGuiWindowFlags_NoScrollbar);
@@ -23987,14 +23987,9 @@ uintptr_t UI::getSelectedCharaLocation() {
 }
 
 bool UI::drawQuickCharSelect(bool isWindow) {
-	struct ResetKeyboardOwner {
-		~ResetKeyboardOwner() {
-			keyboard.owner = 0;
-		}
-	} resetKeyboardOwner;
+	KeyboardOwner keyboardOwner(KEYBOARD_OWNER_IMGUI);
 	static int dirHeldFor = 0;
 	static int dirHeld = 0;
-	if (!searching) keyboard.owner = 1;
 	static bool failedToFindSaveFunction = false;
 	bool returnResult = false;
 	uintptr_t selectedCharaLocation = getSelectedCharaLocation();
@@ -24025,7 +24020,7 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 		comboBoxExtensionQuickCharSelect.beginFrame();
 		bool needClosePopup = false;
 		if (ImGui::BeginCombo(searchFieldTitle("##charselectcombobox"), strbuf)) {
-			keyboard.imguiOwner = 1;
+			KeyboardOwnerGuard keyboardOwner(KEYBOARD_OWNER_IMGUI);
 			comboBoxExtensionQuickCharSelect.onComboBoxBegin();
 			imguiActiveTemp = true;
 			static std::chrono::time_point<std::chrono::system_clock> lastTimePressedKey;
@@ -24131,12 +24126,6 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 				returnResult = true;
 			}
 			
-			struct ResetOwner {
-				~ResetOwner() {
-					keyboard.owner = 0;
-				}
-			} resetOwner;
-			keyboard.owner = 1;
 			bool downHeld = ImGui::IsKeyPressed(ImGuiKey_DownArrow, true)
 				|| keyboard.isHeld(settings.quickCharSelect_moveDown)
 				|| keyboard.isHeld(settings.quickCharSelect_moveDown_2);
@@ -24561,12 +24550,7 @@ void quickCharSelectCalculateUVs(HexData& data,
 
 bool UI::drawQuickCharSelectControllerFriendly() {
 	static bool failedToFindSaveFunction = false;
-	struct ResetKeyboardOwner {
-		~ResetKeyboardOwner() {
-			keyboard.owner = 0;
-		}
-	} resetKeyboardOwner;
-	if (!searching) keyboard.owner = 1;
+	KeyboardOwnerGuard keyboardOwner(KEYBOARD_OWNER_IMGUI);
 	
 	static HexData hexData[26] {
 	{CHARACTER_TYPE_HAEHYUN,
@@ -25303,7 +25287,7 @@ bool UI::drawQuickCharSelectControllerFriendly() {
 			if (selectionPnt.x > graphicalMaxX) selectionPnt.x = graphicalMaxX;
 			if (selectionPnt.y > graphicalMaxY) selectionPnt.y = graphicalMaxY;
 			keyboard.captureJoyInput = true;
-			keyboard.imguiOwner = 1;
+			KeyboardOwnerGuard keyboardOwner(KEYBOARD_OWNER_IMGUI);
 			imguiActiveTemp = true;
 			
 			for (int i = 0; i < 26; ++i) {

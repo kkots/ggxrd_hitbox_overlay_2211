@@ -1716,14 +1716,17 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Changed FPS back to 60 from a hotkey press\n", logfile));
 		}
 	}
-	if (keyboard.gotPressed(settings.disableModToggle)) {
-		if (gifMode.modDisabled == true) {
-			gifMode.modDisabled = false;
-			logwrap(fputs("Mod enabled\n", logfile));
-		} else {
-			gifMode.modDisabled = true;
-			logwrap(fputs("Mod disabled\n", logfile));
-			needToRunNoGravGifMode = needToRunNoGravGifMode || (*aswEngine != nullptr);
+	{
+		KeyboardIgnoreOwnerGuard imguiOwnerGuard;
+		if (keyboard.gotPressed(settings.disableModToggle)) {
+			if (gifMode.modDisabled == true) {
+				gifMode.modDisabled = false;
+				logwrap(fputs("Mod enabled\n", logfile));
+			} else {
+				gifMode.modDisabled = true;
+				logwrap(fputs("Mod disabled\n", logfile));
+				needToRunNoGravGifMode = needToRunNoGravGifMode || (*aswEngine != nullptr);
+			}
 		}
 	}
 	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.disableHitboxDisplayToggle))) {

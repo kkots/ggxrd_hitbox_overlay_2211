@@ -24,12 +24,13 @@ BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 }
 
 extern "C" void getJoyStateHookAsm();  // defined in asmhooks.asm
-extern "C" HRESULT __cdecl getJoyStateHook(void* getDeviceStatePtr, void* directInputDevice, size_t size, DIJOYSTATE2* joyState) {  // defined here
+extern "C" HRESULT __cdecl getJoyStateHook(void* getDeviceStatePtr, void* directInputDevice, size_t size, DIJOYSTATE2* joyState, BYTE* FJoystickInfo) {  // defined here
 	typedef HRESULT (__stdcall*GetDeviceState_t)(void*,size_t,void*);
 	HRESULT result = ((GetDeviceState_t)getDeviceStatePtr)(directInputDevice, size, joyState);
 	memcpy(&keyboard.joy, joyState, sizeof DIJOYSTATE2);
 	if (keyboard.captureJoyInput) {
-		Keyboard::resetJoyStruct(joyState);
+		DIJOYSTATE2* PreviousState = (DIJOYSTATE2*)(FJoystickInfo + 0xd0);
+		memcpy(joyState, PreviousState, sizeof DIJOYSTATE2);
 	}
 	return result;
 }
@@ -508,6 +509,7 @@ bool Keyboard::getMousePos(POINT* result) {
 	return true;
 }
 
+// produces ghost inputs
 void Keyboard::resetJoyStruct(DIJOYSTATE2* ptr) {
 	memset(ptr, 0, sizeof DIJOYSTATE2);
 	ptr->lX = 32767;
