@@ -113,9 +113,27 @@ void Keyboard::updateKeyStatuses() {
 		status.moveAmount = 0;
 		status.gotPressed = false;
 		bool isPressed;
+		bool isPressedOmnidirectional;
 		if (!windowActive) {
 			isPressed = false;
+			isPressedOmnidirectional = false;
 		} else {
+			int stickDeadzone = (int)settings.stickDeadzonePercentage * 32767 / 100;
+			bool leftStickOverallOutOfDeadzone =
+				joy.lX < 32767 - stickDeadzone
+				|| joy.lX > 32767 + stickDeadzone
+				|| joy.lY < 32767 - stickDeadzone
+				|| joy.lY > 32767 + stickDeadzone;
+			bool dualshockRightStickOverallOutOfDeadzone =
+				joy.lZ < 32767 - stickDeadzone
+				|| joy.lZ > 32767 + stickDeadzone
+				|| joy.lRz < 32767 - stickDeadzone
+				|| joy.lRz > 32767 + stickDeadzone;
+			bool xboxTypeSRightStickOverallOutOfDeadzone =
+				joy.lRx < 32767 - stickDeadzone
+				|| joy.lRx > 32767 + stickDeadzone
+				|| joy.lRy < 32767 - stickDeadzone
+				|| joy.lRy > 32767 + stickDeadzone;
 			
 			switch (status.code) {
 				case JOY_BTN_0:
@@ -135,102 +153,125 @@ void Keyboard::updateKeyStatuses() {
 				case JOY_BTN_14:
 				case JOY_BTN_15:
 					isPressed = joy.rgbButtons[status.code - JOY_BTN_0];
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_LEFT_STICK_LEFT:
-					isPressed = joy.lX < 32767 - 3000;
+					isPressed = joy.lX < 32767 - stickDeadzone;
+					isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lX < 32767;
 					status.moveAmount = 32767 - joy.lX;
 					break;
 				case JOY_LEFT_STICK_UP:
-					isPressed = joy.lY < 32767 - 3000;
+					isPressed = joy.lY < 32767 - stickDeadzone;
+					isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lY < 32767;
 					status.moveAmount = 32767 - joy.lY;
 					break;
 				case JOY_LEFT_STICK_RIGHT:
-					isPressed = joy.lX > 32767 + 3000;
+					isPressed = joy.lX > 32767 + stickDeadzone;
+					isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lX > 32767;
 					status.moveAmount = joy.lX - 32767;
 					break;
 				case JOY_LEFT_STICK_DOWN:
-					isPressed = joy.lY > 32767 + 3000;
+					isPressed = joy.lY > 32767 + stickDeadzone;
+					isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lY > 32767;
 					status.moveAmount = joy.lY - 32767;
 					break;
 				case JOY_DPAD_LEFT:
 					isPressed = joy.rgdwPOV[0] == 31500
 						|| joy.rgdwPOV[0] == 27000
 						|| joy.rgdwPOV[0] == 22500;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_DPAD_UP:
 					isPressed = joy.rgdwPOV[0] == 0
 						|| joy.rgdwPOV[0] == 31500
 						|| joy.rgdwPOV[0] == 4500;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_DPAD_RIGHT:
 					isPressed = joy.rgdwPOV[0] == 4500
 						|| joy.rgdwPOV[0] == 9000
 						|| joy.rgdwPOV[0] == 13500;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_DPAD_DOWN:
 					isPressed = joy.rgdwPOV[0] == 22500
 						|| joy.rgdwPOV[0] == 18000
 						|| joy.rgdwPOV[0] == 13500;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_LEFT:
-					isPressed = joy.lZ < 32767 - 3000;
+					isPressed = joy.lZ < 32767 - stickDeadzone;
+					isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lZ < 32767;
 					status.moveAmount = 32767 - joy.lZ;
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_UP:
-					isPressed = joy.lRz < 32767 - 3000;
+					isPressed = joy.lRz < 32767 - stickDeadzone;
+					isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lRz < 32767;
 					status.moveAmount = 32767 - joy.lRz;
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_RIGHT:
-					isPressed = joy.lZ > 32767 + 3000;
+					isPressed = joy.lZ > 32767 + stickDeadzone;
+					isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lZ > 32767;
 					status.moveAmount = joy.lZ - 32767;
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_DOWN:
-					isPressed = joy.lRz > 32767 + 3000;
+					isPressed = joy.lRz > 32767 + stickDeadzone;
+					isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lRz > 32767;
 					status.moveAmount = joy.lRz - 32767;
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_LEFT:
-					isPressed = joy.lRx < 32767 - 3000;
+					isPressed = joy.lRx < 32767 - stickDeadzone;
+					isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRx < 32767;
 					status.moveAmount = 32767 - joy.lRx;
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_UP:
-					isPressed = joy.lRy < 32767 - 3000;
+					isPressed = joy.lRy < 32767 - stickDeadzone;
+					isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRy < 32767;
 					status.moveAmount = 32767 - joy.lRy;
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_RIGHT:
-					isPressed = joy.lRx > 32767 + 3000;
+					isPressed = joy.lRx > 32767 + stickDeadzone;
+					isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRx > 32767;
 					status.moveAmount = joy.lRx - 32767;
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_DOWN:
-					isPressed = joy.lRy > 32767 + 3000;
+					isPressed = joy.lRy > 32767 + stickDeadzone;
+					isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRy > 32767;
 					status.moveAmount = joy.lRy - 32767;
 					break;
 				case MOUSE_MOVE_LEFT:
 					isPressed = mouseMoveX < 0;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = -mouseMoveX;
 					break;
 				case MOUSE_MOVE_RIGHT:
 					isPressed = mouseMoveX > 0;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = mouseMoveX;
 					break;
 				case MOUSE_MOVE_UP:
 					isPressed = mouseMoveY < 0;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = -mouseMoveY;
 					break;
 				case MOUSE_MOVE_DOWN:
 					isPressed = mouseMoveY > 0;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = mouseMoveY;
 					break;
 				case MOUSE_WHEEL_UP:
 					isPressed = wheel > 0;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = wheel;
 					break;
 				case MOUSE_WHEEL_DOWN:
 					isPressed = wheel < 0;
+					isPressedOmnidirectional = isPressed;
 					status.moveAmount = -wheel;
 					break;
 				case VK_UP:
@@ -238,9 +279,11 @@ void Keyboard::updateKeyStatuses() {
 				case VK_LEFT:
 				case VK_RIGHT:
 					isPressed = !imguiContextMenuOpen && isKeyCodePressed(status.code);
+					isPressedOmnidirectional = isPressed;
 					break;
 				default:
 					isPressed = isKeyCodePressed(status.code);
+					isPressedOmnidirectional = isPressed;
 					break;
 			}
 		}
@@ -248,6 +291,7 @@ void Keyboard::updateKeyStatuses() {
 			status.gotPressed = true;
 		}
 		status.isPressed = isPressed;
+		status.isPressedOmnidirectional = isPressedOmnidirectional;
 	}
 }
 
@@ -316,7 +360,7 @@ void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
 		if (codeToStatus[codeToStatusIndex] == 0) {
 			codeToStatus[codeToStatusIndex] = (int)statuses.size() + 1;
 			
-			statuses.push_back(KeyStatus{ codeToStatusIndex, false, false, codeToMovable[codeToStatusIndex] });
+			statuses.push_back(KeyStatus{ codeToStatusIndex, false, false, false, codeToMovable[codeToStatusIndex] });
 		} else {
 			statuses[codeToStatus[codeToStatusIndex] - 1].unused = false;
 		}
@@ -381,6 +425,23 @@ bool Keyboard::isHeld(const std::vector<int>& keyCodes) {
 	return true;
 }
 
+bool Keyboard::isHeldOmnidirectional(const std::vector<int>& keyCodes) {
+	if (imguiOwner && imguiOwner != owner) return false;
+	std::unique_lock<std::mutex> guard;
+	std::unique_lock<std::mutex> guardSettings;
+	// reading from the main thread does not require locking the mutex, as the data won't be modified
+	if (!mutexLockedFromOutside && GetCurrentThreadId() != windowThreadId) {
+		guard = std::unique_lock<std::mutex>(mutex);
+		guardSettings = std::unique_lock<std::mutex>(settings.keyCombosMutex);
+	}
+	if (keyCodes.empty()) return false;
+	for (int code : keyCodes) {
+		KeyStatus* status = getStatus(code < 0 ? -code : code);
+		if (!status || status->isPressedOmnidirectional != (code >= 0)) return false;
+	}
+	return true;
+}
+
 float Keyboard::moveAmount(const std::vector<int>& keyCodes, MultiplicationGoal goal) {
 	if (imguiOwner && imguiOwner != owner) return 0.F;
 	std::unique_lock<std::mutex> guard;
@@ -395,8 +456,13 @@ float Keyboard::moveAmount(const std::vector<int>& keyCodes, MultiplicationGoal 
 	float largestMove = 0.F;
 	for (int code : keyCodes) {
 		KeyStatus* status = getStatus(code < 0 ? -code : code);
-		if (!status || status->isPressed != (code >= 0)) return false;
+		if (!status || status->isPressedOmnidirectional != (code >= 0)) return false;
 		float moveAmount = (float)status->moveAmount * multiplicationTable[status->movable][goal];
+		if (status->movable == MULTIPLICATION_WHAT_LEFT_STICK
+				|| status->movable == MULTIPLICATION_WHAT_PS4_RIGHT_STICK
+				|| status->movable == MULTIPLICATION_WHAT_XBOX_TYPE_S_RIGHT_STICK) {
+			moveAmount *= settings.stickSpeedMultiplier;
+		}
 		float moveAmountAbs = moveAmount < 0 ? -moveAmount : moveAmount;
 		if (moveAmountAbs > largestMoveAbsolute) {
 			largestMoveAbsolute = moveAmountAbs;

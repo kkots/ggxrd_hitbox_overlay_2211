@@ -2517,6 +2517,8 @@ void UI::drawSearchableWindows() {
 				keyComboControl(settings.quickCharSelect_moveUp_2);
 				keyComboControl(settings.quickCharSelect_moveRight_2);
 				keyComboControl(settings.quickCharSelect_moveDown_2);
+				intSettingPreset(settings.stickDeadzonePercentage, 0, 1, 2, 80.F, 100);
+				floatSettingPreset(settings.stickSpeedMultiplier, FLT_MIN, FLT_MAX, 0.1F, 0.2F);
 			}
 			popSearchStack();
 			if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
@@ -24020,6 +24022,7 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 		comboBoxExtensionQuickCharSelect.beginFrame();
 		bool needClosePopup = false;
 		if (ImGui::BeginCombo(searchFieldTitle("##charselectcombobox"), strbuf)) {
+			keyboard.imguiOwner = KEYBOARD_OWNER_IMGUI;
 			KeyboardOwnerGuard keyboardOwner(KEYBOARD_OWNER_IMGUI);
 			comboBoxExtensionQuickCharSelect.onComboBoxBegin();
 			imguiActiveTemp = true;
@@ -25235,22 +25238,22 @@ bool UI::drawQuickCharSelectControllerFriendly() {
 			
 			float horizDir = 0;
 			float vertDir = 0;
-			if (keyboard.isHeld(settings.quickCharSelect_moveLeft)) {
+			if (keyboard.isHeldOmnidirectional(settings.quickCharSelect_moveLeft)) {
 				horizDir = -keyboard.moveAmount(settings.quickCharSelect_moveLeft, MULTIPLICATION_GOAL_CAMERA_MOVE);
-			} else if (keyboard.isHeld(settings.quickCharSelect_moveLeft_2)) {
+			} else if (keyboard.isHeldOmnidirectional(settings.quickCharSelect_moveLeft_2)) {
 				horizDir = -keyboard.moveAmount(settings.quickCharSelect_moveLeft_2, MULTIPLICATION_GOAL_CAMERA_MOVE);
-			} else if (keyboard.isHeld(settings.quickCharSelect_moveRight)) {
+			} else if (keyboard.isHeldOmnidirectional(settings.quickCharSelect_moveRight)) {
 				horizDir = keyboard.moveAmount(settings.quickCharSelect_moveRight, MULTIPLICATION_GOAL_CAMERA_MOVE);
-			} else if (keyboard.isHeld(settings.quickCharSelect_moveRight_2)) {
+			} else if (keyboard.isHeldOmnidirectional(settings.quickCharSelect_moveRight_2)) {
 				horizDir = keyboard.moveAmount(settings.quickCharSelect_moveRight_2, MULTIPLICATION_GOAL_CAMERA_MOVE);
 			}
-			if (keyboard.isHeld(settings.quickCharSelect_moveUp)) {
+			if (keyboard.isHeldOmnidirectional(settings.quickCharSelect_moveUp)) {
 				vertDir = -keyboard.moveAmount(settings.quickCharSelect_moveUp, MULTIPLICATION_GOAL_CAMERA_MOVE);
-			} else if (keyboard.isHeld(settings.quickCharSelect_moveUp_2)) {
+			} else if (keyboard.isHeldOmnidirectional(settings.quickCharSelect_moveUp_2)) {
 				vertDir = -keyboard.moveAmount(settings.quickCharSelect_moveUp_2, MULTIPLICATION_GOAL_CAMERA_MOVE);
-			} else if (keyboard.isHeld(settings.quickCharSelect_moveDown)) {
+			} else if (keyboard.isHeldOmnidirectional(settings.quickCharSelect_moveDown)) {
 				vertDir = keyboard.moveAmount(settings.quickCharSelect_moveDown, MULTIPLICATION_GOAL_CAMERA_MOVE);
-			} else if (keyboard.isHeld(settings.quickCharSelect_moveDown_2)) {
+			} else if (keyboard.isHeldOmnidirectional(settings.quickCharSelect_moveDown_2)) {
 				vertDir = keyboard.moveAmount(settings.quickCharSelect_moveDown_2, MULTIPLICATION_GOAL_CAMERA_MOVE);
 			}
 			static const float moveSpeed = 2.F;

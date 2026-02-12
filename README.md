@@ -1542,6 +1542,19 @@ quickCharSelect_moveRight_2 = DPadRight
 ; An alternative keyboard shortcut to move the cursor down in the Quick Character Select window.
 ; More settings can be found in Main Mod UI - Quick Character Select.
 quickCharSelect_moveDown_2 = DPadDown
+
+; Specify a positive whole number from 0 to 100. Default value is 30.
+; This affects how much of the available range of the left and right sticks
+; are deemed to be deadzone (ignored). This only affects hotkeys for this mod
+; that are mapped through INI settings and Settings - Keyboard Shortcuts that are
+; gamepad sticks.
+stickDeadzonePercentage = 30
+
+; Specify a floating point number. Default value is 1.0.
+; This affects things in the mod, controls for which are mapped to gamepad sticks,
+; and which depend on the amount that the stick is displaced.
+; Setting this factor to a higher value will produce greater movement.
+stickSpeedMultiplier = 1.0
 ```
 
 </details>

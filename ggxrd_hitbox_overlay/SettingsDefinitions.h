@@ -1436,4 +1436,19 @@ settingsKeyCombo(quickCharSelect_moveDown_2, "Quick Character Select - Move Down
 	"; An alternative keyboard shortcut to move the cursor down in the Quick Character Select window.\n"
 	"; More settings can be found in Main Mod UI - Quick Character Select.")
 	
+settingsField(int, stickDeadzonePercentage, 30,
+	"Deadzone For Mod's Stick Controls (Percentage)", SETTINGS_GENERAL,
+	"; Specify a positive whole number from 0 to 100. Default value is 30.\n"
+	"; This affects how much of the available range of the left and right sticks\n"
+	"; are deemed to be deadzone (ignored). This only affects hotkeys for this mod\n"
+	"; that are mapped through INI settings and Settings - Keyboard Shortcuts that are\n"
+	"; gamepad sticks.")
+	
+settingsField(float, stickSpeedMultiplier, 1.F,
+	"Mod's Stick Speed Multiplier (Factor)", SETTINGS_GENERAL,
+	"; Specify a floating point number. Default value is 1.0.\n"
+	"; This affects things in the mod, controls for which are mapped to gamepad sticks,\n"
+	"; and which depend on the amount that the stick is displaced.\n"
+	"; Setting this factor to a higher value will produce greater movement.")
+	
 #pragma warning(pop)

@@ -39,6 +39,7 @@ public:
 	void updateKeyStatuses();
 	bool gotPressed(const std::vector<int>& keyCodes);
 	bool isHeld(const std::vector<int>& keyCodes);
+	bool isHeldOmnidirectional(const std::vector<int>& keyCodes);
 	float moveAmount(const std::vector<int>& keyCodes, MultiplicationGoal goal);
 	void addNewKeyCodes(const std::vector<int>& keyCodes);
 	void removeAllKeyCodes();
@@ -137,10 +138,11 @@ private:
 	struct KeyStatus {
 		int code = 0;
 		bool isPressed = false;
+		bool isPressedOmnidirectional = false;
 		bool gotPressed = false;
 		MultiplicationWhat movable = MULTIPLICATION_WHAT_NONE;
 		int moveAmount = 0;
-		bool unused = false;;
+		bool unused = false;
 	};
 	std::vector<KeyStatus> statuses;
 	bool isKeyCodePressed(int code) const;
