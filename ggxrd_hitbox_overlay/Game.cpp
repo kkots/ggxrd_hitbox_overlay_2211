@@ -1603,7 +1603,7 @@ bool Game::swapOutFPS() {
 		nullptr, "fpsUsage");
 	if (!detouring.isInTransaction()) finishedSigscanning();
 	if (fpsUsage) {
-		DWORD newFpsAddr = (DWORD)(uintptr_t)&gifMode.fps;
+		DWORD newFpsAddr = (DWORD)(uintptr_t)&gifMode.fpsApplied;
 		std::vector<char> newBytes(4);
 		memcpy(newBytes.data(), &newFpsAddr, 4);
 		detouring.patchPlace(fpsUsage, newBytes);
@@ -1613,7 +1613,7 @@ bool Game::swapOutFPS() {
 }
 
 void Game::onFPSChanged() {
-	if (gifMode.fps != 60.F) {
+	if (gifMode.fpsApplied != 60.F) {
 		swapOutFPS();
 	}
 }

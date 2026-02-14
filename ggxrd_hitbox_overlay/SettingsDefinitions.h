@@ -1377,15 +1377,21 @@ settingsField(bool, enableScriptMods, false,
 	
 settingsKeyCombo(fastForwardReplay, "Fast Forward Replay", "",
 	"; A keyboard shortcut.\n"
-	"; Holding down this key during a replay will speed up the playback by a factor specified in\n"
+	"; Holding down this key during a replay will speed up the playback of a replay by a factor specified in\n"
 	"; \"fastForwardReplayFactor\".\n"
-	"; This feature causes danger time entry countdown to go out of sync.")
+	"; This feature causes danger time entry countdown to go out of sync.\n"
+	"; To speed up observer mode playback when catching up to a game that is far ahead,\n"
+	"; no hotkey is needed, it will happen automatically. Observer mode will use the same factor setting.")
 	
 settingsField(int, fastForwardReplayFactor, 2,
-	"Fast Forward Replay Factor", SETTINGS_GENERAL,
+	"Fast Forward Replay/Observer Factor", SETTINGS_GENERAL,
 	"; Specify a positive whole number. Default value is 2.\n"
 	"; When holding the \"fastForwardReplay\" hotkey during a replay,\n"
-	"; this is by how many times to speed up the replay.")
+	"; this is by how many times to speed up the replay.\n"
+	"; IMPORTANT: This will also affect observer mode in online when catching up,\n"
+	"; without having to press the hotkey. It will use this speed factor automatically.\n"
+	"; Fast-forward now also affects intros, roundstarts, roundends, outros and supers,\n"
+	"; but those types of fast-forward come at a greater CPU and processing cost (and can't be disabled, for now).")
 	
 settingsKeyCombo(openQuickCharSelect, "Open Quick Character Select", "",
 	"; A keyboard shortcut to open the Quick Character Select window.")
@@ -1444,7 +1450,7 @@ settingsField(int, stickDeadzonePercentage, 30,
 	"; that are mapped through INI settings and Settings - Keyboard Shortcuts that are\n"
 	"; gamepad sticks.")
 	
-settingsField(float, stickSpeedMultiplier, 1.F,
+settingsField(float, stickSpeedMultiplier, 0.8F,
 	"Mod's Stick Speed Multiplier (Factor)", SETTINGS_GENERAL,
 	"; Specify a floating point number. Default value is 1.0.\n"
 	"; This affects things in the mod, controls for which are mapped to gamepad sticks,\n"

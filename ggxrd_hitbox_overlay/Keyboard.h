@@ -2,6 +2,7 @@
 #include <vector>
 #include <mutex>
 #include <dinput.h>
+#include "Entity.h"
 
 enum KeyboardOwner {
 	KEYBOARD_OWNER_NONE,
@@ -28,6 +29,31 @@ enum MultiplicationGoal {
 	MULTIPLICATION_GOAL_CHANGE_FOV,
 	MULTIPLICATION_GOAL_LAST  // Must always be last
 };
+
+enum EJoystickType {
+	JOYSTICK_None,
+	JOYSTICK_PS2_Old_Converter,
+	JOYSTICK_PS2_New_Converter,
+	JOYSTICK_X360,
+	JOYSTICK_Xbox_Type_S,
+	JOYSTICK_GameCaster
+};
+
+#pragma pack(push, 4)
+struct FJoystickInfo {
+	LPDIRECTINPUTDEVICE8W DirectInput8Joystick;
+	EJoystickType JoystickType;
+	int ControllerId;
+	DWORD XInputIndex;  // not in UE3 sources
+	BOOL JoyStates[16];
+	double NextRepeatTime[16];
+	DIJOYSTATE2 PreviousState;
+	GUID DeviceGUID;
+	BOOL bIsConnected;
+	BOOL bNewBool;  // not in source code. Was only spotted to be 0 when disconnecting controller, but briefly
+	char unknown[4];  // yep
+};
+#pragma pack(pop)
 
 class Keyboard
 {
@@ -132,7 +158,6 @@ public:
 	KeyboardOwner imguiOwner = KEYBOARD_OWNER_NONE;
 	DIJOYSTATE2 joy;
 	bool captureJoyInput = false;
-	static void resetJoyStruct(DIJOYSTATE2* ptr);
 	KeyboardOwner owner = KEYBOARD_OWNER_NONE;
 private:
 	struct KeyStatus {
@@ -149,15 +174,15 @@ private:
 	bool isWindowActive() const;
 	bool isModifierKey(int code) const;
 	KeyStatus* getStatus(int code);
-	BYTE* UWindowsClient_Joysticks = nullptr;
+	TArray<FJoystickInfo>* UWindowsClient_Joysticks = nullptr;
 	bool UWindowsClient_Joysticks_HookAttempted = false;
 	void getJoyState(DIJOYSTATE2* state);
-	void clearJoyState();
 	std::vector<int> codeToStatus;
 	std::vector<MultiplicationWhat> codeToMovable;
 	bool initialized = false;
 	
 	int wheelDelta = 0;
+	void findJoysticks();
 };
 
 extern Keyboard keyboard;

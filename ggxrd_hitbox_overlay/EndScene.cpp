@@ -76,7 +76,7 @@ extern "C" int __cdecl obtainingOfCounterhitTrainingSettingHook(void* defender, 
 extern "C" DWORD orig_isGameModeNetwork = 0;
 extern "C" BOOL __cdecl isGameModeNetworkHookWhenDecidingStepCountHookAsm();  // defined in asmhooks.asm
 // returns ticks to perform
-extern "C" int __cdecl isGameModeNetworkHookWhenDecidingStepCountHook();  // defined here
+extern "C" int __cdecl isGameModeNetworkHookWhenDecidingStepCountHook(BOOL pauseMenuActorIsActive);  // defined here
 extern "C" DWORD orig_replayPauseControlTick = 0;
 // this function is actually a __thiscall! But they have mangled names that I don't remember/want to look up how to write so I denoted this as __cdecl for convenience
 extern "C" void __cdecl replayPauseControlTickHookAsm();  // defined in asmhooks.asm
@@ -1701,18 +1701,20 @@ void EndScene::processKeyStrokes() {
 		ui.freezeGame = freezeGame;
 	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.slowmoGameToggle)) {
-		if (std::abs(gifMode.fps - 60.F) < 0.001F) {
+		if (std::abs(gifMode.fpsSetting - 60.F) < 0.001F) {
 			if (settings.slowmoFps < 1.F) settings.slowmoFps = 1.F;
 			if (settings.slowmoFps > 999.F) settings.slowmoFps = 999.F;
 			if (*game.gameDataPtr && (game.isTrainingMode() || game.getGameMode() == GAME_MODE_REPLAY) && *aswEngine) {
 				logwrap(fputs("Changing FPS to a custom one from a hotkey press\n", logfile));
-				gifMode.fps = settings.slowmoFps;
+				gifMode.fpsSetting = settings.slowmoFps;
 				game.onFPSChanged();
+				gifMode.updateFPS();
 			} else {
 				logwrap(fputs("Declined changing FPS to a custom one from a hotkey press\n", logfile));
 			}
 		} else {
-			gifMode.fps = 60.F;
+			gifMode.fpsSetting = 60.F;
+			gifMode.updateFPS();
 			logwrap(fputs("Changed FPS back to 60 from a hotkey press\n", logfile));
 		}
 	}
@@ -1836,7 +1838,7 @@ void EndScene::processKeyStrokes() {
 		ui.editHitboxesProcessControls();
 	}
 	gifMode.speedUpReplay = !gifMode.modDisabled && keyboard.isHeld(settings.fastForwardReplay);
-	if (gifMode.speedUpReplay) {
+	if (settings.fastForwardReplayFactor != 2) {
 		onSpeedUpReplayChanged();
 	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.openQuickCharSelect)) {
@@ -1909,7 +1911,8 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 		ui.gifModeOn = false;
 		gifMode.noGravityOn = false;
 		ui.noGravityOn = false;
-		gifMode.fps = 60.F;
+		gifMode.fpsSetting = 60.F;
+		gifMode.updateFPS();
 		gifMode.gifModeToggleBackgroundOnly = false;
 		onGifModeBlackBackgroundChanged();
 		ui.gifModeToggleBackgroundOnly = false;
@@ -2471,6 +2474,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 // This tick runs even when paused or not in a match.
 // Runs on the main thread
 void EndScene::onUWorld_TickBegin() {
+	fastForwardingReplay = false;
 	logicThreadId = GetCurrentThreadId();
 	drewExGaugeHud = false;
 	camera.grabbedValues = false;
@@ -2481,6 +2485,10 @@ void EndScene::onUWorld_TickBegin() {
 // This tick runs even when paused or not in a match.
 // Runs on the main thread
 void EndScene::onUWorld_Tick() {
+	if (!fastForwardingReplay) {
+		gifMode.fpsSpeedUpReplay = 60.F;
+		gifMode.updateFPS();
+	}
 	if (shutdown) {
 		if (*aswEngine) {
 			bool needToCallNoGravGifMode = gifMode.gifModeOn
@@ -2903,7 +2911,7 @@ void EndScene::HookHelp::BBScr_linkParticleWithArg2Hook(const char* name) {
 
 // Runs on the main thread
 void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName, BBScrPosType posType) {
-	if (!gifMode.modDisabled && !gifMode.allowCreateParticles) {
+	if (!gifMode.modDisabled && !gifMode.allowCreateParticles && game.getGameMode() != GAME_MODE_NETWORK) {
 		return;
 	}
 	if (!gifMode.modDisabled && game.isTrainingMode() && pawn.isPawn()) {
@@ -2923,7 +2931,7 @@ void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName
 
 // Runs on the main thread
 void EndScene::BBScr_linkParticleHook(Entity pawn, const char* name) {
-	if (!gifMode.modDisabled && !gifMode.allowCreateParticles) {
+	if (!gifMode.modDisabled && !gifMode.allowCreateParticles && game.getGameMode() != GAME_MODE_NETWORK) {
 		return;
 	}
 	orig_BBScr_linkParticle((void*)pawn, name);
@@ -2931,7 +2939,7 @@ void EndScene::BBScr_linkParticleHook(Entity pawn, const char* name) {
 
 // Runs on the main thread
 void EndScene::BBScr_linkParticleWithArg2Hook(Entity pawn, const char* name) {
-	if (!gifMode.modDisabled && !gifMode.allowCreateParticles) {
+	if (!gifMode.modDisabled && !gifMode.allowCreateParticles && game.getGameMode() != GAME_MODE_NETWORK) {
 		return;
 	}
 	orig_BBScr_linkParticleWithArg2((void*)pawn, name);
@@ -3533,7 +3541,8 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	needEnqueueUiWithPoints = false;
 	if (!shutdown && !graphics.shutdown && *game.gameDataPtr) {
 		if (!game.isTrainingMode() && game.getGameMode() != GAME_MODE_REPLAY || !*aswEngine) {
-			gifMode.fps = 60.F;
+			gifMode.fpsSetting = 60.F;
+			gifMode.updateFPS();
 		}
 		game.updateOnlineDelay();
 		
@@ -8020,7 +8029,7 @@ bool EndScene::isRunning() {
 }
 
 bool EndScene::onSpeedUpReplayChanged() {
-	if (!gifMode.speedUpReplay) return true;
+	if (settings.fastForwardReplayFactor == 2) return true;
 	if (!hookLogicTickStepCount()) return false;
 	return true;
 }
@@ -8066,26 +8075,54 @@ bool EndScene::hookLogicTickStepCount() {
 		sig.data(), mask.data(), nullptr, "IsSpecialCameraUsageInOfflineVerOfTheLogicTick", maskForCaching.data());
 	if (!somewhereCloseToWhereWeReallyWant) return true;
 	
-	uintptr_t isGameModeNetworkCall = sigscanForward(somewhereCloseToWhereWeReallyWant,
-		//  isGameModeNetwork          observerNeedsCatchUp    MOV dword ptr [ESP + 0x24],0x2
-		"e8 ?? ?? ?? ?? 85 c0 74 11 e8 ?? ?? ?? ?? 85 c0 74 08 c7 44 24 24 02 00 00 00", 0x60);
-	if (!isGameModeNetworkCall) return true;
+	static const char IsSpecialCameraResultCheckSig[] =
+		// checks if match is running
+		"39 99 ?? ?? ?? ?? 74 57 "
+		// checks IsSpecialCamera
+		//     22e62c is camera. IsSpecialCamera+4 IsSpecialCamera                                                   FindFunctionChecked. 0x108 is ProcessEvent
+		"8b b9 ?? ?? ?? ?? 8b 0d ?? ?? ?? ?? 8b 15 ?? ?? ?? ?? 8b 2f 53 8d 44 24 1c 50 53 51 52 8b cf 89 5c 24 2c e8 ?? ?? ?? ?? 50 8b 85 08 01 00 00 8b cf ff d0 "
+		//                    isGameModeNetwork          observerNeedsCatchUp    MOV dword ptr [ESP + 0x24],0x2
+		"39 5c 24 18 75 1a e8 ?? ?? ?? ?? 85 c0 74 11 e8 ?? ?? ?? ?? 85 c0 74 08 c7 44 24 24 02 00 00 00";
+	uintptr_t IsSpecialCameraResultCheck = sigscanForward(somewhereCloseToWhereWeReallyWant,
+		IsSpecialCameraResultCheckSig,
+		sizeof IsSpecialCameraResultCheckSig);
+	if (IsSpecialCameraResultCheck != somewhereCloseToWhereWeReallyWant) return true;
 	
 	// 8b 0d ?? ?? ?? ?? 81 c1 ?? ?? ?? ?? e8
 	size_t pos;
 	byteSpecificationToSigMask("8b 0d rel(?? ?? ?? ??) 81 c1 ?? ?? ?? ?? >e8",
 		sig, mask, &pos, 1, &maskForCaching);
 	memcpy(sig.data() + 2, &aswEngine, 4);
-	uintptr_t replayPauseControlTickCall = sigscanForward(isGameModeNetworkCall,
-		sig.data(), mask.data(), 0x600);
+	uintptr_t replayPauseControlTickCall = sigscanForward(IsSpecialCameraResultCheck,
+		sig.data(), mask.data(), 0x610);
 	if (!replayPauseControlTickCall) return true;
 	replayPauseControlTickCall += pos;
 	
+	// ghidra sig: 83 3d ?? ?? ?? ?? 03 89 7c 24 14 bb 01 00 00 00 75 56 a1 ?? ?? ?? ?? 39 a8 ?? ?? ?? ?? 74 49 8b b0 ?? ?? ?? ?? 8b 0d ?? ?? ?? ?? 8b 15 ?? ?? ?? ?? 8b 3e 55 8d 44 24 14 50 55 51 52 8b ce 89 6c 24 24 e8 ?? ?? ?? ?? 50 8b 87 08 01 00 00 8b ce ff d0 39 6c 24 10 75 0c e8 ?? ?? ?? ?? 8b d8
+	uintptr_t onlineTickCountDecision = sigscanOffset(GUILTY_GEAR_XRD_EXE,
+		"83 3d ?? ?? ?? ?? 03 89 7c 24 14 bb 01 00 00 00 75 56"
+		" >a1 ?? ?? ?? ??"  // asw_engine check
+		" 39 a8 ?? ?? ?? ?? 74 49 8b b0 ?? ?? ?? ?? 8b 0d ?? ?? ?? ??"
+		" 8b 15 ?? ?? ?? ?? 8b 3e 55 8d 44 24 14 50 55 51 52 8b ce 89 6c 24 24"
+		" e8 ?? ?? ?? ?? 50 8b 87 08 01 00 00 8b ce ff d0 39 6c 24 10 75 0c"
+		" e8 ?? ?? ?? ?? 8b d8",
+		nullptr, "onlineTickCountDesicion");
+	
 	if (!detouring.isInTransaction()) finishedSigscanning();
 	
+	matchRunningOffsetForReplaySpeedUp = *(DWORD*)(IsSpecialCameraResultCheck + 2);
+	cameraOffsetForReplaySpeedUp = *(DWORD*)(IsSpecialCameraResultCheck + 10);
+	IsSpecialCameraFNamePtr = *(uintptr_t*)(IsSpecialCameraResultCheck + 22);
+	FindFunctionChecked = (FindFunctionChecked_t)followRelativeCall(IsSpecialCameraResultCheck + 43);
+	observerNeedsCatchUp = (observerNeedsCatchUp_t)followRelativeCall(IsSpecialCameraResultCheck + 8+51+6+9);
+	
+	uintptr_t isGameModeNetworkCall = IsSpecialCameraResultCheck + 8+51+6;
 	orig_isGameModeNetwork = (DWORD)followRelativeCall(isGameModeNetworkCall);
 	int offset = calculateRelativeCallOffset(isGameModeNetworkCall, (uintptr_t)isGameModeNetworkHookWhenDecidingStepCountHookAsm);
 	overwriteCall(isGameModeNetworkCall, offset);
+	
+	std::vector<char> newBytes(8+51+6, '\x90');
+	detouring.patchPlace(IsSpecialCameraResultCheck, newBytes);
 	
 	// why this hook?
 	// when the replay is not paused and you want to pause it while holding the speedUpReplay button, it double-toggles, resulting in single frame step
@@ -8094,19 +8131,77 @@ bool EndScene::hookLogicTickStepCount() {
 	offset = calculateRelativeCallOffset(replayPauseControlTickCall, (uintptr_t)replayPauseControlTickHookAsm);
 	overwriteCall(replayPauseControlTickCall, offset);
 	
+	if (onlineTickCountDecision) {
+		newBytes.resize(75, '\x90');
+		offset = calculateRelativeCallOffset(onlineTickCountDecision + 75 - 5, (uintptr_t)onlineStepCountDecisionHookStatic);
+		newBytes[75 - 5] = '\xe8';
+		memcpy(newBytes.data() + 75 - 5 + 1, &offset, 4);
+		detouring.patchPlace(onlineTickCountDecision, newBytes);
+	}
+	
 	return true;
 }
 
 // returns ticks to perform
-int isGameModeNetworkHookWhenDecidingStepCountHook() {
-	return endScene.isGameModeNetworkHookWhenDecidingStepCountHook();
+int __cdecl isGameModeNetworkHookWhenDecidingStepCountHook(BOOL pauseMenuActorIsActive) {
+	return endScene.isGameModeNetworkHookWhenDecidingStepCountHook(pauseMenuActorIsActive);
 }
 
 // returns ticks to perform
-int EndScene::isGameModeNetworkHookWhenDecidingStepCountHook() {
-	if (game.getGameMode() == GAME_MODE_REPLAY && gifMode.speedUpReplay
+int EndScene::isGameModeNetworkHookWhenDecidingStepCountHook(BOOL pauseMenuActorIsActive) {
+	if (
+		(
+			game.getGameMode() == GAME_MODE_REPLAY && !pauseMenuActorIsActive
+			&& gifMode.speedUpReplay
+			|| observerNeedsCatchUp()
+		)
 	) {
-		return settings.fastForwardReplayFactor;
+		BOOL canSpeedUpNormally = TRUE;
+		BOOL isMatchRunning = *(BOOL*)(*aswEngine + matchRunningOffsetForReplaySpeedUp);
+		if (!isMatchRunning) {
+			canSpeedUpNormally = FALSE;
+		}
+		if (canSpeedUpNormally) {
+			void* camera = *(void**)(*aswEngine + cameraOffsetForReplaySpeedUp);
+			FName IsSpecialCameraFName = *(FName*)IsSpecialCameraFNamePtr;
+			void* func = FindFunctionChecked(camera, IsSpecialCameraFName.low, IsSpecialCameraFName.high, FALSE);
+			ProcessEvent_t ProcessEvent = *(ProcessEvent_t*)(*(uintptr_t*)camera + 0x108);
+			BOOL IsSpecialCamera = FALSE;
+			ProcessEvent(camera, func, &IsSpecialCamera, 0);
+			if (IsSpecialCamera) {
+				canSpeedUpNormally = FALSE;
+			}
+		}
+		if (canSpeedUpNormally) {
+			gifMode.fpsSpeedUpReplay = 60.F;
+			gifMode.updateFPS();
+			return settings.fastForwardReplayFactor;
+		} else {
+			if (!pauseMenuActorIsActive) {
+				fastForwardingReplay = true;
+				gifMode.fpsSpeedUpReplay = 60.F * (float)settings.fastForwardReplayFactor;
+				if (gifMode.fpsSpeedUpReplay != 60.F) {
+					game.onFPSChanged();
+				}
+				gifMode.updateFPS();
+			}
+			return 1;
+		}
 	}
 	return 1;
+}
+
+int EndScene::onlineStepCountDecisionHookStatic() {
+	return endScene.onlineStepCountDecisionHook();
+}
+
+static bool pauseMenuActive() {
+	uintptr_t gameInfoBattle = *(uintptr_t*)(*aswEngine + 0x22e630);
+	uintptr_t pauseMenu = *(uintptr_t*)(gameInfoBattle + 0x37c);
+	if (!pauseMenu) return false;
+	return *(DWORD*)(pauseMenu + 0x1c8) & 0x1;
+}
+
+int EndScene::onlineStepCountDecisionHook() {
+	return isGameModeNetworkHookWhenDecidingStepCountHook(pauseMenuActive());
 }

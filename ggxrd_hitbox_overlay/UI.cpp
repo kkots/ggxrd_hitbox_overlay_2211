@@ -409,6 +409,7 @@ static bool overrideWindowColor = false;
 #define advanceBuf if (result != -1) { buf += result; bufSize -= result; }
 
 static const char* getEditEntityRepr(Entity ent);
+static void drawWindowOutline(ImDrawList* drawList, const ImVec2& windowPos, float windowWidth, float windowHeight, bool horizontal, bool vertical);
 
 const char* hitboxTypeName[17] {
 	"Hurtbox",
@@ -1573,6 +1574,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				if (settings.showDebugFields) {
+					
 					for (int i = 0; i < two; ++i) {
 						PlayerInfo& player = endScene.currentState->players[i];
 						ImGui::TableNextColumn();
@@ -2154,16 +2156,18 @@ void UI::drawSearchableWindows() {
 			
 			freezeGameAndAllowNextFrameControls();
 			
-			bool slowmoGame = std::abs(gifMode.fps - 60.F) > 0.001F;
+			bool slowmoGame = std::abs(gifMode.fpsSetting - 60.F) > 0.001F;
 			if (ImGui::Checkbox(searchFieldTitle("Slow-Mo Mode"), &slowmoGame)) {
 				if (!*game.gameDataPtr || !game.isTrainingMode() && game.getGameMode() != GAME_MODE_REPLAY && !*aswEngine) {
 					slowmoGame = false;
 				}
 				if (slowmoGame) {
-					gifMode.fps = settings.slowmoFps;
+					gifMode.fpsSetting = settings.slowmoFps;
 					game.onFPSChanged();
+					gifMode.updateFPS();
 				} else {
-					gifMode.fps = 60.F;
+					gifMode.fpsSetting = 60.F;
+					gifMode.updateFPS();
 				}
 			}
 			ImGui::SameLine();
@@ -2174,8 +2178,9 @@ void UI::drawSearchableWindows() {
 				if (slowmoFps > 999.F) slowmoFps = 999.F;
 				settings.slowmoFps = slowmoFps;
 				if (slowmoGame) {
-					gifMode.fps = settings.slowmoFps;
+					gifMode.fpsSetting = settings.slowmoFps;
 					game.onFPSChanged();
+					gifMode.updateFPS();
 				}
 				needWriteSettings = true;
 			}
@@ -2190,7 +2195,7 @@ void UI::drawSearchableWindows() {
 			}
 			HelpMarkerWithHotkey(slowmoHelp, settings.slowmoGameToggle);
 			
-			float fpsValue = gifMode.fps;
+			float fpsValue = gifMode.fpsSetting;
 			ImGui::SetNextItemWidth(80.F);
 			if (ImGui::InputFloat(searchFieldTitle("FPS"), &fpsValue, 1.F, 5.F, "%.2f")) {
 				if (fpsValue < 1.F) fpsValue = 1.F;
@@ -2199,9 +2204,10 @@ void UI::drawSearchableWindows() {
 			if (!game.isTrainingMode() && game.getGameMode() != GAME_MODE_REPLAY || !*aswEngine) {
 				fpsValue = 60.F;
 			}
-			if (std::abs(fpsValue - gifMode.fps) > 0.001F) {
+			if (std::abs(fpsValue - gifMode.fpsSetting) > 0.001F) {
+				gifMode.fpsSetting = fpsValue;
 				game.onFPSChanged();
-				gifMode.fps = fpsValue;
+				gifMode.updateFPS();
 			}
 			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 			ImGui::SameLine();
@@ -2730,7 +2736,6 @@ void UI::drawSearchableWindows() {
 			popSearchStack();
 		}
 		popSearchStack();
-		pushSearchStack("Modding");
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Modding")) || searching) {
 			hitboxEditorButton();
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
@@ -2743,7 +2748,6 @@ void UI::drawSearchableWindows() {
 			}
 		}
 		popSearchStack();
-		pushSearchStack("Quick Character Select");
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Quick Character Select##section")) || searching) {
 			drawQuickCharSelect(false);
 			ImGui::PushTextWrapPos(0.F);
@@ -2766,6 +2770,7 @@ void UI::drawSearchableWindows() {
 			}
 			AddTooltip("Searches the UI field names and tooltips for text.");
 		}
+		
 		customEnd();
 	}
 	popSearchStack();
@@ -16880,24 +16885,7 @@ void UI::drawFramebars() {
 	
 	framebarHadScrollbar = ImGui::GetScrollMaxY() > 0.001F;
 	if (framebarHadScrollbar || drawFullBorder) {
-		drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x, drawFramebars_windowPos.y + 1.F },
-			{ drawFramebars_windowPos.x + windowWidth, drawFramebars_windowPos.y + 1.F },
-			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
-			1.F);
-		drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x, drawFramebars_windowPos.y + windowHeight - 2.F },
-			{ drawFramebars_windowPos.x + windowWidth, drawFramebars_windowPos.y + windowHeight - 2.F },
-			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
-			1.F);
-		if (drawFullBorder) {
-			drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x + 1.F, drawFramebars_windowPos.y + 1.F },
-				{ drawFramebars_windowPos.x + 1.F, drawFramebars_windowPos.y + windowHeight - 2.F },
-				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
-				1.F);
-			drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x + windowWidth - 2.F, drawFramebars_windowPos.y + 1.F },
-				{ drawFramebars_windowPos.x + windowWidth - 2.F, drawFramebars_windowPos.y + windowHeight - 2.F },
-				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
-				1.F);
-		}
+		drawWindowOutline(drawFramebars_drawList, drawFramebars_windowPos, windowWidth, windowHeight, true, drawFullBorder);
 	}
 	
 	const float framesXMask = framesX - outerBorderThickness;
@@ -24022,6 +24010,7 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 		comboBoxExtensionQuickCharSelect.beginFrame();
 		bool needClosePopup = false;
 		if (ImGui::BeginCombo(searchFieldTitle("##charselectcombobox"), strbuf)) {
+			keyboard.captureJoyInput = true;
 			keyboard.imguiOwner = KEYBOARD_OWNER_IMGUI;
 			KeyboardOwnerGuard keyboardOwner(KEYBOARD_OWNER_IMGUI);
 			comboBoxExtensionQuickCharSelect.onComboBoxBegin();
@@ -24561,7 +24550,7 @@ bool UI::drawQuickCharSelectControllerFriendly() {
 		389,169,
 		430,201,
 		430,248,
-		392,256,
+		392,260,
 		352,226},
 		
 	{CHARACTER_TYPE_ELPHELT,
@@ -24577,7 +24566,7 @@ bool UI::drawQuickCharSelectControllerFriendly() {
 		594,215,
 		635,251,
 		635,286,
-		591,304,
+		591,300,
 		558,277},
 		
 	{CHARACTER_TYPE_KY,
@@ -24585,7 +24574,7 @@ bool UI::drawQuickCharSelectControllerFriendly() {
 		685,214,
 		727,227,
 		724,260,
-		687,312,
+		687,300,
 		645,293},
 		
 	{CHARACTER_TYPE_RAMLETHAL,
@@ -24601,7 +24590,7 @@ bool UI::drawQuickCharSelectControllerFriendly() {
 		890,167,
 		928,178,
 		929,224,
-		889,259,
+		889,263,
 		850,250},
 		
 	{CHARACTER_TYPE_SIN,
@@ -25006,22 +24995,7 @@ bool UI::drawQuickCharSelectControllerFriendly() {
 			&& ImGui::IsWindowFocused()
 			&& ImGui::IsMouseHoveringRect({ 0.F, 0.F }, { FLT_MAX, FLT_MAX }, true);
 		if (drawFullBorder) {
-			drawList->AddLine({ windowPos.x, windowPos.y + 1.F },
-				{ windowPos.x + windowW, windowPos.y + 1.F },
-				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
-				1.F);
-			drawList->AddLine({ windowPos.x, windowPos.y + windowH - 2.F },
-				{ windowPos.x + windowW, windowPos.y + windowH - 2.F },
-				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
-				1.F);
-			drawList->AddLine({ windowPos.x + 1.F, windowPos.y + 1.F },
-				{ windowPos.x + 1.F, windowPos.y + windowH - 2.F },
-				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
-				1.F);
-			drawList->AddLine({ windowPos.x + windowW - 2.F, windowPos.y + 1.F },
-				{ windowPos.x + windowW - 2.F, windowPos.y + windowH - 2.F },
-				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
-				1.F);
+			drawWindowOutline(drawList, windowPos, windowW, windowH, true, true);
 		}
 		const float origLineThickness = 8.F;
 		const float graphicalWWithLine = quickCharSelect_graphicalW + origLineThickness + 1.F;
@@ -25370,4 +25344,27 @@ void UI::quickCharSelect_save(CharacterType newCharType) {
 		FALSE,
 		FALSE,
 		FALSE);
+}
+
+void drawWindowOutline(ImDrawList* drawList, const ImVec2& windowPos, float windowWidth, float windowHeight, bool horizontal, bool vertical) {
+	if (horizontal) {
+		drawList->AddLine({ windowPos.x, windowPos.y + 1.F },
+			{ windowPos.x + windowWidth, windowPos.y + 1.F },
+			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+			1.F);
+		drawList->AddLine({ windowPos.x, windowPos.y + windowHeight - 2.F },
+			{ windowPos.x + windowWidth, windowPos.y + windowHeight - 2.F },
+			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+			1.F);
+	}
+	if (vertical) {
+		drawList->AddLine({ windowPos.x + 1.F, windowPos.y + 1.F },
+			{ windowPos.x + 1.F, windowPos.y + windowHeight - 2.F },
+			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+			1.F);
+		drawList->AddLine({ windowPos.x + windowWidth - 2.F, windowPos.y + 1.F },
+			{ windowPos.x + windowWidth - 2.F, windowPos.y + windowHeight - 2.F },
+			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+			1.F);
+	}
 }

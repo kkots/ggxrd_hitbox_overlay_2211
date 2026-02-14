@@ -22,8 +22,11 @@ public:
 	bool makePlayerFullInvul { false };
 	bool editHitboxes { false };
 	void* editHitboxesEntity { nullptr };
-	float fps { 60.F };
+	float fpsSetting { 60.F };
+	float fpsSpeedUpReplay { 60.F };
+	float fpsApplied { 60.F };
 	bool speedUpReplay { false };
+	void updateFPS();
 };
 
 extern GifMode gifMode;

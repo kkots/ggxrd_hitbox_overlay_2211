@@ -1486,14 +1486,20 @@ hitboxEditArrangeHitboxesToFront =
 enableScriptMods = false
 
 ; A keyboard shortcut.
-; Holding down this key during a replay will speed up the playback by a factor specified in
+; Holding down this key during a replay will speed up the playback of a replay by a factor specified in
 ; "fastForwardReplayFactor".
 ; This feature causes danger time entry countdown to go out of sync.
+; To speed up observer mode playback when catching up to a game that is far ahead,
+; no hotkey is needed, it will happen automatically. Observer mode will use the same factor setting.
 fastForwardReplay = 
 
 ; Specify a positive whole number. Default value is 2.
 ; When holding the "fastForwardReplay" hotkey during a replay,
 ; this is by how many times to speed up the replay.
+; IMPORTANT: This will also affect observer mode in online when catching up,
+; without having to press the hotkey. It will use this speed factor automatically.
+; Fast-forward now also affects intros, roundstarts, roundends, outros and supers,
+; but those types of fast-forward come at a greater CPU and processing cost (and can't be disabled, for now).
 fastForwardReplayFactor = 2
 
 ; A keyboard shortcut to open the Quick Character Select window.
@@ -1554,7 +1560,7 @@ stickDeadzonePercentage = 30
 ; This affects things in the mod, controls for which are mapped to gamepad sticks,
 ; and which depend on the amount that the stick is displaced.
 ; Setting this factor to a higher value will produce greater movement.
-stickSpeedMultiplier = 1.0
+stickSpeedMultiplier = 0.8
 ```
 
 </details>
@@ -2078,3 +2084,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2026 February 9: Version 7.20: Fixed "Quick Character Select" popup not appearing upon hotkey press if all mod's windows have been closed.
 - 2026 February 10: Version 7.21: Added a new mode for "Quick Character Select" that appears only when the hotkey/hotbutton is held and disappears when not held, and the selection is changed using the gamepad controls, and it captures gamepad input to hide it from the game, and stopping holding the hotkey/hotbutton confirms the character selection. This new mode is the default setting. It can be changed in Main Mod UI - Quick Character Select - 'Use Controller-Friendly Quick Char Select'.
 - 2026 February 12: Version 7.22: Fixed camera moving in player lobby when the mod's controller-friendly 'Quick Character Select' menu is open.
+- 2026 February 14: Version 7.23: Increased the default deadzone for mod's stick controls, which affects the default controls for the Controller-Friendly Quick Character Select menu. You can configure the deadzone in Settings - Keyboard Settings - Deadzone For Mod's Stick Controls (Percentage). Improved replay fast-forward so that it can also speed up intros, roundstarts, roundends, outros and supers. The new fast-forward gets automatically applied to the online observer mode when catching up without having to press any hotkey. You can configure the fast-forward speed in General Settings.

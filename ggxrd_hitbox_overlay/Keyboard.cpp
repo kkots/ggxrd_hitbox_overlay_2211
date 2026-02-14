@@ -46,13 +46,30 @@ bool Keyboard::onDllMain() {
 		initialize();
 	}
 	
-	HMODULE xrd = GetModuleHandleA("GuiltyGearXrd.exe");
-	uintptr_t patchPlace = 0x00d4845a - 0x400000 + (uintptr_t)xrd;
-	std::vector<char> newBytes(9);
-	memcpy(newBytes.data(), "\xe8\x00\x00\x00\x00\x90\x90\x90\x90", 9);
-	int offset = calculateRelativeCallOffset(patchPlace, (uintptr_t)getJoyStateHookAsm);
-	memcpy(newBytes.data() + 1, &offset, 4);
-	detouring.patchPlace(patchPlace, newBytes);
+	// ghidra sig: 8b 4a 24 8d 44 24 40 50 68 10 01 00 00 57 ff d1 85 c0 78 1f 8b 7c 24 18 81 c7 d0 00 00 00 b9 44 00 00 00 8d 74 24 40 f3 a5
+	uintptr_t getDeviceStateUsage = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		"8b 4a 24 "  // MOV ECX,dword ptr[EDX+0x24]
+		"8d 44 24 40 " // LEA EAX,[ESP+0x40]
+		">50 "  // PUSH EAX  ; EAX is DIJOYSTATE2* on the stack
+		"68 10 01 00 00 "  // PUSH 0x110  ; sizeof DIJOYSTATE2
+		"57 "  // PUSH EDI  ; IDirectInputDevice8W*
+		"ff d1 " // CALL ECX  ; the GetDeviceState function
+		"85 c0 "  // TEST EAX,EAX
+		"78 1f "  // JS 0x1f ahead after the end of this jump instruction
+		"8b 7c 24 18 "  // MOV EDI,dword ptr[ESP+0x18]  ; EDI is now the current FJoystickInfo*
+		"81 c7 d0 00 00 00 "  // ADD EDI,0xd0
+		"b9 44 00 00 00 "  // MOV ECX,0x44
+		"8d 74 24 40 "  // LEA ESI,[ESP+0x40]
+		"f3 a5",  // MOVSD.REP ES:EDI,ESI
+		nullptr, "GetDeviceStateUsage");
+	if (getDeviceStateUsage) {
+		std::vector<char> newBytes(9);
+		memcpy(newBytes.data(), "\xe8\x00\x00\x00\x00\x90\x90\x90\x90", 9);
+		int offset = calculateRelativeCallOffset(getDeviceStateUsage, (uintptr_t)getJoyStateHookAsm);
+		memcpy(newBytes.data() + 1, &offset, 4);
+		detouring.patchPlace(getDeviceStateUsage, newBytes);
+	}
 	
 	return true;
 }
@@ -108,7 +125,38 @@ void Keyboard::updateKeyStatuses() {
 		}
 	}
 	
+	int stickDeadzone = 0;
+	bool leftStickOverallOutOfDeadzone = false;;
+	bool dualshockRightStickOverallOutOfDeadzone = false;;
+	bool xboxTypeSRightStickOverallOutOfDeadzone = false;;
+	bool hasJoystick = false;;
+	
 	const bool windowActive = isWindowActive();
+	if (windowActive) {
+		findJoysticks();
+		if (UWindowsClient_Joysticks) {
+			for (int joystickInd = 0; joystickInd < UWindowsClient_Joysticks->ArrayNum; ++joystickInd) {
+				FJoystickInfo* joyPtr = UWindowsClient_Joysticks->Data + joystickInd;
+				if (joyPtr->bIsConnected) {
+					hasJoystick = true;
+					break;
+				}
+			}
+		}
+		if (hasJoystick) {
+			stickDeadzone = (int)settings.stickDeadzonePercentage * 32767 / 100;
+			int stickDeadzoneSq = stickDeadzone * stickDeadzone;
+			int leftStickDx = joy.lX - 32767;
+			int leftStickDy = joy.lY - 32767;
+			int dualshockStickDx = joy.lZ - 32767;
+			int dualshockStickDy = joy.lRz - 32767;
+			int xboxTypeSStickDx = joy.lRx - 32767;
+			int xboxTypeSStickDy = joy.lRy - 32767;
+			leftStickOverallOutOfDeadzone = leftStickDx * leftStickDx + leftStickDy * leftStickDy > stickDeadzoneSq;
+			dualshockRightStickOverallOutOfDeadzone = dualshockStickDx * dualshockStickDx + dualshockStickDy * dualshockStickDy > stickDeadzoneSq;
+			xboxTypeSRightStickOverallOutOfDeadzone = xboxTypeSStickDx * xboxTypeSStickDx + xboxTypeSStickDy * xboxTypeSStickDy > stickDeadzoneSq;
+		}
+	}
 	for (KeyStatus& status : statuses) {
 		status.moveAmount = 0;
 		status.gotPressed = false;
@@ -118,22 +166,6 @@ void Keyboard::updateKeyStatuses() {
 			isPressed = false;
 			isPressedOmnidirectional = false;
 		} else {
-			int stickDeadzone = (int)settings.stickDeadzonePercentage * 32767 / 100;
-			bool leftStickOverallOutOfDeadzone =
-				joy.lX < 32767 - stickDeadzone
-				|| joy.lX > 32767 + stickDeadzone
-				|| joy.lY < 32767 - stickDeadzone
-				|| joy.lY > 32767 + stickDeadzone;
-			bool dualshockRightStickOverallOutOfDeadzone =
-				joy.lZ < 32767 - stickDeadzone
-				|| joy.lZ > 32767 + stickDeadzone
-				|| joy.lRz < 32767 - stickDeadzone
-				|| joy.lRz > 32767 + stickDeadzone;
-			bool xboxTypeSRightStickOverallOutOfDeadzone =
-				joy.lRx < 32767 - stickDeadzone
-				|| joy.lRx > 32767 + stickDeadzone
-				|| joy.lRy < 32767 - stickDeadzone
-				|| joy.lRy > 32767 + stickDeadzone;
 			
 			switch (status.code) {
 				case JOY_BTN_0:
@@ -152,97 +184,199 @@ void Keyboard::updateKeyStatuses() {
 				case JOY_BTN_13:
 				case JOY_BTN_14:
 				case JOY_BTN_15:
-					isPressed = joy.rgbButtons[status.code - JOY_BTN_0];
-					isPressedOmnidirectional = isPressed;
-					status.moveAmount = isPressed ? 1 : 0;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.rgbButtons[status.code - JOY_BTN_0];
+						isPressedOmnidirectional = isPressed;
+						status.moveAmount = isPressed ? 1 : 0;
+					}
 					break;
 				case JOY_LEFT_STICK_LEFT:
-					isPressed = joy.lX < 32767 - stickDeadzone;
-					isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lX < 32767;
-					status.moveAmount = 32767 - joy.lX;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lX < 32767 - stickDeadzone;
+						isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lX < 32767;
+						status.moveAmount = 32767 - joy.lX;
+					}
 					break;
 				case JOY_LEFT_STICK_UP:
-					isPressed = joy.lY < 32767 - stickDeadzone;
-					isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lY < 32767;
-					status.moveAmount = 32767 - joy.lY;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lY < 32767 - stickDeadzone;
+						isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lY < 32767;
+						status.moveAmount = 32767 - joy.lY;
+					}
 					break;
 				case JOY_LEFT_STICK_RIGHT:
-					isPressed = joy.lX > 32767 + stickDeadzone;
-					isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lX > 32767;
-					status.moveAmount = joy.lX - 32767;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lX > 32767 + stickDeadzone;
+						isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lX > 32767;
+						status.moveAmount = joy.lX - 32767;
+					}
 					break;
 				case JOY_LEFT_STICK_DOWN:
-					isPressed = joy.lY > 32767 + stickDeadzone;
-					isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lY > 32767;
-					status.moveAmount = joy.lY - 32767;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lY > 32767 + stickDeadzone;
+						isPressedOmnidirectional = leftStickOverallOutOfDeadzone && joy.lY > 32767;
+						status.moveAmount = joy.lY - 32767;
+					}
 					break;
 				case JOY_DPAD_LEFT:
-					isPressed = joy.rgdwPOV[0] == 31500
-						|| joy.rgdwPOV[0] == 27000
-						|| joy.rgdwPOV[0] == 22500;
-					isPressedOmnidirectional = isPressed;
-					status.moveAmount = isPressed ? 1 : 0;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.rgdwPOV[0] == 31500
+							|| joy.rgdwPOV[0] == 27000
+							|| joy.rgdwPOV[0] == 22500;
+						isPressedOmnidirectional = isPressed;
+						status.moveAmount = isPressed ? 1 : 0;
+					}
 					break;
 				case JOY_DPAD_UP:
-					isPressed = joy.rgdwPOV[0] == 0
-						|| joy.rgdwPOV[0] == 31500
-						|| joy.rgdwPOV[0] == 4500;
-					isPressedOmnidirectional = isPressed;
-					status.moveAmount = isPressed ? 1 : 0;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.rgdwPOV[0] == 0
+							|| joy.rgdwPOV[0] == 31500
+							|| joy.rgdwPOV[0] == 4500;
+						isPressedOmnidirectional = isPressed;
+						status.moveAmount = isPressed ? 1 : 0;
+					}
 					break;
 				case JOY_DPAD_RIGHT:
-					isPressed = joy.rgdwPOV[0] == 4500
-						|| joy.rgdwPOV[0] == 9000
-						|| joy.rgdwPOV[0] == 13500;
-					isPressedOmnidirectional = isPressed;
-					status.moveAmount = isPressed ? 1 : 0;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.rgdwPOV[0] == 4500
+							|| joy.rgdwPOV[0] == 9000
+							|| joy.rgdwPOV[0] == 13500;
+						isPressedOmnidirectional = isPressed;
+						status.moveAmount = isPressed ? 1 : 0;
+					}
 					break;
 				case JOY_DPAD_DOWN:
-					isPressed = joy.rgdwPOV[0] == 22500
-						|| joy.rgdwPOV[0] == 18000
-						|| joy.rgdwPOV[0] == 13500;
-					isPressedOmnidirectional = isPressed;
-					status.moveAmount = isPressed ? 1 : 0;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.rgdwPOV[0] == 22500
+							|| joy.rgdwPOV[0] == 18000
+							|| joy.rgdwPOV[0] == 13500;
+						isPressedOmnidirectional = isPressed;
+						status.moveAmount = isPressed ? 1 : 0;
+					}
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_LEFT:
-					isPressed = joy.lZ < 32767 - stickDeadzone;
-					isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lZ < 32767;
-					status.moveAmount = 32767 - joy.lZ;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lZ < 32767 - stickDeadzone;
+						isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lZ < 32767;
+						status.moveAmount = 32767 - joy.lZ;
+					}
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_UP:
-					isPressed = joy.lRz < 32767 - stickDeadzone;
-					isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lRz < 32767;
-					status.moveAmount = 32767 - joy.lRz;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lRz < 32767 - stickDeadzone;
+						isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lRz < 32767;
+						status.moveAmount = 32767 - joy.lRz;
+					}
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_RIGHT:
-					isPressed = joy.lZ > 32767 + stickDeadzone;
-					isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lZ > 32767;
-					status.moveAmount = joy.lZ - 32767;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lZ > 32767 + stickDeadzone;
+						isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lZ > 32767;
+						status.moveAmount = joy.lZ - 32767;
+					}
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_DOWN:
-					isPressed = joy.lRz > 32767 + stickDeadzone;
-					isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lRz > 32767;
-					status.moveAmount = joy.lRz - 32767;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lRz > 32767 + stickDeadzone;
+						isPressedOmnidirectional = dualshockRightStickOverallOutOfDeadzone && joy.lRz > 32767;
+						status.moveAmount = joy.lRz - 32767;
+					}
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_LEFT:
-					isPressed = joy.lRx < 32767 - stickDeadzone;
-					isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRx < 32767;
-					status.moveAmount = 32767 - joy.lRx;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lRx < 32767 - stickDeadzone;
+						isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRx < 32767;
+						status.moveAmount = 32767 - joy.lRx;
+					}
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_UP:
-					isPressed = joy.lRy < 32767 - stickDeadzone;
-					isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRy < 32767;
-					status.moveAmount = 32767 - joy.lRy;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lRy < 32767 - stickDeadzone;
+						isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRy < 32767;
+						status.moveAmount = 32767 - joy.lRy;
+					}
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_RIGHT:
-					isPressed = joy.lRx > 32767 + stickDeadzone;
-					isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRx > 32767;
-					status.moveAmount = joy.lRx - 32767;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lRx > 32767 + stickDeadzone;
+						isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRx > 32767;
+						status.moveAmount = joy.lRx - 32767;
+					}
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_DOWN:
-					isPressed = joy.lRy > 32767 + stickDeadzone;
-					isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRy > 32767;
-					status.moveAmount = joy.lRy - 32767;
+					if (!hasJoystick) {
+						isPressed = false;
+						isPressedOmnidirectional = false;
+						status.moveAmount = 0;
+					} else {
+						isPressed = joy.lRy > 32767 + stickDeadzone;
+						isPressedOmnidirectional = xboxTypeSRightStickOverallOutOfDeadzone && joy.lRy > 32767;
+						status.moveAmount = joy.lRy - 32767;
+					}
 					break;
 				case MOUSE_MOVE_LEFT:
 					isPressed = mouseMoveX < 0;
@@ -502,61 +636,6 @@ Keyboard::MutexLockedFromOutsideGuard::~MutexLockedFromOutsideGuard() {
 	keyboard.mutexLockedFromOutside = false;
 }
 
-void Keyboard::getJoyState(DIJOYSTATE2* state) {
-	
-	resetJoyStruct(state);
-	
-	if (!UWindowsClient_Joysticks) {
-		if (UWindowsClient_Joysticks_HookAttempted) {
-			return;
-		}
-		UWindowsClient_Joysticks_HookAttempted = true;
-		
-		UWindowsClient_Joysticks = (BYTE*)sigscanOffset(
-			GUILTY_GEAR_XRD_EXE,
-			"69 ff fc 01 00 00 03 3d ?? ?? ?? ?? 68 10 01 00 00",
-			{ 8, 0 },
-			nullptr, "UWindowsClient_Joysticks");
-		if (!UWindowsClient_Joysticks) {
-			return;
-		}
-		finishedSigscanning();
-	}
-	
-	int ArrayNum = *(int*)(UWindowsClient_Joysticks + 4);
-	BYTE* FJoystickInfo = *(BYTE**)UWindowsClient_Joysticks;
-	while (ArrayNum >= 0) {
-		if (*(void**)FJoystickInfo != nullptr  // LPDIRECTINPUTDEVICE8W DirectInput8Joystick
-				&& *(BOOL*)(FJoystickInfo + 0x1f0)) {  // BOOL bIsConnected
-			*state = *(DIJOYSTATE2*)(FJoystickInfo + 0xd0);
-			return;
-		}
-		
-		FJoystickInfo += 0x1fc;
-		--ArrayNum;
-	}
-	
-}
-
-void Keyboard::clearJoyState() {
-	
-	if (!UWindowsClient_Joysticks) return;
-	
-	int ArrayNum = *(int*)(UWindowsClient_Joysticks + 4);
-	BYTE* FJoystickInfo = *(BYTE**)UWindowsClient_Joysticks;
-	while (ArrayNum >= 0) {
-		if (*(void**)FJoystickInfo != nullptr  // LPDIRECTINPUTDEVICE8W DirectInput8Joystick
-				&& *(BOOL*)(FJoystickInfo + 0x1f0)) {  // BOOL bIsConnected
-			memset(FJoystickInfo + 0xc, 0, 4*16);
-		}
-		
-		FJoystickInfo += 0x1fc;
-		--ArrayNum;
-	}
-	
-}
-
-
 bool Keyboard::getMousePos(POINT* result) {
 	if (!GetCursorPos(result)) return false;
 	if (!ScreenToClient(thisProcessWindow, result)) return false;
@@ -575,10 +654,23 @@ bool Keyboard::getMousePos(POINT* result) {
 	return true;
 }
 
-// produces ghost inputs
-void Keyboard::resetJoyStruct(DIJOYSTATE2* ptr) {
-	memset(ptr, 0, sizeof DIJOYSTATE2);
-	ptr->lX = 32767;
-	ptr->lY = 32767;
-	ptr->rgdwPOV[0] = -1;
+void Keyboard::findJoysticks() {
+	
+	if (!UWindowsClient_Joysticks) {
+		if (UWindowsClient_Joysticks_HookAttempted) {
+			return;
+		}
+		UWindowsClient_Joysticks_HookAttempted = true;
+		
+		uintptr_t place = sigscanOffset(
+			GUILTY_GEAR_XRD_EXE,
+			"69 ff fc 01 00 00 03 3d >?? ?? ?? ?? 68 10 01 00 00",
+			nullptr, "UWindowsClient_Joysticks");
+		if (!place) {
+			return;
+		}
+		UWindowsClient_Joysticks = *(TArray<FJoystickInfo>**)place;
+		finishedSigscanning();
+	}
+	
 }

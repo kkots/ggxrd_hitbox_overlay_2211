@@ -61,6 +61,9 @@ using spriteImpl_t = void(__thiscall*)(void* ent, const char* name, int thisIs1)
 using appFree_t = void(__cdecl*)(void* mem);
 extern appFree_t appFree;
 using execPreBeginPlay_Internal_t = void(__thiscall*)(void* thisArg, void* stack, void* result);
+using FindFunctionChecked_t = void*(__thiscall*)(void* thisArg, int InNameLow, int InNameHigh, BOOL Global);  // returns UFunction*
+using ProcessEvent_t = void(__thiscall*)(void* thisArg, void* Function, void* Parms, void* Result);
+using observerNeedsCatchUp_t = BOOL(__cdecl*)();
 
 struct FVector2D {
 	float X;
@@ -403,7 +406,7 @@ public:
 	std::vector<SkippedFramesInfo> skippedFramesIdleHitstop;
 	int nextFramebarId = 0;
 	// returns ticks to perform
-	int isGameModeNetworkHookWhenDecidingStepCountHook();
+	int isGameModeNetworkHookWhenDecidingStepCountHook(BOOL pauseMenuActorIsActive);
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -727,6 +730,14 @@ private:
 	bool onSpeedUpReplayChanged();
 	bool hookLogicTickStepCount();
 	bool attemptedHookLogicTickStepCount = false;
+	bool fastForwardingReplay = false;
+	DWORD cameraOffsetForReplaySpeedUp = 0;
+	DWORD matchRunningOffsetForReplaySpeedUp = 0;
+	uintptr_t IsSpecialCameraFNamePtr = 0;
+	FindFunctionChecked_t FindFunctionChecked = nullptr;
+	observerNeedsCatchUp_t observerNeedsCatchUp = nullptr;
+	static int onlineStepCountDecisionHookStatic();
+	int onlineStepCountDecisionHook();
 };
 
 extern EndScene endScene;

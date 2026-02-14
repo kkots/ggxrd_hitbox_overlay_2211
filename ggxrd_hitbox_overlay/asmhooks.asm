@@ -132,15 +132,12 @@ _obtainingOfCounterhitTrainingSettingHookAsm proc
 _obtainingOfCounterhitTrainingSettingHookAsm endp
 
 _isGameModeNetworkHookWhenDecidingStepCountHookAsm proc
-	call [_orig_isGameModeNetwork]
-	test EAX,EAX
-	jnz exit
-	cmp dword ptr [ESP + 2ch],EAX  ; aswEngine.gameInfoBattle.PauseMenuActor.bIsActive. Doesn't help with most other replay menu toggles doing double taps
-	jnz exit
+	mov edx,dword ptr [ESP + 2ch]  ; aswEngine.gameInfoBattle.PauseMenuActor.bIsActive. Doesn't help with most other replay menu toggles doing double taps
+	push edx
 	call [_isGameModeNetworkHookWhenDecidingStepCountHook]
+	add esp,4
 	mov dword ptr [ESP + 28h],EAX  ; ticks to perform
 	xor EAX,EAX
-	exit:
 	ret
 _isGameModeNetworkHookWhenDecidingStepCountHookAsm endp
 
