@@ -1072,6 +1072,13 @@ void UI::prepareDrawData() {
 }
 
 // runs on the main thread
+void graySeparatorText(const char* text) {
+	ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+	ImGui::SeparatorText(text);
+	ImGui::PopStyleColor();
+}
+
+// runs on the main thread
 void UI::drawSearchableWindows() {
 	static std::string windowTitle;
 	if (windowTitle.empty()) {
@@ -2529,6 +2536,7 @@ void UI::drawSearchableWindows() {
 			popSearchStack();
 			if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
 				booleanSettingPreset(settings.modWindowVisibleOnStart);
+				booleanSettingPreset(settings.useSigscanCaching);
 				booleanSettingPreset(settings.openPinnedWindowsOnStartup);
 				if (booleanSettingPreset(settings.disablePinButton)) {
 					onDisablePinButtonChanged(false);
@@ -2540,7 +2548,12 @@ void UI::drawSearchableWindows() {
 				
 				booleanSettingPreset(settings.displayUIOnTopOfPauseMenu);
 				
+				intSettingPreset(settings.globalWindowTransparency, 0, 5, 20, 80.F, 100);
+				booleanSettingPreset(settings.outlineAllWindowText);
+				
 				booleanSettingPreset(settings.dodgeObsRecording);
+				
+				booleanSettingPreset(settings.showYrcWindowsInCancelsPanel);
 				
 				booleanSettingPreset(settings.frameAdvantage_dontUsePreBlockstunTime);
 				
@@ -2550,8 +2563,12 @@ void UI::drawSearchableWindows() {
 				
 				booleanSettingPreset(settings.dontShowMoveName);
 				
+				booleanSettingPreset(settings.showDebugFields);
+				
+				graySeparatorText("RISC Gauge");
 				booleanSettingPreset(settings.showComboProrationInRiscGauge);
 				
+				graySeparatorText("Input History");
 				booleanSettingPresetWithHotkey(settings.displayInputHistoryWhenObserving, settings.toggleShowInputHistory);
 				
 				booleanSettingPresetWithHotkey(settings.displayInputHistoryInSomeOfflineModes, settings.toggleShowInputHistory);
@@ -2560,6 +2577,7 @@ void UI::drawSearchableWindows() {
 				
 				booleanSettingPreset(settings.showDurationsInInputHistory);
 				
+				graySeparatorText("Position Reset Mod");
 				if (booleanSettingPreset(settings.usePositionResetMod)) {
 					if (settings.usePositionResetMod) {
 						game.onUsePositionResetChanged();
@@ -2569,28 +2587,15 @@ void UI::drawSearchableWindows() {
 				intSettingPreset(settings.positionResetDistBetweenPlayers, 0, 1000, 10000, 120.F);
 				intSettingPreset(settings.positionResetDistFromCorner, 0, 1000, 10000, 120.F);
 				
-				booleanSettingPreset(settings.showDebugFields);
-				
+				graySeparatorText("Ignore Enter Key");
 				booleanSettingPreset(settings.ignoreNumpadEnterKey);
 				booleanSettingPreset(settings.ignoreRegularEnterKey);
 				
-				intSettingPreset(settings.startingTensionPulseP1, -25000, 100, 1000, 120.F, 25000);
-				intSettingPreset(settings.startingTensionPulseP2, -25000, 100, 1000, 120.F, 25000);
-				
-				bool startingBurstGaugeChanged = false;
-				if (intSettingPreset(settings.startingBurstGaugeP1, 0, 100, 1000, 120.F, 15000)) {
-					startingBurstGaugeChanged = true;
-				}
-				if (intSettingPreset(settings.startingBurstGaugeP2, 0, 100, 1000, 120.F, 15000)) {
-					startingBurstGaugeChanged = true;
-				}
-				if (startingBurstGaugeChanged) {
-					endScene.onStartingBurstGaugeChanged();
-				}
-				
+				graySeparatorText("Clear Input History");
 				booleanSettingPreset(settings.clearInputHistoryOnStageReset);
 				booleanSettingPreset(settings.clearInputHistoryOnStageResetInTrainingMode);
 				
+				graySeparatorText("Hide Wins And/Or Rank");
 				booleanSettingPreset(settings.hideWins);
 				booleanSettingPreset(settings.hideWinsDirectParticipantOnly);
 				intSettingPreset(settings.hideWinsExceptOnWins, INT_MIN, 1, 5, 80.F);
@@ -2607,6 +2612,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				
+				graySeparatorText("Online Input Delay");
 				booleanSettingPreset(settings.overrideOnlineInputDelay);
 				intSettingPreset(settings.onlineInputDelayFullscreen, 0, 1, 1, 80.F, 4);
 				intSettingPreset(settings.onlineInputDelayWindowed, 0, 1, 1, 80.F, 4);
@@ -2632,7 +2638,7 @@ void UI::drawSearchableWindows() {
 				HelpMarker(searchTooltip("Send a PUNCH key press into the game and monitor how long it takes for it to arrive into the input ring buffer.\n"
 					" The result, in milliseconds, will be displayed below."));
 				zerohspacing
-				textUnformattedColored(SLIGHTLY_GRAY, "Result: ");
+				ImGui::TextUnformatted("Result: ");
 				ImGui::SameLine();
 				if (idiotPressedTestDelayButtonOutsideBattle) {
 					ImGui::TextUnformatted("<Must press button during battle>");
@@ -2663,6 +2669,7 @@ void UI::drawSearchableWindows() {
 				}
 				_zerohspacing
 				
+				graySeparatorText("Play As Arcade Boss");
 				if (booleanSettingPreset(settings.player1IsBoss) && settings.player1IsBoss) {
 					endScene.onPlayerIsBossChanged();
 				}
@@ -2670,8 +2677,7 @@ void UI::drawSearchableWindows() {
 					endScene.onPlayerIsBossChanged();
 				}
 				
-				booleanSettingPreset(settings.useSigscanCaching);
-				
+				graySeparatorText("Enter Rooms With Bad Ping");
 				bool connectionTierChanged = false;
 				if (booleanSettingPreset(settings.overrideYourConnectionTierForFilter)) {
 					connectionTierChanged = true;
@@ -2683,6 +2689,7 @@ void UI::drawSearchableWindows() {
 					game.onConnectionTierChanged();
 				}
 				
+				graySeparatorText("Highlight When Idle");
 				bool highlightGreenBlueChanged = false;
 				if (booleanSettingPreset(settings.highlightRedWhenBecomingIdle)) {
 					highlightGreenBlueChanged = true;
@@ -2702,10 +2709,20 @@ void UI::drawSearchableWindows() {
 					endScene.highlightGreenWhenBecomingIdleChanged();
 				}
 				
-				intSettingPreset(settings.globalWindowTransparency, 0, 5, 20, 80.F, 100);
-				booleanSettingPreset(settings.outlineAllWindowText);
+				graySeparatorText("Training Mode Alteration");
+				intSettingPreset(settings.startingTensionPulseP1, -25000, 100, 1000, 120.F, 25000);
+				intSettingPreset(settings.startingTensionPulseP2, -25000, 100, 1000, 120.F, 25000);
 				
-				booleanSettingPreset(settings.showYrcWindowsInCancelsPanel);
+				bool startingBurstGaugeChanged = false;
+				if (intSettingPreset(settings.startingBurstGaugeP1, 0, 100, 1000, 120.F, 15000)) {
+					startingBurstGaugeChanged = true;
+				}
+				if (intSettingPreset(settings.startingBurstGaugeP2, 0, 100, 1000, 120.F, 15000)) {
+					startingBurstGaugeChanged = true;
+				}
+				if (startingBurstGaugeChanged) {
+					endScene.onStartingBurstGaugeChanged();
+				}
 				
 				if (booleanSettingPreset(settings.dontResetBurstAndTensionGaugesWhenInStunOrFaint)) {
 					endScene.onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged();
@@ -2719,11 +2736,14 @@ void UI::drawSearchableWindows() {
 					endScene.onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged();
 				}
 				
+				graySeparatorText("'PUNISH' Message");
 				booleanSettingPreset(settings.showPunishMessageOnWhiff);
 				
 				booleanSettingPreset(settings.showPunishMessageOnBlock);
 				
+				graySeparatorText("Fast-Forward");
 				intSettingPreset(settings.fastForwardReplayFactor, 1, 1, 1);
+				intSettingPreset(settings.fastForwardObserverFactor, 1, 1, 1);
 				
 				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 				ImGui::PushTextWrapPos(0.F);

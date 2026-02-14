@@ -1838,7 +1838,7 @@ void EndScene::processKeyStrokes() {
 		ui.editHitboxesProcessControls();
 	}
 	gifMode.speedUpReplay = !gifMode.modDisabled && keyboard.isHeld(settings.fastForwardReplay);
-	if (settings.fastForwardReplayFactor != 2) {
+	if (settings.fastForwardReplayFactor != 2 || settings.fastForwardObserverFactor != 2) {
 		onSpeedUpReplayChanged();
 	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.openQuickCharSelect)) {
@@ -8029,7 +8029,7 @@ bool EndScene::isRunning() {
 }
 
 bool EndScene::onSpeedUpReplayChanged() {
-	if (settings.fastForwardReplayFactor == 2) return true;
+	if (settings.fastForwardReplayFactor == 2 && settings.fastForwardObserverFactor == 2) return true;
 	if (!hookLogicTickStepCount()) return false;
 	return true;
 }
@@ -8149,9 +8149,10 @@ int __cdecl isGameModeNetworkHookWhenDecidingStepCountHook(BOOL pauseMenuActorIs
 
 // returns ticks to perform
 int EndScene::isGameModeNetworkHookWhenDecidingStepCountHook(BOOL pauseMenuActorIsActive) {
+	GameMode gameMode = game.getGameMode();
 	if (
 		(
-			game.getGameMode() == GAME_MODE_REPLAY && !pauseMenuActorIsActive
+			gameMode == GAME_MODE_REPLAY && !pauseMenuActorIsActive
 			&& gifMode.speedUpReplay
 			|| observerNeedsCatchUp()
 		)
@@ -8172,14 +8173,16 @@ int EndScene::isGameModeNetworkHookWhenDecidingStepCountHook(BOOL pauseMenuActor
 				canSpeedUpNormally = FALSE;
 			}
 		}
+		int factor = gameMode == GAME_MODE_NETWORK ? settings.fastForwardObserverFactor : settings.fastForwardReplayFactor;
+		if (factor < 1) factor = 1;
 		if (canSpeedUpNormally) {
 			gifMode.fpsSpeedUpReplay = 60.F;
 			gifMode.updateFPS();
-			return settings.fastForwardReplayFactor;
+			return factor;
 		} else {
 			if (!pauseMenuActorIsActive) {
 				fastForwardingReplay = true;
-				gifMode.fpsSpeedUpReplay = 60.F * (float)settings.fastForwardReplayFactor;
+				gifMode.fpsSpeedUpReplay = 60.F * (float)factor;
 				if (gifMode.fpsSpeedUpReplay != 60.F) {
 					game.onFPSChanged();
 				}

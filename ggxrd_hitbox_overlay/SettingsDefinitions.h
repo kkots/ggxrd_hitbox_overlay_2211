@@ -1381,15 +1381,23 @@ settingsKeyCombo(fastForwardReplay, "Fast Forward Replay", "",
 	"; \"fastForwardReplayFactor\".\n"
 	"; This feature causes danger time entry countdown to go out of sync.\n"
 	"; To speed up observer mode playback when catching up to a game that is far ahead,\n"
-	"; no hotkey is needed, it will happen automatically. Observer mode will use the same factor setting.")
+	"; no hotkey is needed, it will happen automatically.\n"
+	"; Observer mode will, however, use a different setting for the factor: \"fastForwardObserverFactor\".")
 	
 settingsField(int, fastForwardReplayFactor, 2,
-	"Fast Forward Replay/Observer Factor", SETTINGS_GENERAL,
+	"Fast Forward Replay Factor", SETTINGS_GENERAL,
 	"; Specify a positive whole number. Default value is 2.\n"
 	"; When holding the \"fastForwardReplay\" hotkey during a replay,\n"
 	"; this is by how many times to speed up the replay.\n"
-	"; IMPORTANT: This will also affect observer mode in online when catching up,\n"
-	"; without having to press the hotkey. It will use this speed factor automatically.\n"
+	"; Fast-forward now also affects intros, roundstarts, roundends, outros and supers,\n"
+	"; but those types of fast-forward come at a greater CPU and processing cost (and can't be disabled, for now).")
+	
+settingsField(int, fastForwardObserverFactor, 3,
+	"Fast Forward Observer Factor", SETTINGS_GENERAL,
+	"; Specify a positive whole number. Default value is 3.\n"
+	"; When watching an online match that you don't directly participate in,\n"
+	"; and that match is far ahead, this is by how many times to speed up the playback.\n"
+	"; This does not require you to press any hotkey. It will use this speed factor automatically.\n"
 	"; Fast-forward now also affects intros, roundstarts, roundends, outros and supers,\n"
 	"; but those types of fast-forward come at a greater CPU and processing cost (and can't be disabled, for now).")
 	
