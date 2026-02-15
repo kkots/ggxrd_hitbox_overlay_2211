@@ -1838,9 +1838,7 @@ void EndScene::processKeyStrokes() {
 		ui.editHitboxesProcessControls();
 	}
 	gifMode.speedUpReplay = !gifMode.modDisabled && keyboard.isHeld(settings.fastForwardReplay);
-	if (settings.fastForwardReplayFactor != 2 || settings.fastForwardObserverFactor != 2) {
-		onSpeedUpReplayChanged();
-	}
+	onSpeedUpReplayChanged();
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.openQuickCharSelect)) {
 		ui.activateQuickCharSelect();
 	}
@@ -8030,7 +8028,6 @@ bool EndScene::isRunning() {
 }
 
 bool EndScene::onSpeedUpReplayChanged() {
-	if (settings.fastForwardReplayFactor == 2 && settings.fastForwardObserverFactor == 2) return true;
 	if (!hookLogicTickStepCount()) return false;
 	return true;
 }
