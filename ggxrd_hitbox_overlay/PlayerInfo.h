@@ -2493,6 +2493,7 @@ struct PlayerInfo {
 	};
 	void determineCancelDelay(CancelDelay* result) const;
 	bool isIdle();  // for use by hooks within the game engine that run before skillCheckPieceHook and before any animation have a chance to change or advance
+	void addJumpInstall();
 };
 
 extern const NamePair PROJECTILES_NAMEPAIR;

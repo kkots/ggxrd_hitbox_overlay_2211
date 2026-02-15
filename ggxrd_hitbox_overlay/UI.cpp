@@ -3367,7 +3367,8 @@ void UI::drawSearchableWindows() {
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Combo Timer"));
 			AddTooltip(searchTooltip("The time, in seconds, of the current combo's duration. Keeps counting during hitstop. Pauses during superfreeze"
-				" and increases at half the rate when the one being comboed is affected by RC slowdown."));
+				" and increases at half the rate when the one being comboed is affected by RC slowdown."
+				" On the first hit of a combo the timer becomes 1, and on the next frame before hit detection it is already 2 (if not superfrozen or skipping frame due to RC slowdown)."));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();

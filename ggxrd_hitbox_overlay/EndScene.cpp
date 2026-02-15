@@ -5128,6 +5128,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 					// for moves that can hit before animation frame 3
 					// and also for moves that are allowed to register multiple hits
 					ui.comboRecipeUpdatedOnThisFrame[attacker.index] = true;
+					attacker.addJumpInstall();
 					attacker.comboRecipe.emplace_back();
 					ComboRecipeElement& newComboElem = attacker.comboRecipe.back();
 					newComboElem.player_onFirstHitHappenedBeforeFrame3(attacker, dmgCalc, getAswEngineTick(),

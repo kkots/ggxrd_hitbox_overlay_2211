@@ -34,11 +34,13 @@ void Hud::HookHelp::REDHUDBattleUpdateAllHook() {
 
 void Hud::REDHUDBattleUpdateAllHook(char* thisArg) {
 	hudPtr = thisArg;
-	if (aswEngine && *aswEngine && game.isTrainingMode()
-			&& (gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
-		changeHudVisibility(false);
-	} else {
-		changeHudVisibility(true);
+	if (game.isTrainingMode()) {
+		if (aswEngine && *aswEngine
+				&& (gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
+			changeHudVisibility(false);
+		} else {
+			changeHudVisibility(true);
+		}
 	}
 	orig_REDHUDBattleUpdateAll(thisArg);
 }
