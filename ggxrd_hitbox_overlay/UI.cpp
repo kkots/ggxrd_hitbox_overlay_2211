@@ -24169,7 +24169,9 @@ bool UI::drawQuickCharSelect(bool isWindow) {
 				int newInd = comboBoxExtensionQuickCharSelect.selectedIndex + pressedDir;
 				if (newInd >= 0 && newInd < (int)comboBoxExtensionQuickCharSelect.totalCount) {
 					comboBoxExtensionQuickCharSelect.selectedIndex = newInd;
-					comboBoxExtensionQuickCharSelect.requestAutoScroll();
+					if (pressedDir) {
+						comboBoxExtensionQuickCharSelect.requestAutoScroll();
+					}
 					keyboardHighlight = comboBoxExtensionQuickCharSelect.selectedIndex - 1;
 				}
 			}
