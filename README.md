@@ -1341,6 +1341,36 @@ showPunishMessageOnBlock = false
 ; landing animation of any move, or after 15 frames of starting a move.
 showPunishMessageOnWhiff = false
 
+; Specify true or false.
+; When P1 punishes P2, the 'Punish' message will be displayed on P2's side,
+; and vice versa.
+; This setting only matters at all if "showPunishMessageOnBlock" or "showPunishMessageOnWhiff" are enabled.
+swapPlayerSideForPunishMessage = false
+
+; Specify color in hexadecimal format AARRGGBB.
+; This is the color of the 'Punish' message when it first begins to exist. This color should be fully transparent.
+; The color will blend into "punishMessageMaxHighlightColor".
+; This setting only matters at all if "showPunishMessageOnBlock" or "showPunishMessageOnWhiff" are enabled.
+punishMessageAppearColor = 00FFFFFF
+
+; Specify color in hexadecimal format AARRGGBB.
+; This is the color of the 'Punish' message at the peak of when it's first appearing.
+; The color will blend into "punishMessageColor".
+; This setting only matters at all if "showPunishMessageOnBlock" or "showPunishMessageOnWhiff" are enabled.
+punishMessageMaxHighlightColor = FFFFFFFF
+
+; Specify color in hexadecimal format AARRGGBB.
+; This is the color of the 'Punish' message at the peak of when it's first appearing.
+; The color will blend into "punishMessageDisappearColor".
+; This setting only matters at all if "showPunishMessageOnBlock" or "showPunishMessageOnWhiff" are enabled.
+punishMessageColor = FFFFFF00
+
+; Specify color in hexadecimal format AARRGGBB.
+; This is the color of the 'Punish' message when it disappears. This color should be fully transparent.
+; This is the final color the message will take before ceasing to exist.
+; This setting only matters at all if "showPunishMessageOnBlock" or "showPunishMessageOnWhiff" are enabled.
+punishMessageDisappearColor = 00FFFF00
+
 ; A keyboard shortcut.
 ; Pressing this shortcut will add a new sprite when inside the hitbox editor and hitbox editing mode is active.
 hitboxEditAddSpriteHotkey = 
@@ -1568,6 +1598,84 @@ stickDeadzonePercentage = 30
 ; and which depend on the amount that the stick is displaced.
 ; Setting this factor to a higher value will produce greater movement.
 stickSpeedMultiplier = 0.8
+
+; A keyboard shortcut.
+; Pressing this key will cause the typed battle text to get send immediately,
+; before the idle timer reaches "quickBattleChat_idleTimeAmount".
+; This key press won't be hidden from the game, so it may still trigger whatever game control it is tied to.
+; Note that quick battle chat must be enabled using "quickBattleChat_enabled" and
+; there're more settings next to that setting.
+quickBattleChat_sendImmediately = 
+
+; Specify the number of milliseconds. Default value is 1500.
+; Time in milliseconds of you not typing anything, after which the typed battle text gets sent.
+; If you type anything, the timer resets. Battle text can't be longer than 21 characters.
+; If it reaches that many characters, it will get sent instantly anyway.
+; Or you can press the "quickBattleChat_sendImmediately" key to send the message immediately.
+quickBattleChat_idleTimeAmount = 1500
+
+; Specify true of false. Default value is false.
+; When enabled, typing letters on your keyboard will directly buffer them to get sent as
+; a chat message during a battle after "quickBattleChat_idleTimeAmount" milliseconds pass
+; of you not typing. Chat message can't be longer than 21 characters, so messages that long
+; will get sent right away, or you can press the "quickBattleChat_sendImmediately" key
+; to send the message immediately.
+quickBattleChat_enabled = false
+
+; Specify a whole number. Default value is 21.
+; This is the maximum length of text that can be sent using Quick Battle Chat.
+; Texts longer than this limit will be broken up and sent as multiple messages.
+; Values greater than 21 have not been tested, so modify this setting at your own risk!
+quickBattleChat_textLimit_ifYouDare = 21
+
+; Specify true of false. Default value is false.
+; When true is specified, keyboard can't be used to control the movement or
+; attacks of your character, or to input button macros.
+; Disconnecting the keyboard in this way only affects battles.
+; This setting may help to use the keyboard exclusively to Quick Battle Chat.
+disconnectKeyboardFromBattleControls = false
+
+; Specify a whole number of milliseconds. Default value is 1500.
+; This is the smallest amount of time that may pass between sending text messages via Quick Battle Chat.
+; Text messages can't be sent quicker than this. This may be useful to avoid overlaps between messages,
+; so they can be read properly without obstructing each other.
+quickBattleChat_textSendRateLimit = 1500
+
+; A keyboard shortcut.
+; Pressing this key will open the window into which you type the battle chat text
+; normally. This is the same as going to the Pause Menu - Fighting screen chat - Comment.
+; This key press won't be hidden from the game, so if it's tied to some control in the game,
+; that may still get triggered. And if this key is tied to some control in the game,
+; when you try to press for that control, the mod may see the key press and also try to open
+; the chat prompt (for example, if you tie this key to Enter, you may end up
+; opening the chat window as soon as you send from it, because you send from it by pressing Enter).
+; The "ignoreNumpadEnterKey" and "ignoreRegularEnterKey" settings will not take effect
+; while the battle chat prompt is open.
+openBattleChatPrompt = 
+
+; Specify true or false. Default value is true.
+; Specifying true will shutdown the following capabilities of the mod during non-observer multiplayer matches:
+; - Framedata panel of the main UI;
+; - Framebar;
+; - Most of the mod's windows that display information, such as Combo Recipe;
+; - 'Punish' message;
+; - Hitbox overlay;
+; - "player1IsBoss" (and P2) setting;
+; - "highlightRedWhenBecomingIdle" and similar highlights;
+; 
+; Features that will still work:
+; - Online input delay override;
+; - Quick Battle Chat;
+; - "ignoreNumpadEnterKey" and the other one;
+; - "showComboProrationInRiscGauge";
+; - Loading modded .bbscript and .collision files on match start if "enableScriptMods" is enabled.
+disableMostOfTheModInOnline = true
+
+; Specify true or false. Default value is true.
+; Specifying true will allow the mod to increase FPS when watching round intros, roundstarts,
+; supers, 5D6/8, IK, roundends, round outros in replay mode and observer mode.
+; Since the solution works by simply setting FPS to a higher value, it may not work well on older computers.
+allowFastForwardOfSupersRoundstartsEtc = true
 ```
 
 </details>
@@ -1576,8 +1684,6 @@ You can specify a combination of keys, separated by `+` sign. You can assign sam
 The allowed key names are listed at the start of the sample INI file.
 
 If the mod is already running, you don't need to do anything in order to apply the new hotkeys and settings. The mod can reread the settings on the fly, without reloading the mod or restarting the game (this was tested to work even on Ubuntu/Linux running GGXrd under Steam Proton).
-
-`slowmoTimes` is not a key combination, it must be a round integer number.
 
 ## Framebar
 
@@ -2092,6 +2198,13 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2026 February 10: Version 7.21: Added a new mode for "Quick Character Select" that appears only when the hotkey/hotbutton is held and disappears when not held, and the selection is changed using the gamepad controls, and it captures gamepad input to hide it from the game, and stopping holding the hotkey/hotbutton confirms the character selection. This new mode is the default setting. It can be changed in Main Mod UI - Quick Character Select - 'Use Controller-Friendly Quick Char Select'.
 - 2026 February 12: Version 7.22: Fixed camera moving in player lobby when the mod's controller-friendly 'Quick Character Select' menu is open.
 - 2026 February 14: Version 7.23: Increased the default deadzone for mod's stick controls, which affects the default controls for the Controller-Friendly Quick Character Select menu. You can configure the deadzone in Settings - Keyboard Settings - Deadzone For Mod's Stick Controls (Percentage). Improved replay and observer fast-forward so that it can also speed up intros, roundstarts, roundends, outros and supers (although speeding these up comes at a much higher processing cost, possibly unbearable for slower machines). The new fast-forward gets automatically applied to the online observer mode when catching up without having to press any hotkey. You can configure the fast-forward speeds for the observer mode and the replay mode separately in General Settings.
-- 2026 February ??: Version 7.24:
+- 2026 February 19: Version 7.24:
 1) Fixed Jump Install not being shown in Combo Recipe when doing Chipp stuff > 2D > Resshou, 8P > 2H > 22H > stuff. The problem was caused by the move having a 3f startup. This should fix all moves that have a startup that fast.
 2) Fixed scrollbar not working in the non Controller-Friendly Quick Character Select when trying to scroll with the mouse.
+3) Added a setting to turn off modded fast-forward for observer and replay modes, the one which fast-forwards supers and the like by increasing FPS. By default the modded fast-forward will be on.
+4) Added color and side-swap settings for the 'Punish' message.
+5) Added a setting to turn off most of the mod's functions during non-observer multiplayer matches (the new setting will be ON by default).
+6) Fixed an error when framebar would read out of bounds of a framebar in rollback-affected matches, potentially leading to a crash.
+7) Fixed incorrect information in projectile framebars in rollback-affected matches, when projectile framebars would show randomly scattered single non-idle frames amidst huge spans of idle frames that are already far in the past yet still in view.
+8) Added Quick Battle Chat, two flavors: one works by simply letting you configure a hotkey to open the chat prompt, the other works by letting you just type directly on the keyboard and sending what you typed after a while without pressing Enter. You can also optionally disable keyboard controls for battles.
+9) Fixed Position Reset being limited by camera bounds when the stage resets not due to a button press, but due to the training dummy dying.

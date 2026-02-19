@@ -37,6 +37,8 @@ extern _orig_replayPauseControlTick:dword
 
 extrn _getJoyStateHook:proc
 
+extern _needIgnoreKeyboardBattleInputs:dword
+
 ; caller clears stack. ecx - first arg, esp+4,esp+8 - second and third args
 ; Runs on the main thread
 _drawQuadExecHookAsm proc
@@ -151,14 +153,32 @@ _replayPauseControlTickHookAsm proc
 _replayPauseControlTickHookAsm endp
 
 _getJoyStateHookAsm proc
+	push ebx
 	push dword ptr[esp + 01ch]  ; the current FJoystickInfo* being iterated
 	push eax
 	push 110h
 	push edi
 	push ecx
 	call [_getJoyStateHook]
-	add esp,14h
+	add esp,18h
 	ret
 _getJoyStateHookAsm endp
+
+_setInputsHookAsm proc
+	; ecx is the input mask, corresponds to ButtonCode enum values in Game.h.
+	; edi is button settings for the current keyboard index (0-3), gets incremented by 0x50.
+	; edx is a pointer to the key code being iterated in the current button settings, starts at the first key code, gets incremented by 0x4.
+	; Button settings is a struct of size 0x50, contains 19 key codes (each 4 bytes) and 4 bytes of some unknown shit idk.
+	; The key codes in the button settings are arranged in the same order as elements of the ButtonCode enum in Game.h.
+	; esi is the number of iterations to make. In the original code it's 19.
+	cmp dword ptr [_needIgnoreKeyboardBattleInputs],0  ; apparently assembler can do this without polluting any register
+	jz return
+	mov ecx,40000h
+	add edx,48h
+	xor esi,esi
+	inc esi
+	return:
+	ret
+_setInputsHookAsm endp
 
 end

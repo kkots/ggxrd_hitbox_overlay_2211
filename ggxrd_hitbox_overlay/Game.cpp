@@ -474,7 +474,7 @@ void Game::TickActorComponentsHookStatic(int param1, int param2, int param3, int
 
 // AActor* Actor,FLOAT DeltaSeconds (1/60),ELevelTick TickType (2), FDeferredTickList* DeferredList
 void Game::TickActorComponentsHook(int param1, int param2, int param3, int param4) {
-	if (!shutdown) {
+	if (!shutdown && !gifMode.modDisabled && !gifMode.mostModDisabled) {
 		if (ignoreAllCalls) {
 			bool found = false;
 			auto itEnd = actorsToAllowTickFor.end();
@@ -498,7 +498,7 @@ void Game::HookHelp::updateBattleOfflineVerHook(int param1) {
 }
 
 void Game::updateBattleOfflineVerHook(char* thisArg, int param1) {
-	if (!shutdown && ignoreAllCalls) {
+	if (!shutdown && ignoreAllCalls && !gifMode.modDisabled && !gifMode.mostModDisabled) {
 		return;
 	}
 	orig_updateBattleOfflineVer(thisArg, param1);
@@ -532,10 +532,9 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int
 	// and this hook is also not called.
 	if (!shutdown) {
 		ignoreAllCalls = ignoreAllCallsButEvenEarlier;
-		endScene.onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(ignoreAllCalls);
 	}
 	orig_TickActors_FDeferredTickList_FGlobalActorIterator(param1, param2, param3, param4);
-	if (!shutdown) {
+	if (!shutdown && !gifMode.modDisabled && !gifMode.mostModDisabled) {
 		if (ignoreAllCalls) {
 			TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty();
 		}
@@ -648,7 +647,13 @@ void Game::destroyAswEngineHook() {
 
 void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds) {
 	
-	if (!shutdown) {
+	gifMode.mostModDisabled = settings.disableMostOfTheModInOnline
+		&& game.getGameMode() == GAME_MODE_NETWORK
+		&& game.getPlayerSide() != 2
+		&& aswEngine
+		&& *aswEngine;
+	
+	if (!shutdown && !gifMode.modDisabled && !gifMode.mostModDisabled) {
 		IsPausedCallCount = 0;
 		
 		ignoreAllCallsButEvenEarlier = false;
@@ -778,7 +783,7 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 		logwrap(fputs("Asw Engine destroyed\n", logfile));
 		endScene.onAswEngineDestroyed();
 	}
-	if (!shutdown && (!*aswEngine || !ignoreAllCallsButEvenEarlier)) {
+	if (!shutdown && (!*aswEngine || !ignoreAllCallsButEvenEarlier) && !gifMode.modDisabled && !gifMode.mostModDisabled) {
 		for (int i = 0; i < 4; ++i) {
 			playPressed[i] = false;
 			recordPressed[i] = false;
@@ -795,7 +800,7 @@ void Game::HookHelp::UWorld_TickHook(ELevelTick TickType, float DeltaSeconds) {
 }
 
 void Game::HookHelp::drawExGaugeHUDHook(int param_1) {
-	if (gifMode.modDisabled || !(gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
+	if (gifMode.modDisabled || gifMode.mostModDisabled || !(gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
 		game.orig_drawExGaugeHUD((void*)this, param_1);
 	}
 }
@@ -825,7 +830,7 @@ void Game::drawStunButtonMash(Entity pawn) {
 
 bool Game::HookHelp::UWorld_IsPausedHook() {
 	// This function is called from UWorld::Tick several times.
-	if (!game.shutdown) {
+	if (!game.shutdown && !gifMode.modDisabled && !gifMode.mostModDisabled) {
 		// If UWorld->DemoRecDriver is not nullptr, we might get an extra call at the start that messes us up.
 		// It's a: 'Fake NetDriver for capturing network traffic to record demos'.
 		// Probably will never be non-0.
@@ -988,6 +993,7 @@ BOOL& Game::postEffectOn() {
 	return *postEffectOnPtr;
 }
 
+// this feature is supposed to work even if mod is disabled
 float Game::HookHelp::getRiscForUI_BackgroundHook() {
 	if (settings.showComboProrationInRiscGauge) {
 		Entity player = *(Entity*)((char*)this + 0x484);
@@ -997,6 +1003,7 @@ float Game::HookHelp::getRiscForUI_BackgroundHook() {
 	}
 }
 
+// this feature is supposed to work even if mod is disabled
 float Game::HookHelp::getRiscForUI_ForegroundHook() {
 	if (settings.showComboProrationInRiscGauge) {
 		Entity player = *(Entity*)((char*)this + 0x484);
@@ -1124,6 +1131,9 @@ void Game::roundInitHook(Entity pawn) {
 			*(int*)(*aswEngine + cameraCenterXOffset) = (lastSavedPositionX[0] + lastSavedPositionX[1]) / 2000;
 		}
 		++numberOfPlayersReset;
+		if (numberOfPlayersReset == 2) {
+			numberOfPlayersReset = 0;
+		}
 	}
 }
 
@@ -1557,7 +1567,7 @@ int Game::currentPlayerControllingSide() const {
 	return playerSide;
 }
 
-const char* Game::readFName(int fname, bool* isWide) {
+const void* Game::readFName(int fname, bool* isWide) {
 	if (!fnameNamesPtr) {
 		if (!sigscanFNamesAndAppRealloc() && !fnameNamesPtr) return nullptr;
 	}
@@ -1565,7 +1575,7 @@ const char* Game::readFName(int fname, bool* isWide) {
 	FNameEntry* entry = (*fnameNamesPtr)[fname];
 	if (entry->Index & 1) {
 		*isWide = true;
-		return (const char*)entry->data;
+		return (const wchar_t*)entry->data;
 	} else {
 		*isWide = false;
 		return (const char*)entry->data;

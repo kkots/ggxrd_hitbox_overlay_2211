@@ -399,6 +399,10 @@ function task() {
                         $value = "";
                     }
                 }
+            } elseif ($typename -eq "color") {
+            	if (($value.Length -ge 2) -and $value.StartsWith("0x")) {
+            		$value = $value.Substring(2);
+            	}
             } elseif ($typename -eq "float") {
                 if (($value.Length -gt 0) -and (
                         ($value.Chars($value.Length - 1) -eq 70) -or (  # F

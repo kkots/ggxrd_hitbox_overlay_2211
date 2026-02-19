@@ -20,6 +20,7 @@
 #include "trainingSettings.h"
 #include "DrawBoxCallParams.h"
 #include "EndSceneStoredState.h"
+#include <chrono>
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, BBScrPosType posType);
@@ -64,6 +65,9 @@ using execPreBeginPlay_Internal_t = void(__thiscall*)(void* thisArg, void* stack
 using FindFunctionChecked_t = void*(__thiscall*)(void* thisArg, int InNameLow, int InNameHigh, BOOL Global);  // returns UFunction*
 using ProcessEvent_t = void(__thiscall*)(void* thisArg, void* Function, void* Parms, void* Result);
 using observerNeedsCatchUp_t = BOOL(__cdecl*)();
+using aMenuIsOpen_t = BOOL(__cdecl*)();
+using openBattleChatWithoutMenu_t = void(__cdecl*)();
+using IsIMEFormOpen_t = BOOL(__cdecl*)();
 
 struct FVector2D {
 	float X;
@@ -241,7 +245,6 @@ public:
 	void onUWorld_Tick();
 	void registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender);
 	bool didHit(Entity attacker);
-	void onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen);
 	void onGifModeBlackBackgroundChanged();
 	void onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr);
 	void onDealHit(Entity defenderPtr, Entity attackerPtr);
@@ -738,6 +741,19 @@ private:
 	observerNeedsCatchUp_t observerNeedsCatchUp = nullptr;
 	static int onlineStepCountDecisionHookStatic();
 	int onlineStepCountDecisionHook();
+	void performBattleChat();
+	bool canSendText();
+	void sendText(const wchar_t* text);
+	bool lastTickPerformedBattleChatRoutine = false;
+	bool currentTickPerformedBattleChatRoutine = false;
+	std::vector<wchar_t> battleChatText;
+	std::chrono::time_point<std::chrono::system_clock> battleChatTextLastUpdated;
+	bool firstTimeSendingBattleChatText = true;
+	std::chrono::time_point<std::chrono::system_clock> battleChatTextLastSent;
+	std::vector<std::wstring> battleTextsToSend;
+	aMenuIsOpen_t aMenuIsOpen = nullptr;
+	openBattleChatWithoutMenu_t openBattleChatWithoutMenu = nullptr;
+	IsIMEFormOpen_t IsIMEFormOpen = nullptr;
 };
 
 extern EndScene endScene;

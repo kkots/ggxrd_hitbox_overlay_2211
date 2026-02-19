@@ -197,7 +197,7 @@ void Detouring::detachOnlyTheseHooks(const char** names, int namesCount) {
 					fprintf(logfile, ", %s", names[i]);
 				}
 			}
-			fputc("\n", logfile);
+			fputc('\n', logfile);
 			fflush(logfile);
 		}
 		#endif

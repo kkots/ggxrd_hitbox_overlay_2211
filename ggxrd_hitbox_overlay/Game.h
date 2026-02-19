@@ -46,7 +46,8 @@ enum ButtonCode {
 	BUTTON_CODE_BLITZ_MACRO = 0x4000,
 	BUTTON_CODE_BURST_MACRO = 0x8000,
 	BUTTON_CODE_PLAY = 0x10000,
-	BUTTON_CODE_RECORD = 0x20000
+	BUTTON_CODE_RECORD = 0x20000,
+	BUTTON_CODE_MENU = 0x40000
 };
 
 // Button codes for menus
@@ -177,7 +178,8 @@ public:
 	void onUsePositionResetChanged();
 	std::vector<void*> actorsToAllowTickFor;
 	void allowTickForActor(void* actor);
-	const char* readFName(int fname, bool* isWide);
+	// this function returns either a const char* or a const wchar_t*, and you must use the output parameter isWide to tell which one it is
+	const void* readFName(int fname, bool* isWide);
 	bool sigscanFNamesAndAppRealloc();
 	void onFPSChanged();
 	// first check if the game mode is network at all, and that you're in a match (although it would also tell if you're just in the lobby)

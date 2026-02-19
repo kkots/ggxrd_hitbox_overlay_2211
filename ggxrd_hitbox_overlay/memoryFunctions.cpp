@@ -84,7 +84,7 @@ void loadSigscanCache() {
 		file
 	};
 	DWORD fileSize = GetFileSize(file, NULL);
-	if (!fileSize) fileParsingErr("File empty.")
+	if (!fileSize) fileParsingErr("%s", "File empty.")
 	std::vector<char> data(fileSize + 1);
 	char* dataPtr = data.data();
 	DWORD bytesRead = 0;
@@ -138,21 +138,21 @@ void loadSigscanCache() {
 			
 		setString(newEntry.logname, lineStart, lineEnd)
 		
-		if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("Missing the first line.")
+		if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("%s", "Missing the first line.")
 		shrinkWhitespace
-		if (lineEnd <= lineStart) fileParsingErr("First line is empty.")
+		if (lineEnd <= lineStart) fileParsingErr("%s", "First line is empty.")
 		
 		const char* ptr = (const char*)memchr(lineStart, ':', lineEnd - lineStart);
-		if (ptr == nullptr) fileParsingErr(": not found.")
-		if (lineEnd - 1 <= ptr) fileParsingErr("Section name to the right of : not found.")
-		if (ptr - 1 <= lineStart) fileParsingErr("Module name to the left of : not found.")
+		if (ptr == nullptr) fileParsingErr("%s", ": not found.")
+		if (lineEnd - 1 <= ptr) fileParsingErr("%s", "Section name to the right of : not found.")
+		if (ptr - 1 <= lineStart) fileParsingErr("%s", "Module name to the left of : not found.")
 		
 		setString(newEntry.moduleName, lineStart, ptr)
 		setString(newEntry.section, ptr + 1, lineEnd)
 		
-		if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("Missing second line (start;end).")
+		if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("%s", "Missing second line (start;end).")
 		shrinkWhitespace
-		if (lineEnd <= lineStart) fileParsingErr("Second line empty.")
+		if (lineEnd <= lineStart) fileParsingErr("%s", "Second line empty.")
 		static const char startStr[] = "start";
 		static const char endStr[] = "end";
 		#define assertStr(strAr) \
@@ -161,10 +161,10 @@ void loadSigscanCache() {
 			lineStart += sizeof strAr - 1;
 		assertStr(startStr)
 		shrinkWhitespaceLeft
-		if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("Second line doesn't have '=' ('start').")
+		if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("%s", "Second line doesn't have '=' ('start').")
 		++lineStart;
 		shrinkWhitespaceLeft
-		if (lineStart >= lineEnd) fileParsingErr("Start offset not found on second line.")
+		if (lineStart >= lineEnd) fileParsingErr("%s", "Start offset not found on second line.")
 		uintptr_t accum = 0;
 		const char* numStart = lineStart;
 		#define parseNumber \
@@ -193,34 +193,34 @@ void loadSigscanCache() {
 				} \
 			}
 		parseNumber
-		if (lineStart == numStart) fileParsingErr("Start offset empty on second line.")
+		if (lineStart == numStart) fileParsingErr("%s", "Start offset empty on second line.")
 		newEntry.startRelativeToWholeModule = accum;
-		if (lineStart >= lineEnd || *lineStart != ';') fileParsingErr("';' character not found on second line.")
+		if (lineStart >= lineEnd || *lineStart != ';') fileParsingErr("%s", "';' character not found on second line.")
 		++lineStart;
 		shrinkWhitespaceLeft
 		assertStr(endStr)
 		shrinkWhitespaceLeft
-		if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("Second line doesn't have '=' ('end').")
+		if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("%s", "Second line doesn't have '=' ('end').")
 		++lineStart;
 		shrinkWhitespaceLeft
 		numStart = lineStart;
 		accum = 0;
 		parseNumber
-		if (lineStart == numStart) fileParsingErr("End offset empty on second line.")
+		if (lineStart == numStart) fileParsingErr("%s", "End offset empty on second line.")
 		newEntry.endRelativeToWholeModule = accum;
 		shrinkWhitespaceLeft
-		if (lineStart != lineEnd) fileParsingErr("Unknown characters after the end offset on second line.")
+		if (lineStart != lineEnd) fileParsingErr("%s", "Unknown characters after the end offset on second line.")
 		
 		#define funcForSetSig(unused, start, end) newEntry.parseSigFromHex(start, end);
 		
 		#define parseElement(elementName, func) \
-			if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("Missing line (" elementName ").") \
+			if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("%s", "Missing line (" elementName ").") \
 			shrinkWhitespace \
-			if (lineEnd <= lineStart) fileParsingErr("The line that was supposed to define " elementName " is empty.") \
+			if (lineEnd <= lineStart) fileParsingErr("%s", "The line that was supposed to define " elementName " is empty.") \
 			static const char elementName##Str[] = #elementName; \
 			assertStr(elementName##Str) \
 			shrinkWhitespaceLeft \
-			if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("The line that define the element " elementName " doesn't contain '='.") \
+			if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("%s", "The line that define the element " elementName " doesn't contain '='.") \
 			++lineStart; \
 			shrinkWhitespaceLeft \
 			if (lineStart < lineEnd) { \
@@ -231,15 +231,15 @@ void loadSigscanCache() {
 		parseElement(mask, setString)
 		parseElement(maskForCaching, setString)
 		
-		if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("Missing final line (the sigscan offset).")
+		if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("%s", "Missing final line (the sigscan offset).")
 		shrinkWhitespace
-		if (lineStart >= lineEnd) fileParsingErr("Final line is empty.")
+		if (lineStart >= lineEnd) fileParsingErr("%s", "Final line is empty.")
 		numStart = lineStart;
 		accum = 0;
 		parseNumber
-		if (lineStart == numStart) fileParsingErr("Empty result on final line.")
+		if (lineStart == numStart) fileParsingErr("%s", "Empty result on final line.")
 		shrinkWhitespaceLeft
-		if (lineStart != lineEnd) fileParsingErr("Unknown characters after result on final line.")
+		if (lineStart != lineEnd) fileParsingErr("%s", "Unknown characters after result on final line.")
 		
 		sigscanCache[newEntry] = { accum, order++ };
 	}

@@ -1226,6 +1226,41 @@ settingsField(bool, showPunishMessageOnWhiff, false,
 	"; Shows a message when a player got hit during recovery of an attack move, or during\n"
 	"; landing animation of any move, or after 15 frames of starting a move.")
 	
+settingsField(bool, swapPlayerSideForPunishMessage, false,
+	"Swap Player Side For 'Punish' Message", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; When P1 punishes P2, the 'Punish' message will be displayed on P2's side,\n"
+	"; and vice versa.\n"
+	"; This setting only matters at all if \"showPunishMessageOnBlock\" or \"showPunishMessageOnWhiff\" are enabled.")
+	
+settingsField(color, punishMessageAppearColor, 0x00FFFFFF,
+	"'Punish' Message Appear Color", SETTINGS_GENERAL,
+	"; Specify color in hexadecimal format AARRGGBB.\n"
+	"; This is the color of the 'Punish' message when it first begins to exist. This color should be fully transparent.\n"
+	"; The color will blend into \"punishMessageMaxHighlightColor\".\n"
+	"; This setting only matters at all if \"showPunishMessageOnBlock\" or \"showPunishMessageOnWhiff\" are enabled.")
+	
+settingsField(color, punishMessageMaxHighlightColor, 0xFFFFFFFF,
+	"'Punish' Message Max Highlight Color", SETTINGS_GENERAL,
+	"; Specify color in hexadecimal format AARRGGBB.\n"
+	"; This is the color of the 'Punish' message at the peak of when it's first appearing.\n"
+	"; The color will blend into \"punishMessageColor\".\n"
+	"; This setting only matters at all if \"showPunishMessageOnBlock\" or \"showPunishMessageOnWhiff\" are enabled.")
+	
+settingsField(color, punishMessageColor, 0xFFFFFF00,
+	"'Punish' Message Color", SETTINGS_GENERAL,
+	"; Specify color in hexadecimal format AARRGGBB.\n"
+	"; This is the color of the 'Punish' message at the peak of when it's first appearing.\n"
+	"; The color will blend into \"punishMessageDisappearColor\".\n"
+	"; This setting only matters at all if \"showPunishMessageOnBlock\" or \"showPunishMessageOnWhiff\" are enabled.")
+	
+settingsField(color, punishMessageDisappearColor, 0x00FFFF00,
+	"'Punish' Message Disappear Color", SETTINGS_GENERAL,
+	"; Specify color in hexadecimal format AARRGGBB.\n"
+	"; This is the color of the 'Punish' message when it disappears. This color should be fully transparent.\n"
+	"; This is the final color the message will take before ceasing to exist.\n"
+	"; This setting only matters at all if \"showPunishMessageOnBlock\" or \"showPunishMessageOnWhiff\" are enabled.")
+	
 settingsKeyCombo(hitboxEditAddSpriteHotkey, "Add Sprite", "",
 	"; A keyboard shortcut.\n"
 	"; Pressing this shortcut will add a new sprite when inside the hitbox editor and hitbox editing mode is active.")
@@ -1464,5 +1499,90 @@ settingsField(float, stickSpeedMultiplier, 0.8F,
 	"; This affects things in the mod, controls for which are mapped to gamepad sticks,\n"
 	"; and which depend on the amount that the stick is displaced.\n"
 	"; Setting this factor to a higher value will produce greater movement.")
+	
+settingsKeyCombo(quickBattleChat_sendImmediately, "Quick Battle Chat - Send Immediately", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this key will cause the typed battle text to get send immediately,\n"
+	"; before the idle timer reaches \"quickBattleChat_idleTimeAmount\".\n"
+	"; This key press won't be hidden from the game, so it may still trigger whatever game control it is tied to.\n"
+	"; Note that quick battle chat must be enabled using \"quickBattleChat_enabled\" and\n"
+	"; there're more settings next to that setting.")
+	
+settingsField(int, quickBattleChat_idleTimeAmount, 1500,
+	"Quick Battle Chat - Idle Time Amount", SETTINGS_GENERAL,
+	"; Specify the number of milliseconds. Default value is 1500.\n"
+	"; Time in milliseconds of you not typing anything, after which the typed battle text gets sent.\n"
+	"; If you type anything, the timer resets. Battle text can't be longer than 21 characters.\n"
+	"; If it reaches that many characters, it will get sent instantly anyway.\n"
+	"; Or you can press the \"quickBattleChat_sendImmediately\" key to send the message immediately.")
+	
+settingsField(bool, quickBattleChat_enabled, false,
+	"Quick Battle Chat - Enabled", SETTINGS_GENERAL,
+	"; Specify true of false. Default value is false.\n"
+	"; When enabled, typing letters on your keyboard will directly buffer them to get sent as\n"
+	"; a chat message during a battle after \"quickBattleChat_idleTimeAmount\" milliseconds pass\n"
+	"; of you not typing. Chat message can't be longer than 21 characters, so messages that long\n"
+	"; will get sent right away, or you can press the \"quickBattleChat_sendImmediately\" key\n"
+	"; to send the message immediately.")
+	
+settingsField(int, quickBattleChat_textLimit_ifYouDare, 21,
+	"Quick Battle Chat - Maximum Characters (If You Dare)", SETTINGS_GENERAL,
+	"; Specify a whole number. Default value is 21.\n"
+	"; This is the maximum length of text that can be sent using Quick Battle Chat.\n"
+	"; Texts longer than this limit will be broken up and sent as multiple messages.\n"
+	"; Values greater than 21 have not been tested, so modify this setting at your own risk!")
+	
+settingsField(bool, disconnectKeyboardFromBattleControls, false,
+	"Disconnect Keyboard From Battle Controls", SETTINGS_GENERAL,
+	"; Specify true of false. Default value is false.\n"
+	"; When true is specified, keyboard can't be used to control the movement or\n"
+	"; attacks of your character, or to input button macros.\n"
+	"; Disconnecting the keyboard in this way only affects battles.\n"
+	"; This setting may help to use the keyboard exclusively to Quick Battle Chat.")
+	
+settingsField(int, quickBattleChat_textSendRateLimit, 1500,
+	"Quick Battle Chat - Text Send Rate Limit", SETTINGS_GENERAL,
+	"; Specify a whole number of milliseconds. Default value is 1500.\n"
+	"; This is the smallest amount of time that may pass between sending text messages via Quick Battle Chat.\n"
+	"; Text messages can't be sent quicker than this. This may be useful to avoid overlaps between messages,\n"
+	"; so they can be read properly without obstructing each other.")
+	
+settingsKeyCombo(openBattleChatPrompt, "Open Battle Chat Prompt", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this key will open the window into which you type the battle chat text\n"
+	"; normally. This is the same as going to the Pause Menu - Fighting screen chat - Comment.\n"
+	"; This key press won't be hidden from the game, so if it's tied to some control in the game,\n"
+	"; that may still get triggered. And if this key is tied to some control in the game,\n"
+	"; when you try to press for that control, the mod may see the key press and also try to open\n"
+	"; the chat prompt (for example, if you tie this key to Enter, you may end up\n"
+	"; opening the chat window as soon as you send from it, because you send from it by pressing Enter).\n"
+	"; The \"ignoreNumpadEnterKey\" and \"ignoreRegularEnterKey\" settings will not take effect\n"
+	"; while the battle chat prompt is open.")
+	
+settingsField(bool, disableMostOfTheModInOnline, true,
+	"Disable Most Of The Mod In Online Non-Observer Matches", SETTINGS_GENERAL,
+	"; Specify true or false. Default value is true.\n"
+	"; Specifying true will shutdown the following capabilities of the mod during non-observer multiplayer matches:\n"
+	"; - Framedata panel of the main UI;\n"
+	"; - Framebar;\n"
+	"; - Most of the mod's windows that display information, such as Combo Recipe;\n"
+	"; - 'Punish' message;\n"
+	"; - Hitbox overlay;\n"
+	"; - \"player1IsBoss\" (and P2) setting;\n"
+	"; - \"highlightRedWhenBecomingIdle\" and similar highlights;\n"
+	"; \n"
+	"; Features that will still work:\n"
+	"; - Online input delay override;\n"
+	"; - Quick Battle Chat;\n"
+	"; - \"ignoreNumpadEnterKey\" and the other one;\n"
+	"; - \"showComboProrationInRiscGauge\";\n"
+	"; - Loading modded .bbscript and .collision files on match start if \"enableScriptMods\" is enabled.")
+	
+settingsField(bool, allowFastForwardOfSupersRoundstartsEtc, true,
+	"Allow Fast-Forward Of Supers, Roundstarts, Etc", SETTINGS_GENERAL,
+	"; Specify true or false. Default value is true.\n"
+	"; Specifying true will allow the mod to increase FPS when watching round intros, roundstarts,\n"
+	"; supers, 5D6/8, IK, roundends, round outros in replay mode and observer mode.\n"
+	"; Since the solution works by simply setting FPS to a higher value, it may not work well on older computers.")
 	
 #pragma warning(pop)

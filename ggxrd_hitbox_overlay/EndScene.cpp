@@ -931,9 +931,74 @@ void EndScene::HookHelp::drawTrainingHudHook() {
 }
 */
 
+#define addr(x) (x - 0x400000 + xrdBase)
+bool EndScene::canSendText() {
+	// to find this code and the code in sendText, use signature 83 be 78 01 00 00 00 74 ?? e8 ?? ?? ?? ?? b8 01 00 00 00 5e c2 04 00.
+	// the e8 ?? ?? ?? ?? is a FightingChatMenu::sendTextProbably() call.
+	// The function does the following:
+	// Construct GamepadTextInputManager if it doesn't exist yet;
+	// Then it has an if branch, one of the branches has way more code than the other. You need the one with the most code.
+	// The first function in the big branch is a REDGfxMoviePlayer_ChatWindow::DecideInput(gameDataPtr->ChatWindow,&inputText) call.
+	// Then it has a branch that you need to skip.
+	// Then it checks if text pointer isn't null, copies that text to a local wchar_t[0x80] buffer,
+	// checks if the first character of the buffer is not L'\0', and if yes, the code that sends the text begins.
+	static uintptr_t xrdBase = 0;
+	static bool versionMismatch = false;
+	if (!xrdBase) {
+		xrdBase = (uintptr_t)GetModuleHandleA("GuiltyGearXrd.exe");
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("e8 18 0a 06 00 85 c0 74 38 e8 cf 22 16 00", sig, mask);
+		if (memcmp((void*)addr(0x00ed4493), sig.data(), sig.size() - 1) != 0) {
+			versionMismatch = true;
+		}
+	}
+	if (versionMismatch) return false;
+	
+	aMenuIsOpen = (aMenuIsOpen_t)addr(0x00fd8cf0);
+	openBattleChatWithoutMenu = (openBattleChatWithoutMenu_t)addr(0x00e2b5c0);
+	IsIMEFormOpen = (IsIMEFormOpen_t)addr(0x00e6a870);
+	
+	if (
+		// these if conditions are from a function called by REDGameInfo_Battle::UpdateBattle when in network mode.
+		*(DWORD*)addr(0x01ddb878)  // this global is being checked at the beginning of that function
+			&& ((BOOL(__cdecl*)())addr(0x00f34eb0))()  // one of the two functions that I couldn't understand and decided to call for safety, called from that mentioned function called from UpdateBattle
+			&& !((BOOL(__cdecl*)())addr(0x01036770))()  // the other one of the two functions
+	) {
+		return true;
+	}
+	return false;
+}
+
+void EndScene::sendText(const wchar_t* text) {
+	if (canSendText()) {
+		static uintptr_t xrdBase = 0;
+		if (!xrdBase) {
+			xrdBase = (uintptr_t)GetModuleHandleA("GuiltyGearXrd.exe");
+		}
+		// this is the actual code that sends the text
+		BYTE* FightingChatMenu = (BYTE*)addr(0x01d4cc30);
+		int playerIndex = ((int(__cdecl*)())addr(0x010382d0))();
+		if (playerIndex >= 0) {
+			BYTE buf1[8] { 0 };
+			BYTE buf2[8] { 0 };
+			void* steamIdPtr = ((void*(__cdecl*)(void*,void*))addr(0x00f844b0))(buf1, buf2);
+			((void(__cdecl*)(const wchar_t*,int, float, float, float, void*))addr(0x0103b3c0))(
+				text, playerIndex, (float)(playerIndex * 0x32) + 160.F,
+				*(float*)(addr(0x01706f0c) + *(int*)(FightingChatMenu + 0x170) * 4),
+				*(float*)(addr(0x01706f18) + *(int*)(FightingChatMenu + 0x16c) * 4) * 2.F,
+				steamIdPtr);
+			((void(__thiscall*)(void* thisArg, int,int,int))addr(0x00f9fd40))((void*)addr(0x01ec6fc0), 0x16, 1, 1);
+		}
+	}
+}
+#undef addr
+
 // Runs on the main thread. Called once every frame when a match is running, including freeze mode or when Pause menu is open
 void EndScene::logic() {
 	actUponKeyStrokesThatAlreadyHappened();
+	
+	performBattleChat();
 	
 	bool needToClearHitDetection = false;
 	if (gifMode.modDisabled) {
@@ -978,7 +1043,7 @@ void EndScene::logic() {
 				}
 			}
 		}
-		if (!gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
+		if (!gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn && !gifMode.mostModDisabled) {
 			for (int i = 0; i < 2; ++i) {
 				std::vector<EndSceneStoredState::PunishMessageTimer>& vec = currentState->punishMessageTimers[i];
 				for (EndSceneStoredState::PunishMessageTimer& timer : vec) {
@@ -993,12 +1058,58 @@ void EndScene::logic() {
 						int sign = (attackerSide == 0 ? 1 : -1);
 						x += (float)(sign * frameData.xOffset + timer.xOff);
 						float y = 490.F + timer.yOff;
-						drawPunishMessage(x, y, attackerSide == 0 ? ALIGN_LEFT : ALIGN_RIGHT, frameData.color);
+						// punishAnim[0]     - punishMessageAppearColor           0x00FFFFFF
+						// punishAnim[8]     - punishMessageMaxHighlightColor     0xFFFFFFFF
+						// punishAnim[18-28] - punishMessageColor                 0xFFFFFF00
+						// punishAnim[45]    - almost punishMessageDisappearColor 0x04FFFF00
+						// *takes a good long look*
+						// "I got nothing"
+						DWORD color;
+						struct BlendColors {
+							inline static BYTE blend(BYTE clr1, BYTE clr1Alpha, BYTE clr2) {
+								return (BYTE)(
+									((DWORD)clr1 * clr1Alpha + (DWORD)clr2 * (255 - clr1Alpha)) / 255
+								);
+							}
+							static DWORD blend(DWORD clr1, BYTE clr1Alpha, DWORD clr2) {
+								BYTE r = blend((BYTE)(clr1 & 0xff), clr1Alpha, (BYTE)(clr2 & 0xff));
+								BYTE g = blend((BYTE)(clr1 >> 8 & 0xff), clr1Alpha, (BYTE)(clr2 >> 8 & 0xff));
+								BYTE b = blend((BYTE)(clr1 >> 16 & 0xff), clr1Alpha, (BYTE)(clr2 >> 16 & 0xff));
+								BYTE a = blend((BYTE)(clr1 >> 24 & 0xff), clr1Alpha, (BYTE)(clr2 >> 24 & 0xff));
+								return a << 24 | b << 16 | g << 8 | r;
+							}
+						};
+						if (timer.currentAnimFrame == 0) {
+							color = settings.punishMessageAppearColor;
+						} else if (timer.currentAnimFrame > 0 && timer.currentAnimFrame < 8) {
+							
+							color = BlendColors::blend(settings.punishMessageAppearColor,
+								255 - (frameData.color >> 24),
+								settings.punishMessageMaxHighlightColor);
+							
+						} else if (timer.currentAnimFrame == 8) {
+							color = settings.punishMessageMaxHighlightColor;
+						} else if (timer.currentAnimFrame > 8 && timer.currentAnimFrame < 18) {
+							
+							color = BlendColors::blend(settings.punishMessageMaxHighlightColor,
+								frameData.color & 0xff,
+								settings.punishMessageColor);
+							
+						} else if (timer.currentAnimFrame >= 18 && timer.currentAnimFrame <= 28) {
+							color = settings.punishMessageColor;
+						} else if (timer.currentAnimFrame > 28) {
+							
+							color = BlendColors::blend(settings.punishMessageColor,
+								frameData.color >> 24,
+								settings.punishMessageDisappearColor);
+							
+						}
+						drawPunishMessage(x, y, attackerSide == 0 ? ALIGN_LEFT : ALIGN_RIGHT, color);
 					}
 				}
 			}
 		}
-		if (!*aswEngine || currentState->startedNewRound && gifMode.editHitboxes) {
+		if (!*aswEngine || currentState->startedNewRound && gifMode.editHitboxes || gifMode.mostModDisabled) {
 			ui.stopHitboxEditMode();
 		}
 		DWORD aswEngineTickCount = getAswEngineTick();
@@ -1011,14 +1122,16 @@ void EndScene::logic() {
 				prepareDrawData(&needToClearHitDetection);
 			}
 		}
-		if (currentState->prevAswEngineTickCountForInputs != aswEngineTickCount) {
-			prepareInputs();
-			currentState->prevAswEngineTickCountForInputs = aswEngineTickCount;
+		if (!gifMode.mostModDisabled) {
+			if (currentState->prevAswEngineTickCountForInputs != aswEngineTickCount) {
+				prepareInputs();
+				currentState->prevAswEngineTickCountForInputs = aswEngineTickCount;
+			}
+			
+			drawHitboxEditorHitboxes();
 		}
-		
-		drawHitboxEditorHitboxes();
 	}
-	if (needToClearHitDetection) {
+	if (needToClearHitDetection && !gifMode.mostModDisabled) {
 		currentState->attackHitboxes.clear();
 		hitDetector.clearAllBoxes();
 		throws.clearAllBoxes();
@@ -1030,10 +1143,14 @@ void EndScene::logic() {
 // Runs on the main thread
 void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("prepareDrawData called\n", logfile));
-	invisChipp.onEndSceneStart();
+	if (!gifMode.mostModDisabled) {
+		invisChipp.onEndSceneStart();
+	}
 	EndSceneStoredState* cs = currentState;
 	
-	noGravGifMode();
+	if (!gifMode.mostModDisabled) {
+		noGravGifMode();
+	}
 
 	logOnce(fprintf(logfile, "entity count: %d\n", entityList.count));
 
@@ -1051,7 +1168,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	bool frameHasChanged = prevAswEngineTickCountMain != aswEngineTickCount && !game.isRoundend();
 	prevAswEngineTickCountMain = aswEngineTickCount;
 	
-	if (frameHasChanged) {
+	if (frameHasChanged && !gifMode.mostModDisabled) {
 		
 		Entity superflashInstigator = getSuperflashInstigator();
 		
@@ -1062,504 +1179,506 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		
 	}
 	
-	int playerSide = 2;
-	if (gifMode.dontHideOpponentsBoxes || gifMode.dontHidePlayersBoxes) {
-		playerSide = game.getPlayerSide();
-	}
+	if (!gifMode.mostModDisabled) {
+		int playerSide = 2;
+		if (gifMode.dontHideOpponentsBoxes || gifMode.dontHidePlayersBoxes) {
+			playerSide = game.getPlayerSide();
+		}
+		
+		// WARNING!
+		// If the mod was injected in the middle of a round end or round start, player.pawn may be null here!!!
+		// This will lead to a crash if you try to use it without checking for null.
+		// Better use ent.playerEntity() instead.
+		for (int i = 0; i < entityList.count; i++) {
+			Entity ent = entityList.list[i];
+			int team = ent.team();
+			PlayerInfo& player = cs->players[team];
+			Entity playerEntity = ent.playerEntity();
+			if (!ent.isActive() || isEntityAlreadyDrawn(ent)) continue;
 	
-	// WARNING!
-	// If the mod was injected in the middle of a round end or round start, player.pawn may be null here!!!
-	// This will lead to a crash if you try to use it without checking for null.
-	// Better use ent.playerEntity() instead.
-	for (int i = 0; i < entityList.count; i++) {
-		Entity ent = entityList.list[i];
-		int team = ent.team();
-		PlayerInfo& player = cs->players[team];
-		Entity playerEntity = ent.playerEntity();
-		if (!ent.isActive() || isEntityAlreadyDrawn(ent)) continue;
-
-		const bool active = isActiveFull(ent);
-		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
-		
-		size_t hurtboxesPrevSize = drawDataPrepared.hurtboxes.size();
-		size_t hitboxesPrevSize = drawDataPrepared.hitboxes.size();
-		size_t pointsPrevSize = drawDataPrepared.points.size();
-		size_t linesPrevSize = drawDataPrepared.lines.size();
-		size_t circlesPrevSize = drawDataPrepared.circles.size();
-		size_t pushboxesPrevSize = drawDataPrepared.pushboxes.size();
-		size_t interactionBoxesPrevSize = drawDataPrepared.interactionBoxes.size();
-		
-		int* lastIgnoredHitNum = nullptr;
-		if (i < 2 && (team == 0 || team == 1)) {
-			lastIgnoredHitNum = &player.lastIgnoredHitNum;
-		}
-		int hitboxesCount = 0;
-		DrawHitboxArrayCallParams hurtbox;
-		
-		EntityState entityState;
-		
-		bool useTheseValues = false;
-		bool isSuperArmor;
-		bool isFullInvul;
-		if (i < 2 && (team == 0 || team == 1)) {
-			isSuperArmor = player.wasSuperArmorEnabled;
-			isFullInvul = player.wasFullInvul;
-			useTheseValues = true;
-		}
-		size_t oldHitboxesSize = drawDataPrepared.hitboxes.size();
-		
-		int scaleX = INT_MAX;
-		int scaleY = INT_MAX;
-		if (gifMode.dontHideOpponentsBoxes && team != playerSide
-				|| gifMode.dontHidePlayersBoxes && team == playerSide) {
-			auto it = findHiddenEntity(ent);
-			if (it != hiddenEntities.end()) {
-				scaleX = it->scaleX;
-				scaleY = it->scaleY;
+			const bool active = isActiveFull(ent);
+			logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
+			
+			size_t hurtboxesPrevSize = drawDataPrepared.hurtboxes.size();
+			size_t hitboxesPrevSize = drawDataPrepared.hitboxes.size();
+			size_t pointsPrevSize = drawDataPrepared.points.size();
+			size_t linesPrevSize = drawDataPrepared.lines.size();
+			size_t circlesPrevSize = drawDataPrepared.circles.size();
+			size_t pushboxesPrevSize = drawDataPrepared.pushboxes.size();
+			size_t interactionBoxesPrevSize = drawDataPrepared.interactionBoxes.size();
+			
+			int* lastIgnoredHitNum = nullptr;
+			if (i < 2 && (team == 0 || team == 1)) {
+				lastIgnoredHitNum = &player.lastIgnoredHitNum;
 			}
-		}
-		
-		bool needCollectHitboxes = true;
-		if (!ent.isPawn()) {
-			for (EndSceneStoredState::AttackHitbox& attackHitbox : cs->attackHitboxes) {
-				if (ent == attackHitbox.ent) {
-					needCollectHitboxes = false;
-					drawDataPrepared.hitboxes.push_back(attackHitbox.hitbox);
-					hitboxesCount = attackHitbox.count;
-					attackHitbox.found = true;
-					break;
+			int hitboxesCount = 0;
+			DrawHitboxArrayCallParams hurtbox;
+			
+			EntityState entityState;
+			
+			bool useTheseValues = false;
+			bool isSuperArmor;
+			bool isFullInvul;
+			if (i < 2 && (team == 0 || team == 1)) {
+				isSuperArmor = player.wasSuperArmorEnabled;
+				isFullInvul = player.wasFullInvul;
+				useTheseValues = true;
+			}
+			size_t oldHitboxesSize = drawDataPrepared.hitboxes.size();
+			
+			int scaleX = INT_MAX;
+			int scaleY = INT_MAX;
+			if (gifMode.dontHideOpponentsBoxes && team != playerSide
+					|| gifMode.dontHidePlayersBoxes && team == playerSide) {
+				auto it = findHiddenEntity(ent);
+				if (it != hiddenEntities.end()) {
+					scaleX = it->scaleX;
+					scaleY = it->scaleY;
 				}
 			}
-		}
-		
-		// need entityState
-		collectHitboxes(ent,
-			active,
-			&hurtbox,
-			needCollectHitboxes ? &drawDataPrepared.hitboxes : nullptr,
-			&drawDataPrepared.points,
-			&drawDataPrepared.lines,
-			&drawDataPrepared.circles,
-			&drawDataPrepared.pushboxes,
-			&drawDataPrepared.interactionBoxes,
-			needCollectHitboxes ? &hitboxesCount : nullptr,
-			lastIgnoredHitNum,
-			&entityState,
-			useTheseValues ? &isSuperArmor : nullptr,
-			useTheseValues ? &isFullInvul : nullptr,
-			scaleX,
-			scaleY);
-		
-		if (ent.isPawn()
-				&& ent.characterType() == CHARACTER_TYPE_SIN
-				&& strcmp(ent.animationName(), "UkaseWaza") == 0) {
-			int animFrame = ent.currentAnimDuration();
-			if (animFrame >= 7 && animFrame < 27) {
-				
-				DrawLineCallParams* newLine;
-				DrawPointCallParams* newPoint;
-				DrawBoxCallParams* newBox;
-				
-				if (leftEdgeOfArenaOffset) {
-					
-					int wallX;
-					int wallOff;
-					int pnt = player.sinHawkBakerStartX;
-					if (playerEntity.isFacingLeft()) {
-						wallX = *(int*)(*aswEngine + leftEdgeOfArenaOffset) * 1000;
-						wallOff = wallX + 360000;
-						if (pnt < wallOff) pnt = wallOff;
-						wallX += 20000;
-					} else {
-						wallX = *(int*)(*aswEngine + rightEdgeOfArenaOffset) * 1000;
-						wallOff = wallX - 360000;
-						if (pnt > wallOff) pnt = wallOff;
-						wallX -= 20000;
+			
+			bool needCollectHitboxes = true;
+			if (!ent.isPawn()) {
+				for (EndSceneStoredState::AttackHitbox& attackHitbox : cs->attackHitboxes) {
+					if (ent == attackHitbox.ent) {
+						needCollectHitboxes = false;
+						drawDataPrepared.hitboxes.push_back(attackHitbox.hitbox);
+						hitboxesCount = attackHitbox.count;
+						attackHitbox.found = true;
+						break;
 					}
-					
-					int centerOffsetY = ent.getCenterOffsetY();
-					int centerY = entityState.posY + centerOffsetY;
-					int sinBottomY = entityState.posY - 30000;
-					int sinTopY = entityState.posY + centerOffsetY + centerOffsetY + 30000;
-					int wallBottomY = centerY - 20000;
-					int wallTopY = centerY + 20000;
-					
-					// Sin vertical line
-					drawDataPrepared.lines.emplace_back();
-					newLine = &drawDataPrepared.lines.back();
-					newLine->posX1 = player.sinHawkBakerStartX;
-					newLine->posY1 = sinBottomY;
-					newLine->posX2 = player.sinHawkBakerStartX;
-					newLine->posY2 = sinTopY;
-					
-					// Wall vertical line
-					drawDataPrepared.lines.emplace_back();
-					newLine = &drawDataPrepared.lines.back();
-					newLine->posX1 = wallX;
-					newLine->posY1 = wallBottomY;
-					newLine->posX2 = wallX;
-					newLine->posY2 = wallTopY;
-					
-					// Wall +- 360000 vertical line
-					drawDataPrepared.lines.emplace_back();
-					newLine = &drawDataPrepared.lines.back();
-					newLine->posX1 = wallOff;
-					newLine->posY1 = wallBottomY;
-					newLine->posX2 = wallOff;
-					newLine->posY2 = wallTopY;
-					
-					// Sin center point
-					drawDataPrepared.points.emplace_back();
-					newPoint = &drawDataPrepared.points.back();
-					newPoint->isProjectile = true;
-					newPoint->posX = player.sinHawkBakerStartX;
-					newPoint->posY = centerY;
-					
-					// Wall center point
-					drawDataPrepared.points.emplace_back();
-					newPoint = &drawDataPrepared.points.back();
-					newPoint->isProjectile = true;
-					newPoint->posX = wallX;
-					newPoint->posY = centerY;
-					
-					// Line from Wall center to either Sin center or, if he's too close, to wall X +- 360000
-					drawDataPrepared.lines.emplace_back();
-					newLine = &drawDataPrepared.lines.back();
-					newLine->posX1 = wallX;
-					newLine->posY1 = centerY;
-					newLine->posX2 = pnt;
-					newLine->posY2 = centerY;
-					
-					drawDataPrepared.interactionBoxes.emplace_back();
-					newBox = &drawDataPrepared.interactionBoxes.back();
-					newBox->bottom = -1000000;
-					newBox->top = 10000000;
-					newBox->left = player.sinHawkBakerStartX - 200000;
-					newBox->right = player.sinHawkBakerStartX + 200000;
-					if (animFrame == 7 && !ent.isRCFrozen()) {
-						newBox->fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
-					} else {
-						newBox->fillColor = 0;
-					}
-					newBox->outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
-					newBox->thickness = 1;
-					
 				}
 			}
-		}
-		
-		if (ent.isPawn() && ent.characterType() == CHARACTER_TYPE_ELPHELT
-				&& strcmp(ent.animationName(), "Shotgun_Fire_MAX") == 0) {
-			drawDataPrepared.interactionBoxes.emplace_back();
-			DrawBoxCallParams& newBox = drawDataPrepared.interactionBoxes.back();
-			newBox.bottom = -1000000;
-			newBox.top = 10000000;
-			newBox.left = player.elpheltShotgunX - 300000;
-			newBox.right = player.elpheltShotgunX + 300000;
-			newBox.thickness = 1;
-			if (ent.currentAnimDuration() == 1 && !ent.isRCFrozen()) {
-				newBox.fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
-			} else {
-				newBox.fillColor = 0;
-			}
-			newBox.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
-		}
-		
-		if (!ent.isPawn()
-				&& (team == 0 || team == 1)) {
-			if (player.charType == CHARACTER_TYPE_RAMLETHAL) {
-				int bitNumber = 0;
-				if (playerEntity.stackEntity(0) == ent) bitNumber = 1;
-				if (playerEntity.stackEntity(1) == ent) bitNumber = 2;
-				const char* animName = ent.animationName();
-				bool animMatches = bitNumber == 1
-								&& (
-									strcmp(animName, "BitN6C") == 0
-									&& ent.mem45()  // bunri only
-									|| strcmp(animName, "BitN2C_Bunri") == 0
-								)
-								|| bitNumber == 2
-								&& (
-									strcmp(animName, "BitF6D") == 0
-									&& ent.mem45()  // bunri only
-									|| strcmp(animName, "BitF2D_Bunri") == 0
-								);
-				int animDuration = ent.currentAnimDuration();
-				if (bitNumber && !(animMatches && animDuration < 20)) {
-					bitNumber = 0;
-				}
-				if (bitNumber) {
-					DrawBoxCallParams interactionBoxParams;
-					int entX = ent.posX();
-					int entY = ent.posY();
-					if (animMatches && animDuration < 20) {
-						if (bitNumber == 1) {
-							entX = player.ramlethalBitNStartPos;
-						} else {
-							entX = player.ramlethalBitFStartPos;
-						}
-					}
-					int checkDistance = bitNumber == 1 ? 500000 : strcmp(animName, "BitF6D") == 0 ? 200000 : 400000;
-					interactionBoxParams.left = entX - checkDistance;
-					interactionBoxParams.right = entX + checkDistance;
-					interactionBoxParams.top = 10000000;
-					interactionBoxParams.bottom = -1000000;
-					if (animMatches && animDuration == 1 && !ent.isRCFrozen()) {
-						interactionBoxParams.fillColor = replaceAlpha(32, COLOR_INTERACTION);
-					} else {
-						interactionBoxParams.fillColor = replaceAlpha(16, COLOR_INTERACTION);
-					}
-					interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
-					interactionBoxParams.thickness = THICKNESS_INTERACTION;
-					drawDataPrepared.interactionBoxes.push_back(interactionBoxParams);
-				}
-			}
-		}
-		
-		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
-		if (!wasHitResult.wasHit || settings.neverDisplayGrayHurtboxes
-				|| ent.isHidden()  // for when supers hide the defender. This is needed to not show hitboxes during a super cinematic
-		) {
-			drawDataPrepared.hurtboxes.emplace_back( hurtbox );
-		}
-		else {
-			drawDataPrepared.hurtboxes.emplace_back( hurtbox, wasHitResult.hurtbox );
-		}
-		
-		logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
-		drawnEntities.push_back(ent);
-		logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
-
-		// Attached entities like dusts
-		Entity attached = ent.effectLinkedCollision();
-		if (attached != nullptr) {
-			DrawHitboxArrayCallParams attachedHurtbox;
-			logOnce(fprintf(logfile, "Attached entity: %p\n", attached.ent));
-			collectHitboxes(attached,
+			
+			// need entityState
+			collectHitboxes(ent,
 				active,
-				&attachedHurtbox,
-				&drawDataPrepared.hitboxes,
+				&hurtbox,
+				needCollectHitboxes ? &drawDataPrepared.hitboxes : nullptr,
 				&drawDataPrepared.points,
 				&drawDataPrepared.lines,
 				&drawDataPrepared.circles,
 				&drawDataPrepared.pushboxes,
 				&drawDataPrepared.interactionBoxes,
-				&hitboxesCount,
+				needCollectHitboxes ? &hitboxesCount : nullptr,
 				lastIgnoredHitNum,
-				nullptr,
-				nullptr,
-				nullptr,
+				&entityState,
+				useTheseValues ? &isSuperArmor : nullptr,
+				useTheseValues ? &isFullInvul : nullptr,
 				scaleX,
 				scaleY);
-			drawDataPrepared.hurtboxes.emplace_back( attachedHurtbox );
-			drawnEntities.push_back(attached);
-		}
-		if (team == 0 || team == 1) {
-			if (!hitboxesCount && i < 2) {
-				if (player.hitSomething) ++hitboxesCount;
-			}
-			RECT hitboxesBoundsTotal;
-			if (hitboxesCount && oldHitboxesSize != drawDataPrepared.hitboxes.size()) {
-				bool isFirstHitbox = true;
-				for (auto it = drawDataPrepared.hitboxes.begin() + oldHitboxesSize;
-						it != drawDataPrepared.hitboxes.end();
-						++it) {
-					if (isFirstHitbox) {
-						hitboxesBoundsTotal = it->getWorldBounds();
-					} else {
-						combineBounds(hitboxesBoundsTotal, it->getWorldBounds());
+			
+			if (ent.isPawn()
+					&& ent.characterType() == CHARACTER_TYPE_SIN
+					&& strcmp(ent.animationName(), "UkaseWaza") == 0) {
+				int animFrame = ent.currentAnimDuration();
+				if (animFrame >= 7 && animFrame < 27) {
+					
+					DrawLineCallParams* newLine;
+					DrawPointCallParams* newPoint;
+					DrawBoxCallParams* newBox;
+					
+					if (leftEdgeOfArenaOffset) {
+						
+						int wallX;
+						int wallOff;
+						int pnt = player.sinHawkBakerStartX;
+						if (playerEntity.isFacingLeft()) {
+							wallX = *(int*)(*aswEngine + leftEdgeOfArenaOffset) * 1000;
+							wallOff = wallX + 360000;
+							if (pnt < wallOff) pnt = wallOff;
+							wallX += 20000;
+						} else {
+							wallX = *(int*)(*aswEngine + rightEdgeOfArenaOffset) * 1000;
+							wallOff = wallX - 360000;
+							if (pnt > wallOff) pnt = wallOff;
+							wallX -= 20000;
+						}
+						
+						int centerOffsetY = ent.getCenterOffsetY();
+						int centerY = entityState.posY + centerOffsetY;
+						int sinBottomY = entityState.posY - 30000;
+						int sinTopY = entityState.posY + centerOffsetY + centerOffsetY + 30000;
+						int wallBottomY = centerY - 20000;
+						int wallTopY = centerY + 20000;
+						
+						// Sin vertical line
+						drawDataPrepared.lines.emplace_back();
+						newLine = &drawDataPrepared.lines.back();
+						newLine->posX1 = player.sinHawkBakerStartX;
+						newLine->posY1 = sinBottomY;
+						newLine->posX2 = player.sinHawkBakerStartX;
+						newLine->posY2 = sinTopY;
+						
+						// Wall vertical line
+						drawDataPrepared.lines.emplace_back();
+						newLine = &drawDataPrepared.lines.back();
+						newLine->posX1 = wallX;
+						newLine->posY1 = wallBottomY;
+						newLine->posX2 = wallX;
+						newLine->posY2 = wallTopY;
+						
+						// Wall +- 360000 vertical line
+						drawDataPrepared.lines.emplace_back();
+						newLine = &drawDataPrepared.lines.back();
+						newLine->posX1 = wallOff;
+						newLine->posY1 = wallBottomY;
+						newLine->posX2 = wallOff;
+						newLine->posY2 = wallTopY;
+						
+						// Sin center point
+						drawDataPrepared.points.emplace_back();
+						newPoint = &drawDataPrepared.points.back();
+						newPoint->isProjectile = true;
+						newPoint->posX = player.sinHawkBakerStartX;
+						newPoint->posY = centerY;
+						
+						// Wall center point
+						drawDataPrepared.points.emplace_back();
+						newPoint = &drawDataPrepared.points.back();
+						newPoint->isProjectile = true;
+						newPoint->posX = wallX;
+						newPoint->posY = centerY;
+						
+						// Line from Wall center to either Sin center or, if he's too close, to wall X +- 360000
+						drawDataPrepared.lines.emplace_back();
+						newLine = &drawDataPrepared.lines.back();
+						newLine->posX1 = wallX;
+						newLine->posY1 = centerY;
+						newLine->posX2 = pnt;
+						newLine->posY2 = centerY;
+						
+						drawDataPrepared.interactionBoxes.emplace_back();
+						newBox = &drawDataPrepared.interactionBoxes.back();
+						newBox->bottom = -1000000;
+						newBox->top = 10000000;
+						newBox->left = player.sinHawkBakerStartX - 200000;
+						newBox->right = player.sinHawkBakerStartX + 200000;
+						if (animFrame == 7 && !ent.isRCFrozen()) {
+							newBox->fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
+						} else {
+							newBox->fillColor = 0;
+						}
+						newBox->outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
+						newBox->thickness = 1;
+						
 					}
-					isFirstHitbox = false;
 				}
 			}
+			
+			if (ent.isPawn() && ent.characterType() == CHARACTER_TYPE_ELPHELT
+					&& strcmp(ent.animationName(), "Shotgun_Fire_MAX") == 0) {
+				drawDataPrepared.interactionBoxes.emplace_back();
+				DrawBoxCallParams& newBox = drawDataPrepared.interactionBoxes.back();
+				newBox.bottom = -1000000;
+				newBox.top = 10000000;
+				newBox.left = player.elpheltShotgunX - 300000;
+				newBox.right = player.elpheltShotgunX + 300000;
+				newBox.thickness = 1;
+				if (ent.currentAnimDuration() == 1 && !ent.isRCFrozen()) {
+					newBox.fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
+				} else {
+					newBox.fillColor = 0;
+				}
+				newBox.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
+			}
+			
+			if (!ent.isPawn()
+					&& (team == 0 || team == 1)) {
+				if (player.charType == CHARACTER_TYPE_RAMLETHAL) {
+					int bitNumber = 0;
+					if (playerEntity.stackEntity(0) == ent) bitNumber = 1;
+					if (playerEntity.stackEntity(1) == ent) bitNumber = 2;
+					const char* animName = ent.animationName();
+					bool animMatches = bitNumber == 1
+									&& (
+										strcmp(animName, "BitN6C") == 0
+										&& ent.mem45()  // bunri only
+										|| strcmp(animName, "BitN2C_Bunri") == 0
+									)
+									|| bitNumber == 2
+									&& (
+										strcmp(animName, "BitF6D") == 0
+										&& ent.mem45()  // bunri only
+										|| strcmp(animName, "BitF2D_Bunri") == 0
+									);
+					int animDuration = ent.currentAnimDuration();
+					if (bitNumber && !(animMatches && animDuration < 20)) {
+						bitNumber = 0;
+					}
+					if (bitNumber) {
+						DrawBoxCallParams interactionBoxParams;
+						int entX = ent.posX();
+						int entY = ent.posY();
+						if (animMatches && animDuration < 20) {
+							if (bitNumber == 1) {
+								entX = player.ramlethalBitNStartPos;
+							} else {
+								entX = player.ramlethalBitFStartPos;
+							}
+						}
+						int checkDistance = bitNumber == 1 ? 500000 : strcmp(animName, "BitF6D") == 0 ? 200000 : 400000;
+						interactionBoxParams.left = entX - checkDistance;
+						interactionBoxParams.right = entX + checkDistance;
+						interactionBoxParams.top = 10000000;
+						interactionBoxParams.bottom = -1000000;
+						if (animMatches && animDuration == 1 && !ent.isRCFrozen()) {
+							interactionBoxParams.fillColor = replaceAlpha(32, COLOR_INTERACTION);
+						} else {
+							interactionBoxParams.fillColor = replaceAlpha(16, COLOR_INTERACTION);
+						}
+						interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+						interactionBoxParams.thickness = THICKNESS_INTERACTION;
+						drawDataPrepared.interactionBoxes.push_back(interactionBoxParams);
+					}
+				}
+			}
+			
+			HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
+			if (!wasHitResult.wasHit || settings.neverDisplayGrayHurtboxes
+					|| ent.isHidden()  // for when supers hide the defender. This is needed to not show hitboxes during a super cinematic
+			) {
+				drawDataPrepared.hurtboxes.emplace_back( hurtbox );
+			}
+			else {
+				drawDataPrepared.hurtboxes.emplace_back( hurtbox, wasHitResult.hurtbox );
+			}
+			
+			logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
+			drawnEntities.push_back(ent);
+			logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
+	
+			// Attached entities like dusts
+			Entity attached = ent.effectLinkedCollision();
+			if (attached != nullptr) {
+				DrawHitboxArrayCallParams attachedHurtbox;
+				logOnce(fprintf(logfile, "Attached entity: %p\n", attached.ent));
+				collectHitboxes(attached,
+					active,
+					&attachedHurtbox,
+					&drawDataPrepared.hitboxes,
+					&drawDataPrepared.points,
+					&drawDataPrepared.lines,
+					&drawDataPrepared.circles,
+					&drawDataPrepared.pushboxes,
+					&drawDataPrepared.interactionBoxes,
+					&hitboxesCount,
+					lastIgnoredHitNum,
+					nullptr,
+					nullptr,
+					nullptr,
+					scaleX,
+					scaleY);
+				drawDataPrepared.hurtboxes.emplace_back( attachedHurtbox );
+				drawnEntities.push_back(attached);
+			}
+			if (team == 0 || team == 1) {
+				if (!hitboxesCount && i < 2) {
+					if (player.hitSomething) ++hitboxesCount;
+				}
+				RECT hitboxesBoundsTotal;
+				if (hitboxesCount && oldHitboxesSize != drawDataPrepared.hitboxes.size()) {
+					bool isFirstHitbox = true;
+					for (auto it = drawDataPrepared.hitboxes.begin() + oldHitboxesSize;
+							it != drawDataPrepared.hitboxes.end();
+							++it) {
+						if (isFirstHitbox) {
+							hitboxesBoundsTotal = it->getWorldBounds();
+						} else {
+							combineBounds(hitboxesBoundsTotal, it->getWorldBounds());
+						}
+						isFirstHitbox = false;
+					}
+				}
+			}
+			if (invisChipp.needToHide(ent)) {
+				drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
+				drawDataPrepared.hitboxes.resize(hitboxesPrevSize);
+				drawDataPrepared.points.resize(pointsPrevSize);
+				drawDataPrepared.lines.resize(linesPrevSize);
+				drawDataPrepared.circles.resize(circlesPrevSize);
+				drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
+				drawDataPrepared.interactionBoxes.resize(interactionBoxesPrevSize);
+			}
 		}
-		if (invisChipp.needToHide(ent)) {
-			drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
-			drawDataPrepared.hitboxes.resize(hitboxesPrevSize);
-			drawDataPrepared.points.resize(pointsPrevSize);
-			drawDataPrepared.lines.resize(linesPrevSize);
-			drawDataPrepared.circles.resize(circlesPrevSize);
-			drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
-			drawDataPrepared.interactionBoxes.resize(interactionBoxesPrevSize);
-		}
-	}
-	drawnEntities.clear();
-	
-	for (const EndSceneStoredState::AttackHitbox& attackHitbox : cs->attackHitboxes) {
-		if (!attackHitbox.found && !invisChipp.needToHide(attackHitbox.team)) {
-			drawDataPrepared.hitboxes.push_back(attackHitbox.hitbox);
-		}
-	}
-	
-	for (const EndSceneStoredState::LeoParry& parry : cs->leoParries) {
-		DrawBoxCallParams interactionBoxParams;
-		interactionBoxParams.left = parry.x - 400000;
-		interactionBoxParams.right = parry.x + 400000;
-		interactionBoxParams.top = parry.y + 500000;
-		interactionBoxParams.bottom = parry.y - 500000;
-		if (parry.aswEngTick >= aswEngineTickCount - 1) {
-			interactionBoxParams.fillColor = replaceAlpha(32, COLOR_INTERACTION);
-		}
-		interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
-		interactionBoxParams.thickness = THICKNESS_INTERACTION;
-		drawDataPrepared.interactionBoxes.push_back(interactionBoxParams);
-	}
-	
-	logOnce(fputs("got past the entity loop\n", logfile));
-	hitDetector.drawHits();
-	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
-	throws.drawThrows();
-	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
-	
-	bool combinedFramebarsSettingsChanged = false;
-	bool eachProjectileOnSeparateFramebarChanged = false;
-	#define trackSetting(name) \
-		if (name != settings.name) { \
-			name = settings.name; \
-			combinedFramebarsSettingsChanged = true; \
-		}
-	trackSetting(combineProjectileFramebarsWhenPossible)
-	if (eachProjectileOnSeparateFramebar != settings.eachProjectileOnSeparateFramebar) {
-		eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
-		combinedFramebarsSettingsChanged = true;
-		eachProjectileOnSeparateFramebarChanged = true;
-	}
-	trackSetting(condenseIntoOneProjectileFramebar)
-	trackSetting(neverIgnoreHitstop)
-	#undef trackSetting
-	
-	
-	int newFramesCount = settings.framebarDisplayedFramesCount;
-	int newStoredFramesCount = settings.framebarStoredFramesCount;
-	if (newStoredFramesCount < 1) {
-		newStoredFramesCount = 1;
-	}
-	if (newStoredFramesCount > (int)FRAMES_MAX) {
-		newStoredFramesCount = FRAMES_MAX;
-	}
-	if (newFramesCount > newStoredFramesCount) {
-		newFramesCount = newStoredFramesCount;
-	}
-	if (newFramesCount < 1) {
-		newFramesCount = 1;
-	}
-	
-	if (newFramesCount != framesCount) {
-		framesCount = newFramesCount;
-		combinedFramebarsSettingsChanged = true;
-	}
-	
-	if (newStoredFramesCount != storedFramesCount) {
-		storedFramesCount = newStoredFramesCount;
-		combinedFramebarsSettingsChanged = true;
-	}
-	
-	int framebarTotalFramesUnlimitedUse = neverIgnoreHitstop
-		? endScene.getTotalFramesHitstopUnlimited()
-		: endScene.getTotalFramesUnlimited();
-	
-	// Capped between 0 and framebarSettings.storedFramesCount, inclusive
-	int framebarTotalFramesCapped;
-	if (framebarTotalFramesUnlimitedUse > storedFramesCount) {
-		framebarTotalFramesCapped = storedFramesCount;
-	} else {
-		framebarTotalFramesCapped = framebarTotalFramesUnlimitedUse;
-	}
-	
-	bool newFramebarAutoScroll = ui.getFramebarAutoScroll();
-	if (newFramebarAutoScroll != framebarAutoScroll) {
-		framebarAutoScroll = newFramebarAutoScroll;
-		combinedFramebarsSettingsChanged = true;
-	}
-	
-	int newScrollXInFrames;
-	if (framebarTotalFramesCapped > framesCount) {
+		drawnEntities.clear();
 		
-		int totalScrollableFrames = framebarTotalFramesCapped  // total number of frames
-			- framesCount;  // number of visible frames
+		for (const EndSceneStoredState::AttackHitbox& attackHitbox : cs->attackHitboxes) {
+			if (!attackHitbox.found && !invisChipp.needToHide(attackHitbox.team)) {
+				drawDataPrepared.hitboxes.push_back(attackHitbox.hitbox);
+			}
+		}
 		
-		if (framebarAutoScroll) {
-			newScrollXInFrames = 0;
+		for (const EndSceneStoredState::LeoParry& parry : cs->leoParries) {
+			DrawBoxCallParams interactionBoxParams;
+			interactionBoxParams.left = parry.x - 400000;
+			interactionBoxParams.right = parry.x + 400000;
+			interactionBoxParams.top = parry.y + 500000;
+			interactionBoxParams.bottom = parry.y - 500000;
+			if (parry.aswEngTick >= aswEngineTickCount - 1) {
+				interactionBoxParams.fillColor = replaceAlpha(32, COLOR_INTERACTION);
+			}
+			interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+			interactionBoxParams.thickness = THICKNESS_INTERACTION;
+			drawDataPrepared.interactionBoxes.push_back(interactionBoxParams);
+		}
+		
+		logOnce(fputs("got past the entity loop\n", logfile));
+		hitDetector.drawHits();
+		logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
+		throws.drawThrows();
+		logOnce(fputs("throws.drawThrows() call successful\n", logfile));
+		
+		bool combinedFramebarsSettingsChanged = false;
+		bool eachProjectileOnSeparateFramebarChanged = false;
+		#define trackSetting(name) \
+			if (name != settings.name) { \
+				name = settings.name; \
+				combinedFramebarsSettingsChanged = true; \
+			}
+		trackSetting(combineProjectileFramebarsWhenPossible)
+		if (eachProjectileOnSeparateFramebar != settings.eachProjectileOnSeparateFramebar) {
+			eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+			combinedFramebarsSettingsChanged = true;
+			eachProjectileOnSeparateFramebarChanged = true;
+		}
+		trackSetting(condenseIntoOneProjectileFramebar)
+		trackSetting(neverIgnoreHitstop)
+		#undef trackSetting
+		
+		
+		int newFramesCount = settings.framebarDisplayedFramesCount;
+		int newStoredFramesCount = settings.framebarStoredFramesCount;
+		if (newStoredFramesCount < 1) {
+			newStoredFramesCount = 1;
+		}
+		if (newStoredFramesCount > (int)FRAMES_MAX) {
+			newStoredFramesCount = FRAMES_MAX;
+		}
+		if (newFramesCount > newStoredFramesCount) {
+			newFramesCount = newStoredFramesCount;
+		}
+		if (newFramesCount < 1) {
+			newFramesCount = 1;
+		}
+		
+		if (newFramesCount != framesCount) {
+			framesCount = newFramesCount;
+			combinedFramebarsSettingsChanged = true;
+		}
+		
+		if (newStoredFramesCount != storedFramesCount) {
+			storedFramesCount = newStoredFramesCount;
+			combinedFramebarsSettingsChanged = true;
+		}
+		
+		int framebarTotalFramesUnlimitedUse = neverIgnoreHitstop
+			? endScene.getTotalFramesHitstopUnlimited()
+			: endScene.getTotalFramesUnlimited();
+		
+		// Capped between 0 and framebarSettings.storedFramesCount, inclusive
+		int framebarTotalFramesCapped;
+		if (framebarTotalFramesUnlimitedUse > storedFramesCount) {
+			framebarTotalFramesCapped = storedFramesCount;
 		} else {
-			newScrollXInFrames = std::lroundf(
-				(float)(totalScrollableFrames + 1)  // adding one to give an even chance to frames that are on the edges
-					* ui.getFramebarScrollX() / ui.getFramebarMaxScrollX()  // scroll ratio: from 0.F to 1.F
-				- 0.5F
-			);
-			if (newScrollXInFrames < 0) {
+			framebarTotalFramesCapped = framebarTotalFramesUnlimitedUse;
+		}
+		
+		bool newFramebarAutoScroll = ui.getFramebarAutoScroll();
+		if (newFramebarAutoScroll != framebarAutoScroll) {
+			framebarAutoScroll = newFramebarAutoScroll;
+			combinedFramebarsSettingsChanged = true;
+		}
+		
+		int newScrollXInFrames;
+		if (framebarTotalFramesCapped > framesCount) {
+			
+			int totalScrollableFrames = framebarTotalFramesCapped  // total number of frames
+				- framesCount;  // number of visible frames
+			
+			if (framebarAutoScroll) {
 				newScrollXInFrames = 0;
+			} else {
+				newScrollXInFrames = std::lroundf(
+					(float)(totalScrollableFrames + 1)  // adding one to give an even chance to frames that are on the edges
+						* ui.getFramebarScrollX() / ui.getFramebarMaxScrollX()  // scroll ratio: from 0.F to 1.F
+					- 0.5F
+				);
+				if (newScrollXInFrames < 0) {
+					newScrollXInFrames = 0;
+				}
+				if (newScrollXInFrames > totalScrollableFrames) {
+					newScrollXInFrames = totalScrollableFrames;
+				}
 			}
-			if (newScrollXInFrames > totalScrollableFrames) {
-				newScrollXInFrames = totalScrollableFrames;
-			}
-		}
-		
-	} else {
-		newScrollXInFrames = 0;
-	}
-	
-	if (newScrollXInFrames != scrollXInFrames) {
-		scrollXInFrames = newScrollXInFrames;
-		combinedFramebarsSettingsChanged = true;
-	}
-	
-	
-	// Let UI know which settings we actually used, because UI may change them before drawing the framebar
-	ui.framebarSettings.neverIgnoreHitstop = settings.neverIgnoreHitstop;
-	ui.framebarSettings.eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
-	ui.framebarSettings.condenseIntoOneProjectileFramebar = settings.condenseIntoOneProjectileFramebar;
-	ui.framebarSettings.framesCount = framesCount;
-	ui.framebarSettings.storedFramesCount = storedFramesCount;
-	ui.framebarSettings.scrollXInFrames = scrollXInFrames;
-	
-	if (combinedFramebarsSettingsChanged || frameHasChanged) {
-		
-		int framebarPositionUse;
-		int framesTotalUse;
-		if (neverIgnoreHitstop) {
-			framebarPositionUse = cs->framebarPositionHitstop;
-			framesTotalUse = cs->framebarTotalFramesHitstopUnlimited;
+			
 		} else {
-			framebarPositionUse = cs->framebarPosition;
-			framesTotalUse = cs->framebarTotalFramesUnlimited;
+			newScrollXInFrames = 0;
 		}
-		int framebarPositionUseWithoutScroll = framebarPositionUse;
-		framebarPositionUse -= scrollXInFrames;
-		if (framebarPositionUse < 0) {
-			framebarPositionUse += _countof(PlayerFramebar::frames);
-		}
-		framesTotalUse -= scrollXInFrames;
-		int lastNFramesToCheck = min(framesCount, framesTotalUse);
-		const bool recheckCompletelyEmpty = lastNFramesToCheck != FRAMES_MAX;
 		
-		combinedFramebars.clear();
-		if (!eachProjectileOnSeparateFramebar) {
-			combinedFramebars.reserve(projectileFramebars.size());
-			const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop;
-			for (ThreadUnsafeSharedPtr<ProjectileFramebar>& source : projectileFramebars) {
-				if (aswEngineTickCount >= source->creationTick && aswEngineTickCount < source->deletionTick) {
-					Framebar& from = combinedFramebarMustIncludeHitstop ? source->hitstop : source->main;
-					if (!(from.stateHead->completelyEmpty || recheckCompletelyEmpty && from.lastNFramesCompletelyEmpty(framebarPositionUse, lastNFramesToCheck))) {
-						CombinedProjectileFramebar& entityFramebar = findCombinedFramebar(
-							*source, combinedFramebarMustIncludeHitstop,
-							scrollXInFrames, framebarPositionUse, framesTotalUse);
-						entityFramebar.combineFramebar(framebarPositionUse, framebarPositionUseWithoutScroll, scrollXInFrames, framesTotalUse,
-							from, &*source);
+		if (newScrollXInFrames != scrollXInFrames) {
+			scrollXInFrames = newScrollXInFrames;
+			combinedFramebarsSettingsChanged = true;
+		}
+		
+		
+		// Let UI know which settings we actually used, because UI may change them before drawing the framebar
+		ui.framebarSettings.neverIgnoreHitstop = settings.neverIgnoreHitstop;
+		ui.framebarSettings.eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+		ui.framebarSettings.condenseIntoOneProjectileFramebar = settings.condenseIntoOneProjectileFramebar;
+		ui.framebarSettings.framesCount = framesCount;
+		ui.framebarSettings.storedFramesCount = storedFramesCount;
+		ui.framebarSettings.scrollXInFrames = scrollXInFrames;
+		
+		if (combinedFramebarsSettingsChanged || frameHasChanged) {
+			
+			int framebarPositionUse;
+			int framesTotalUse;
+			if (neverIgnoreHitstop) {
+				framebarPositionUse = cs->framebarPositionHitstop;
+				framesTotalUse = cs->framebarTotalFramesHitstopUnlimited;
+			} else {
+				framebarPositionUse = cs->framebarPosition;
+				framesTotalUse = cs->framebarTotalFramesUnlimited;
+			}
+			int framebarPositionUseWithoutScroll = framebarPositionUse;
+			framebarPositionUse -= scrollXInFrames;
+			if (framebarPositionUse < 0) {
+				framebarPositionUse += _countof(PlayerFramebar::frames);
+			}
+			framesTotalUse -= scrollXInFrames;
+			int lastNFramesToCheck = min(framesCount, framesTotalUse);
+			const bool recheckCompletelyEmpty = lastNFramesToCheck != FRAMES_MAX;
+			
+			combinedFramebars.clear();
+			if (!eachProjectileOnSeparateFramebar) {
+				combinedFramebars.reserve(projectileFramebars.size());
+				const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop;
+				for (ThreadUnsafeSharedPtr<ProjectileFramebar>& source : projectileFramebars) {
+					if (aswEngineTickCount >= source->creationTick && aswEngineTickCount < source->deletionTick) {
+						Framebar& from = combinedFramebarMustIncludeHitstop ? source->hitstop : source->main;
+						if (!(from.stateHead->completelyEmpty || recheckCompletelyEmpty && from.lastNFramesCompletelyEmpty(framebarPositionUse, lastNFramesToCheck))) {
+							CombinedProjectileFramebar& entityFramebar = findCombinedFramebar(
+								*source, combinedFramebarMustIncludeHitstop,
+								scrollXInFrames, framebarPositionUse, framesTotalUse);
+							entityFramebar.combineFramebar(framebarPositionUse, framebarPositionUseWithoutScroll, scrollXInFrames, framesTotalUse,
+								from, &*source);
+						}
 					}
 				}
-			}
-			for (CombinedProjectileFramebar& entityFramebar : combinedFramebars) {
-				entityFramebar.determineName(framebarPositionUse, scrollXInFrames, combinedFramebarMustIncludeHitstop);
-			}
-		} else if (eachProjectileOnSeparateFramebarChanged) {
-			for (ThreadUnsafeSharedPtr<ProjectileFramebar>& source : projectileFramebars) {
-				int iEnd = source->hitstop.stateHead->framesCount;
-				for (int i = 0; i < iEnd; ++i) {
-					source->hitstop.frames[i].next = nullptr;
+				for (CombinedProjectileFramebar& entityFramebar : combinedFramebars) {
+					entityFramebar.determineName(framebarPositionUse, scrollXInFrames, combinedFramebarMustIncludeHitstop);
 				}
-				iEnd = source->main.stateHead->framesCount;
-				for (int i = 0; i < iEnd; ++i) {
-					source->main.frames[i].next = nullptr;
+			} else if (eachProjectileOnSeparateFramebarChanged) {
+				for (ThreadUnsafeSharedPtr<ProjectileFramebar>& source : projectileFramebars) {
+					int iEnd = source->hitstop.stateHead->framesCount;
+					for (int i = 0; i < iEnd; ++i) {
+						source->hitstop.frames[i].next = nullptr;
+					}
+					iEnd = source->main.stateHead->framesCount;
+					for (int i = 0; i < iEnd; ++i) {
+						source->main.frames[i].next = nullptr;
+					}
 				}
 			}
 		}
@@ -1724,10 +1843,14 @@ void EndScene::processKeyStrokes() {
 			if (gifMode.modDisabled == true) {
 				gifMode.modDisabled = false;
 				logwrap(fputs("Mod enabled\n", logfile));
+				needIgnoreKeyboardBattleInputs = settings.disconnectKeyboardFromBattleControls;
+				gifMode.updateFPS();
 			} else {
 				gifMode.modDisabled = true;
 				logwrap(fputs("Mod disabled\n", logfile));
 				needToRunNoGravGifMode = needToRunNoGravGifMode || (*aswEngine != nullptr);
+				needIgnoreKeyboardBattleInputs = FALSE;
+				gifMode.updateFPS();
 			}
 		}
 	}
@@ -2065,6 +2188,27 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 				}
 			}
 			break;
+			case WM_CHAR: {
+				// Japanese chars don't appear here at all, not even with Kana input On.
+				if (settings.quickBattleChat_enabled && *aswEngine && !keyboard.imguiActive && lastTickPerformedBattleChatRoutine) {
+					wchar_t c = (wchar_t)wParam;
+					if (c >= 32) {
+						size_t sz;
+						if (battleChatText.empty()) {
+							sz = 1;
+						} else {
+							sz = battleChatText.size();
+						}
+						if (sz < 100) {
+							battleChatText.resize(sz + 1);
+							battleChatText[sz - 1] = c;
+							battleChatText[sz] = L'\0';
+							battleChatTextLastUpdated = std::chrono::system_clock::now();
+						}
+					}
+				}
+			}
+			break;
 			case WM_DESTROY: {
 				keyboard.thisProcessWindow = NULL;
 			}
@@ -2236,7 +2380,6 @@ void EndScene::onAswEngineDestroyed() {
 	currentState->superflashCounterOpponent = 0;
 	currentState->superflashCounterOpponentMax = 0;
 
-	// do this even if 'give up'
 	for (int i = 0; i < 2; ++i) {
 		currentState->players[i].clear();
 		currentState->reachedMaxStun[i] = -1;
@@ -2282,6 +2425,8 @@ void EndScene::onAswEngineDestroyed() {
 	clearInputHistory(true);
 	
 	prevAswEngineTickCountMain = 0xffffffff;
+	battleChatText.clear();
+	battleTextsToSend.clear();
 }
 
 // When someone YRCs, PRCs, RRCs or does a super, the address of their entity is written into the
@@ -2477,6 +2622,8 @@ void EndScene::onUWorld_TickBegin() {
 	drewExGaugeHud = false;
 	camera.grabbedValues = false;
 	requestedInputHistoryDraw = false;
+	lastTickPerformedBattleChatRoutine = currentTickPerformedBattleChatRoutine;
+	currentTickPerformedBattleChatRoutine = false;
 }
 
 // Called at the end of an UE3 engine tick.
@@ -2514,14 +2661,14 @@ void EndScene::onUWorld_Tick() {
 void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, BBScrPosType posType) {
 	static bool insideObjectCreation = false;
 	bool needUnset = !insideObjectCreation;
-	if (!endScene.shutdown) {
+	if (!endScene.shutdown && !gifMode.mostModDisabled) {
 		insideObjectCreation = true;
 		endScene.creatingObject = true;
 		endScene.createdObjectAnim = animName;
 		endScene.creatorOfCreatedObject = Entity{(char*)this};
 	}
 	endScene.orig_BBScr_createObjectWithArg(this, animName, posType);
-	if (!endScene.shutdown) {
+	if (!endScene.shutdown && !gifMode.mostModDisabled) {
 		if (needUnset) {
 			insideObjectCreation = false;
 			endScene.creatingObject = false;
@@ -2534,14 +2681,14 @@ void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, BBS
 void EndScene::HookHelp::BBScr_createObjectHook(const char* animName, BBScrPosType posType) {
 	static bool insideObjectCreation = false;
 	bool needUnset = !insideObjectCreation;
-	if (!endScene.shutdown) {
+	if (!endScene.shutdown && !gifMode.mostModDisabled) {
 		insideObjectCreation = true;
 		endScene.creatingObject = true;
 		endScene.createdObjectAnim = animName;
 		endScene.creatorOfCreatedObject = Entity{(char*)this};
 	}
 	endScene.orig_BBScr_createObject(this, animName, posType);
-	if (!endScene.shutdown) {
+	if (!endScene.shutdown && !gifMode.mostModDisabled) {
 		if (needUnset) {
 			insideObjectCreation = false;
 			endScene.creatingObject = false;
@@ -2820,7 +2967,7 @@ void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName
 // Runs on the main thread
 // This hook does not work on projectiles
 void EndScene::setAnimHook(Entity pawn, const char* animName) {
-	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled) {
+	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled && !gifMode.mostModDisabled) {
 		if (strcmp(animName, "CmnActLandingStiff") != 0) {
 			currentState->attackerInRecoveryAfterBlock[pawn.team()] = false;
 			memset(currentState->attackerInRecoveryAfterCreatingProjectile[pawn.team()], 
@@ -2849,7 +2996,7 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 		}
 	}
 	orig_setAnim((void*)pawn, animName);
-	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled) {
+	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled && !gifMode.mostModDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
 		int blockstun = pawn.blockstun();
 		if (blockstun && (player.inBlockstunNextFrame || player.baikenReturningToBlockstunAfterAzami)) {
@@ -2943,92 +3090,88 @@ void EndScene::BBScr_linkParticleWithArg2Hook(Entity pawn, const char* name) {
 	orig_BBScr_linkParticleWithArg2((void*)pawn, name);
 }
 
-// Called before a logic tick happens. Doesn't run when the pause menu is open or a match is not running.
-// Runs on the main thread
-void EndScene::onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen) {
-	// wow ok
-}
-
 // Stuff that runs at the start of a tick
 // Runs on the main thread
 void EndScene::frameCleanup() {
 	entityList.populate();
-	std::vector<ProjectileInfo>& projectiles = currentState->projectiles;
-	for (auto it = projectiles.begin(); it != projectiles.end();) {
-		ProjectileInfo& projectile = *it;
-		projectile.landedHit = false;
-		projectile.gotHitOnThisFrame = false;
-		bool found = false;
-		if (projectile.ptr) {
-			for (int i = 2; i < entityList.count; ++i) {
-				if (entityList.list[i] == projectile.ptr) {
-					found = true;
-					break;
+	if (!gifMode.mostModDisabled) {
+		std::vector<ProjectileInfo>& projectiles = currentState->projectiles;
+		for (auto it = projectiles.begin(); it != projectiles.end();) {
+			ProjectileInfo& projectile = *it;
+			projectile.landedHit = false;
+			projectile.gotHitOnThisFrame = false;
+			bool found = false;
+			if (projectile.ptr) {
+				for (int i = 2; i < entityList.count; ++i) {
+					if (entityList.list[i] == projectile.ptr) {
+						found = true;
+						break;
+					}
 				}
 			}
+			if (!found) {
+				it = projectiles.erase(it);
+				continue;
+			}
+			++it;
 		}
-		if (!found) {
-			it = projectiles.erase(it);
-			continue;
+		for (PlayerInfo& player : currentState->players) {
+			player.isFirstCheckFirePerFrameUponsWrapperOfTheFrame = true;
+			player.jumpNonCancel = false;
+			player.superJumpNonCancel = false;
+			player.jumpCancelled = false;
+			player.superJumpCancelled = false;
+			player.doubleJumped = false;
+			player.startedRunning = false;
+			player.startedWalkingForward = false;
+			player.startedWalkingBackward = false;
+			player.setHitstopMax = false;
+			player.setHitstopMaxSuperArmor = false;
+			player.setHitstunMax = false;
+			player.setBlockstunMax = false;
+			player.lastHitstopBeforeWipe = 0;
+			player.wasIdle = false;
+			player.startedDefending = false;
+			player.hitSomething = false;
+			player.changedAnimOnThisFrame = false;
+			player.wasEnableGatlings = false;
+			player.wasEnableAirtech = false;
+			player.wasAttackCollidedSoCanCancelNow = false;
+			player.wasPrevFrameEnableNormals = player.wasEnableNormals;
+			player.wasPrevFrameEnableWhiffCancels = player.wasEnableWhiffCancels;
+			player.wasPrevFrameForceDisableFlags = player.wasForceDisableFlags;
+			player.wasEnableNormals = false;
+			player.wasCantAirdash = true;
+			player.wasCanYrc = false;
+			player.wasCantRc = false;
+			player.wasProhibitFDTimer = 1;
+			player.wasAirdashHorizontallingTimer = 0;
+			player.wasEnableWhiffCancels = false;
+			player.wasPrevFrameEnableSpecials = player.wasEnableSpecials;
+			player.wasEnableSpecials = false;
+			player.wasEnableSpecialCancel = false;
+			player.wasClashCancelTimer = false;
+			player.wasEnableJumpCancel = false;
+			player.wasSuperArmorEnabled = false;
+			player.wasFullInvul = false;
+			player.obtainedForceDisableFlags = false;
+			player.armoredHitOnThisFrame = false;
+			player.gotHitOnThisFrame = false;
+			player.baikenReturningToBlockstunAfterAzami = false;
+			memcpy(player.animIntraFrame, player.anim, 32);
+			player.wasCancels.unsetWasFoundOnThisFrame(true);
+			player.receivedNewDmgCalcOnThisFrame = false;
+			player.blockedAHitOnThisFrame = false;
+			player.lostSpeedYOnThisFrame = false;
+			player.wasAirborneOnAnimChange = false;
+			player.bedmanInfo.sealAReceivedSignal5 = false;
+			player.bedmanInfo.sealBReceivedSignal5 = false;
+			player.bedmanInfo.sealCReceivedSignal5 = false;
+			player.bedmanInfo.sealDReceivedSignal5 = false;
 		}
-		++it;
-	}
-	for (PlayerInfo& player : currentState->players) {
-		player.isFirstCheckFirePerFrameUponsWrapperOfTheFrame = true;
-		player.jumpNonCancel = false;
-		player.superJumpNonCancel = false;
-		player.jumpCancelled = false;
-		player.superJumpCancelled = false;
-		player.doubleJumped = false;
-		player.startedRunning = false;
-		player.startedWalkingForward = false;
-		player.startedWalkingBackward = false;
-		player.setHitstopMax = false;
-		player.setHitstopMaxSuperArmor = false;
-		player.setHitstunMax = false;
-		player.setBlockstunMax = false;
-		player.lastHitstopBeforeWipe = 0;
-		player.wasIdle = false;
-		player.startedDefending = false;
-		player.hitSomething = false;
-		player.changedAnimOnThisFrame = false;
-		player.wasEnableGatlings = false;
-		player.wasEnableAirtech = false;
-		player.wasAttackCollidedSoCanCancelNow = false;
-		player.wasPrevFrameEnableNormals = player.wasEnableNormals;
-		player.wasPrevFrameEnableWhiffCancels = player.wasEnableWhiffCancels;
-		player.wasPrevFrameForceDisableFlags = player.wasForceDisableFlags;
-		player.wasEnableNormals = false;
-		player.wasCantAirdash = true;
-		player.wasCanYrc = false;
-		player.wasCantRc = false;
-		player.wasProhibitFDTimer = 1;
-		player.wasAirdashHorizontallingTimer = 0;
-		player.wasEnableWhiffCancels = false;
-		player.wasPrevFrameEnableSpecials = player.wasEnableSpecials;
-		player.wasEnableSpecials = false;
-		player.wasEnableSpecialCancel = false;
-		player.wasClashCancelTimer = false;
-		player.wasEnableJumpCancel = false;
-		player.wasSuperArmorEnabled = false;
-		player.wasFullInvul = false;
-		player.obtainedForceDisableFlags = false;
-		player.armoredHitOnThisFrame = false;
-		player.gotHitOnThisFrame = false;
-		player.baikenReturningToBlockstunAfterAzami = false;
-		memcpy(player.animIntraFrame, player.anim, 32);
-		player.wasCancels.unsetWasFoundOnThisFrame(true);
-		player.receivedNewDmgCalcOnThisFrame = false;
-		player.blockedAHitOnThisFrame = false;
-		player.lostSpeedYOnThisFrame = false;
-		player.wasAirborneOnAnimChange = false;
-		player.bedmanInfo.sealAReceivedSignal5 = false;
-		player.bedmanInfo.sealBReceivedSignal5 = false;
-		player.bedmanInfo.sealCReceivedSignal5 = false;
-		player.bedmanInfo.sealDReceivedSignal5 = false;
+		currentState->events.clear();
 	}
 	creatingObject = false;
-	currentState->events.clear();
 }
 
 // Runs on the main thread
@@ -3045,7 +3188,7 @@ void EndScene::HookHelp::handleUponHook(BBScrEvent signal) {
 // This is also for effects
 void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams) { 
 	Entity newProjectilePtr { nullptr };
-	if (!shutdown && creatingObject) {
+	if (!shutdown && creatingObject && !gifMode.mostModDisabled) {
 		creatingObject = false;
 		if (endScene.creatorOfCreatedObject) {
 			int team = endScene.creatorOfCreatedObject.team();
@@ -3072,23 +3215,27 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 			ProjectileInfo::determineCreatedName(nullptr, creatorOfCreatedObject, nullptr, &event.u.signal.creatorName, true, true);
 		}
 	}
-	BOOL* advanceFramePtr = (BOOL*)((BYTE*)initializationParams + 0x38);
-	if (*advanceFramePtr != 0 && newProjectilePtr) {
-		BOOL oldVal = *advanceFramePtr;
-		*advanceFramePtr = FALSE;
+	if (gifMode.mostModDisabled) {
 		endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
-		ProjectileInfo& projectile = findProjectile(newProjectilePtr);
-		if (projectile.ptr) {
-			projectile.fill(createdObj, getSuperflashInstigator(), true);
-		}
-		*advanceFramePtr = oldVal;
-		orig_checkFirePerFrameUponsWrapper((void*)createdObj.ent);
 	} else {
-		endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
-		if (newProjectilePtr) {
+		BOOL* advanceFramePtr = (BOOL*)((BYTE*)initializationParams + 0x38);
+		if (*advanceFramePtr != 0 && newProjectilePtr) {
+			BOOL oldVal = *advanceFramePtr;
+			*advanceFramePtr = FALSE;
+			endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
 			ProjectileInfo& projectile = findProjectile(newProjectilePtr);
 			if (projectile.ptr) {
 				projectile.fill(createdObj, getSuperflashInstigator(), true);
+			}
+			*advanceFramePtr = oldVal;
+			orig_checkFirePerFrameUponsWrapper((void*)createdObj.ent);
+		} else {
+			endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
+			if (newProjectilePtr) {
+				ProjectileInfo& projectile = findProjectile(newProjectilePtr);
+				if (projectile.ptr) {
+					projectile.fill(createdObj, getSuperflashInstigator(), true);
+				}
 			}
 		}
 	}
@@ -3096,7 +3243,7 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 
 // Runs on the main thread
 void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) { 
-	if (!shutdown) {
+	if (!shutdown && !gifMode.mostModDisabled) {
 		if (!sendSignalStack.empty()) {
 			currentState->events.emplace_back();
 			EndSceneStoredState::OccurredEvent& event = currentState->events.back();
@@ -3126,7 +3273,7 @@ void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) {
 			}
 		}
 	}
-	if (!shutdown && !gifMode.modDisabled) {
+	if (!shutdown && !gifMode.modDisabled && !gifMode.mostModDisabled) {
 		if (signal == BBSCREVENT_ANIMATION_FRAME_ADVANCED
 				&& pawn.isPawn()) {
 			// Slayer's buff in PLAYERVAL_1 is checked when initiating a move, but decremented after the fact, in a FRAME_STEP handler
@@ -3267,9 +3414,12 @@ void EndScene::HookHelp::logicOnFrameAfterHitHook(bool isAirHit, int param2) {
 
 // Runs on the main thread
 void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) {
-	bool functionWillNotDoAnything = !pawn.inHitstunNextFrame() && (!pawn.receivedAttack()->enableGuardBreak() || !pawn.inBlockstunNextFrame());
+	bool functionWillNotDoAnything;
+	if (!gifMode.mostModDisabled) {
+		functionWillNotDoAnything = !pawn.inHitstunNextFrame() && (!pawn.receivedAttack()->enableGuardBreak() || !pawn.inBlockstunNextFrame());
+	}
 	orig_logicOnFrameAfterHit((void*)pawn.ent, isAirHit, param2);
-	if (pawn.isPawn() && !functionWillNotDoAnything) {
+	if (!gifMode.mostModDisabled && pawn.isPawn() && !functionWillNotDoAnything) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.hitstopMax = pawn.startingHitstop();
 		player.hitstopElapsed = 0;
@@ -3346,7 +3496,7 @@ void EndScene::HookHelp::BBScr_runOnObjectHook(EntityReferenceType entityReferen
 // Runs on the main thread
 void EndScene::BBScr_runOnObjectHook(Entity pawn, EntityReferenceType entityReference) {
 	orig_BBScr_runOnObject((void*)pawn.ent, entityReference);
-	if (!shutdown && pawn.isPawn()) {
+	if (!shutdown && pawn.isPawn() && !gifMode.mostModDisabled) {
 		Entity objectBeingRunOn = pawn.currentRunOnObject();
 		if (objectBeingRunOn) {
 			if (!objectBeingRunOn.isPawn()) {
@@ -3586,7 +3736,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			needEnqueueOriginPoints = true;
 		}
 		if (*aswEngine) {
-			if (!gifMode.modDisabled) {
+			if (!gifMode.modDisabled && !gifMode.mostModDisabled) {
 				if (
 						(
 							!settings.dontShowBoxes && !drawDataPrepared.points.empty()
@@ -3928,11 +4078,13 @@ void EndScene::HookHelp::backPushbackApplierHook() {
 }
 
 void EndScene::backPushbackApplierHook(char* thisArg) {
-	entityList.populate();
-	for (int i = 0; i < 2; ++i) {
-		PlayerInfo& player = currentState->players[i];
-		player.fdPushback = entityList.slots[i].fdPushback();
-		// it changes after it was used, so if we don't do this, at the end of a frame we will see a decremented value
+	if (!gifMode.mostModDisabled) {
+		entityList.populate();
+		for (int i = 0; i < 2; ++i) {
+			PlayerInfo& player = currentState->players[i];
+			player.fdPushback = entityList.slots[i].fdPushback();
+			// it changes after it was used, so if we don't do this, at the end of a frame we will see a decremented value
+		}
 	}
 	orig_backPushbackApplier((void*)thisArg);
 }
@@ -3943,43 +4095,45 @@ void EndScene::HookHelp::pushbackStunOnBlockHook(bool isAirHit) {
 
 void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
 	orig_pushbackStunOnBlock((void*)pawn.ent, isAirHit);
-	PlayerInfo& player = findPlayer(pawn);
-	player.ibPushbackModifier = 100;
-	Entity attacker = pawn.attacker();
-	PlayerInfo& attackerPlayer = findPlayer(attacker);
-	if (attacker) {
-		attackerPlayer.baseFdPushback = 0;
-	}
-	if (isHoldingFD(pawn)) {
-		attackerPlayer.fdPushbackMax = attacker.fdPushback();
-		int dist = pawn.posX() - attacker.posX();
-		if (dist < 0) dist = -dist;
-		attackerPlayer.oppoWasTouchingWallOnFD = pawn.isTouchingLeftWall() || pawn.isTouchingRightWall();
-		if (dist >= 385000) {
-			attackerPlayer.baseFdPushback = 500;
-		} else {
-			attackerPlayer.baseFdPushback = 900;
+	if (!gifMode.mostModDisabled && !gifMode.modDisabled) {
+		PlayerInfo& player = findPlayer(pawn);
+		player.ibPushbackModifier = 100;
+		Entity attacker = pawn.attacker();
+		PlayerInfo& attackerPlayer = findPlayer(attacker);
+		if (attacker) {
+			attackerPlayer.baseFdPushback = 0;
 		}
-	} else if (pawn.successfulIB() && pawn.lastHitResult() == HIT_RESULT_BLOCKED) {
-		player.ibPushbackModifier = isAirHit ? 10 : 90;
+		if (isHoldingFD(pawn)) {
+			attackerPlayer.fdPushbackMax = attacker.fdPushback();
+			int dist = pawn.posX() - attacker.posX();
+			if (dist < 0) dist = -dist;
+			attackerPlayer.oppoWasTouchingWallOnFD = pawn.isTouchingLeftWall() || pawn.isTouchingRightWall();
+			if (dist >= 385000) {
+				attackerPlayer.baseFdPushback = 500;
+			} else {
+				attackerPlayer.baseFdPushback = 900;
+			}
+		} else if (pawn.successfulIB() && pawn.lastHitResult() == HIT_RESULT_BLOCKED) {
+			player.ibPushbackModifier = isAirHit ? 10 : 90;
+		}
+		player.receivedSpeedYValid = false;
+		player.pushbackMax = pawn.pendingPushback();
+		entityManager.calculatePushback(
+			pawn.receivedAttack()->level,
+			pawn.comboTimer(),
+			pawn.receivedAttack()->dontUseComboTimerForPushback(),
+			pawn.ascending(),
+			pawn.y(),
+			pawn.receivedAttack()->pushbackModifier,
+			pawn.receivedAttack()->airPushbackModifier,
+			pawn.inHitstun(),
+			pawn.receivedAttack()->pushbackModifierOnHitstun,
+			&player.basePushback,
+			&player.attackPushbackModifier,
+			&player.hitstunPushbackModifier,
+			&player.comboTimerPushbackModifier);
+		player.hitstunProrationValid = false;
 	}
-	player.receivedSpeedYValid = false;
-	player.pushbackMax = pawn.pendingPushback();
-	entityManager.calculatePushback(
-		pawn.receivedAttack()->level,
-		pawn.comboTimer(),
-		pawn.receivedAttack()->dontUseComboTimerForPushback(),
-		pawn.ascending(),
-		pawn.y(),
-		pawn.receivedAttack()->pushbackModifier,
-		pawn.receivedAttack()->airPushbackModifier,
-		pawn.inHitstun(),
-		pawn.receivedAttack()->pushbackModifierOnHitstun,
-		&player.basePushback,
-		&player.attackPushbackModifier,
-		&player.hitstunPushbackModifier,
-		&player.comboTimerPushbackModifier);
-	player.hitstunProrationValid = false;
 }
 
 void EndScene::HookHelp::BBScr_sendSignalHook(EntityReferenceType referenceType, BBScrEvent signal) {
@@ -3991,25 +4145,27 @@ void EndScene::HookHelp::BBScr_sendSignalToActionHook(const char* searchAnim, BB
 }
 
 void EndScene::BBScr_sendSignalHook(Entity pawn, EntityReferenceType referenceType, BBScrEvent signal) {
-	Entity referredEntity = getReferredEntity((void*)pawn.ent, referenceType);
-	
-	bool isDizzyBubblePopping = referredEntity == pawn && signal == BBSCREVENT_CUSTOM_SIGNAL_1
-			&& isDizzyBubble(pawn.animationName());
-	
-	if (!shutdown && referredEntity && !isDizzyBubblePopping) {
-		ProjectileInfo& projectile = findProjectile(referredEntity);
-		int team = pawn.team();
-		if (projectile.ptr && (team == 0 || team == 1)) {
-			currentState->events.emplace_back();
-			EndSceneStoredState::OccurredEvent& event = currentState->events.back();
-			event.type = EndSceneStoredState::OccurredEvent::SIGNAL;
-			event.u.signal.from = pawn;
-			event.u.signal.to = projectile.ptr;
-			memcpy(event.u.signal.fromAnim, pawn.animationName(), 32);
-			if (pawn.isPawn() || eventHandlerSendsIntoRecovery(projectile.ptr, signal)) {
-				event.u.signal.creatorName.clear();
-			} else {
-				ProjectileInfo::determineCreatedName(nullptr, pawn, nullptr, &event.u.signal.creatorName, true, true);
+	if (!gifMode.mostModDisabled) {
+		Entity referredEntity = getReferredEntity((void*)pawn.ent, referenceType);
+		
+		bool isDizzyBubblePopping = referredEntity == pawn && signal == BBSCREVENT_CUSTOM_SIGNAL_1
+				&& isDizzyBubble(pawn.animationName());
+		
+		if (!shutdown && referredEntity && !isDizzyBubblePopping) {
+			ProjectileInfo& projectile = findProjectile(referredEntity);
+			int team = pawn.team();
+			if (projectile.ptr && (team == 0 || team == 1)) {
+				currentState->events.emplace_back();
+				EndSceneStoredState::OccurredEvent& event = currentState->events.back();
+				event.type = EndSceneStoredState::OccurredEvent::SIGNAL;
+				event.u.signal.from = pawn;
+				event.u.signal.to = projectile.ptr;
+				memcpy(event.u.signal.fromAnim, pawn.animationName(), 32);
+				if (pawn.isPawn() || eventHandlerSendsIntoRecovery(projectile.ptr, signal)) {
+					event.u.signal.creatorName.clear();
+				} else {
+					ProjectileInfo::determineCreatedName(nullptr, pawn, nullptr, &event.u.signal.creatorName, true, true);
+				}
 			}
 		}
 	}
@@ -4017,11 +4173,11 @@ void EndScene::BBScr_sendSignalHook(Entity pawn, EntityReferenceType referenceTy
 }
 
 void EndScene::BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, BBScrEvent signal) {
-	if (!shutdown) {
+	if (!shutdown && !gifMode.mostModDisabled) {
 		sendSignalStack.push_back(pawn);
 	}
 	orig_BBScr_sendSignalToAction((void*)pawn, searchAnim, signal);
-	if (!shutdown) {
+	if (!shutdown && !gifMode.mostModDisabled) {
 		sendSignalStack.pop_back();
 	}
 }
@@ -4032,82 +4188,84 @@ BOOL EndScene::HookHelp::skillCheckPieceHook() {
 
 BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 	BOOL result = orig_skillCheckPiece((void*)pawn.ent);
-	PlayerInfo& player = findPlayer(pawn);
-	if (player.pawn) {
-		player.wasPlayerval[0] = pawn.playerVal(0);
-		player.wasPlayerval[1] = pawn.playerVal(1);
-		player.wasPlayerval[2] = pawn.playerVal(2);
-		player.wasPlayerval[3] = pawn.playerVal(3);
-		player.wasEnableNormals = pawn.isRCFrozen() ? player.wasPrevFrameEnableNormals : pawn.enableNormals();
-		int speedY = pawn.speedY();
-		int posY = pawn.posY();
-		if (player.charType == CHARACTER_TYPE_BEDMAN) {
-			bool doubleJumpHeightOk = speedY <= 0 || posY >= 122500;
-			// AirStopCancelOnly does not have a minimum height requirement
-			if (doubleJumpHeightOk && !player.wasCancels.hasCancel(player.wasCancels.gatlings, "AirStopCancelOnly")) {
-				const AddedMoveData* airStop = pawn.findAddedMove("AirStop");
-				if (airStop && airStop->minimumHeightRequirement) {
-					doubleJumpHeightOk = posY >= airStop->minimumHeightRequirement;
+	if (!gifMode.mostModDisabled && !gifMode.modDisabled) {
+		PlayerInfo& player = findPlayer(pawn);
+		if (player.pawn) {
+			player.wasPlayerval[0] = pawn.playerVal(0);
+			player.wasPlayerval[1] = pawn.playerVal(1);
+			player.wasPlayerval[2] = pawn.playerVal(2);
+			player.wasPlayerval[3] = pawn.playerVal(3);
+			player.wasEnableNormals = pawn.isRCFrozen() ? player.wasPrevFrameEnableNormals : pawn.enableNormals();
+			int speedY = pawn.speedY();
+			int posY = pawn.posY();
+			if (player.charType == CHARACTER_TYPE_BEDMAN) {
+				bool doubleJumpHeightOk = speedY <= 0 || posY >= 122500;
+				// AirStopCancelOnly does not have a minimum height requirement
+				if (doubleJumpHeightOk && !player.wasCancels.hasCancel(player.wasCancels.gatlings, "AirStopCancelOnly")) {
+					const AddedMoveData* airStop = pawn.findAddedMove("AirStop");
+					if (airStop && airStop->minimumHeightRequirement) {
+						doubleJumpHeightOk = posY >= airStop->minimumHeightRequirement;
+					}
 				}
-			}
-			player.wasCantAirdash = pawn.remainingAirDashes() && !doubleJumpHeightOk;
-		} else {
-			int airDashMinimumHeight = pawn.airDashMinimumHeight();
-			bool airdashHeightOk;
-			if (speedY > 0) {
-				airdashHeightOk = posY > airDashMinimumHeight;
+				player.wasCantAirdash = pawn.remainingAirDashes() && !doubleJumpHeightOk;
 			} else {
-				airdashHeightOk = posY > 70000 && posY > -speedY;
+				int airDashMinimumHeight = pawn.airDashMinimumHeight();
+				bool airdashHeightOk;
+				if (speedY > 0) {
+					airdashHeightOk = posY > airDashMinimumHeight;
+				} else {
+					airdashHeightOk = posY > 70000 && posY > -speedY;
+				}
+				player.wasCantAirdash = pawn.remainingAirDashes() && !airdashHeightOk;
 			}
-			player.wasCantAirdash = pawn.remainingAirDashes() && !airdashHeightOk;
+			entityList.populate();
+			Entity other = entityList.slots[1 - player.index];
+			player.wasCanYrc = player.pawn.romanCancelAvailability() == ROMAN_CANCEL_ALLOWED
+				&& !pawn.defaultYrcWindowOver()
+				&& !pawn.overridenYrcWindowOver()
+				&& !(
+					other.inHitstun()
+					|| other.blockstun() > 0
+					|| other.inBlockstunNextFrame()
+					|| other.hitstunOrBlockstunTypeKindOfState()
+					|| (
+						other.currentMoveIndex() != -1
+						&& other.movesBase()[other.currentMoveIndex()].type == MOVE_TYPE_BLUE_BURST
+					)
+				);
+			player.wasCantRc = player.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK;
+			player.wasProhibitFDTimer = min(127, pawn.prohibitFDTimer());
+			player.wasAirdashHorizontallingTimer = min(127, pawn.airdashHorizontallingTimer());
+			player.wasEnableGatlings = player.wasEnableGatlings && pawn.currentAnimDuration() != 1 || pawn.enableGatlings();
+			player.wasEnableWhiffCancels = pawn.isRCFrozen()
+				? player.wasPrevFrameEnableWhiffCancels
+				: (
+					player.wasEnableWhiffCancels && pawn.currentAnimDuration() != 1 || pawn.enableWhiffCancels()
+				);
+			player.wasEnableSpecials = pawn.isRCFrozen()
+				? player.wasPrevFrameEnableSpecials
+				: player.wasEnableSpecials && pawn.currentAnimDuration() != 1 || pawn.enableSpecials();
+			player.wasEnableSpecialCancel = player.wasEnableSpecialCancel && pawn.currentAnimDuration() != 1 || pawn.enableSpecialCancel();
+			player.wasClashCancelTimer = player.wasClashCancelTimer && pawn.currentAnimDuration() != 1 || pawn.clashCancelTimer() > 0;
+			player.wasEnableJumpCancel = player.wasEnableJumpCancel && pawn.currentAnimDuration() != 1 || pawn.enableJumpCancel() && pawn.attackCollidedSoCanJumpCancelNow();
+			player.wasAttackCollidedSoCanCancelNow = player.wasAttackCollidedSoCanCancelNow && pawn.currentAnimDuration() != 1 || pawn.attackCollidedSoCanCancelNow();
+			player.wasEnableAirtech = player.wasEnableAirtech && pawn.currentAnimDuration() != 1 || pawn.enableAirtech();
+			player.wasForceDisableFlags = pawn.isRCFrozen() ? player.wasPrevFrameForceDisableFlags : pawn.forceDisableFlags();
+			player.obtainedForceDisableFlags = true;
+			if (pawn.currentAnimDuration() == 1) {
+				player.wasCancels.unsetWasFoundOnThisFrame(false);
+			}
+			bool isBlitzShieldCancels = blitzShieldCancellable(player, true);
+			collectFrameCancels(player, player.wasCancels, player.wasInHitstopFreezeDuringSkillCheck, isBlitzShieldCancels);
+			if (isBlitzShieldCancels) {
+				player.wasEnableGatlings = true;
+				player.wasEnableSpecialCancel = true;
+				player.wasEnableJumpCancel = true;
+				player.wasAttackCollidedSoCanCancelNow = true;
+			}
+			player.wasCantBackdashTimer = pawn.cantBackdashTimer();
+			player.wasOtg = pawn.isOtg();
 		}
-		entityList.populate();
-		Entity other = entityList.slots[1 - player.index];
-		player.wasCanYrc = player.pawn.romanCancelAvailability() == ROMAN_CANCEL_ALLOWED
-			&& !pawn.defaultYrcWindowOver()
-			&& !pawn.overridenYrcWindowOver()
-			&& !(
-				other.inHitstun()
-				|| other.blockstun() > 0
-				|| other.inBlockstunNextFrame()
-				|| other.hitstunOrBlockstunTypeKindOfState()
-				|| (
-					other.currentMoveIndex() != -1
-					&& other.movesBase()[other.currentMoveIndex()].type == MOVE_TYPE_BLUE_BURST
-				)
-			);
-		player.wasCantRc = player.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK;
-		player.wasProhibitFDTimer = min(127, pawn.prohibitFDTimer());
-		player.wasAirdashHorizontallingTimer = min(127, pawn.airdashHorizontallingTimer());
-		player.wasEnableGatlings = player.wasEnableGatlings && pawn.currentAnimDuration() != 1 || pawn.enableGatlings();
-		player.wasEnableWhiffCancels = pawn.isRCFrozen()
-			? player.wasPrevFrameEnableWhiffCancels
-			: (
-				player.wasEnableWhiffCancels && pawn.currentAnimDuration() != 1 || pawn.enableWhiffCancels()
-			);
-		player.wasEnableSpecials = pawn.isRCFrozen()
-			? player.wasPrevFrameEnableSpecials
-			: player.wasEnableSpecials && pawn.currentAnimDuration() != 1 || pawn.enableSpecials();
-		player.wasEnableSpecialCancel = player.wasEnableSpecialCancel && pawn.currentAnimDuration() != 1 || pawn.enableSpecialCancel();
-		player.wasClashCancelTimer = player.wasClashCancelTimer && pawn.currentAnimDuration() != 1 || pawn.clashCancelTimer() > 0;
-		player.wasEnableJumpCancel = player.wasEnableJumpCancel && pawn.currentAnimDuration() != 1 || pawn.enableJumpCancel() && pawn.attackCollidedSoCanJumpCancelNow();
-		player.wasAttackCollidedSoCanCancelNow = player.wasAttackCollidedSoCanCancelNow && pawn.currentAnimDuration() != 1 || pawn.attackCollidedSoCanCancelNow();
-		player.wasEnableAirtech = player.wasEnableAirtech && pawn.currentAnimDuration() != 1 || pawn.enableAirtech();
-		player.wasForceDisableFlags = pawn.isRCFrozen() ? player.wasPrevFrameForceDisableFlags : pawn.forceDisableFlags();
-		player.obtainedForceDisableFlags = true;
-		if (pawn.currentAnimDuration() == 1) {
-			player.wasCancels.unsetWasFoundOnThisFrame(false);
-		}
-		bool isBlitzShieldCancels = blitzShieldCancellable(player, true);
-		collectFrameCancels(player, player.wasCancels, player.wasInHitstopFreezeDuringSkillCheck, isBlitzShieldCancels);
-		if (isBlitzShieldCancels) {
-			player.wasEnableGatlings = true;
-			player.wasEnableSpecialCancel = true;
-			player.wasEnableJumpCancel = true;
-			player.wasAttackCollidedSoCanCancelNow = true;
-		}
-		player.wasCantBackdashTimer = pawn.cantBackdashTimer();
-		player.wasOtg = pawn.isOtg();
 	}
 	return result;
 }
@@ -4117,7 +4275,7 @@ void EndScene::HookHelp::BBScr_setHitstopHook(int hitstop) {
 }
 
 void EndScene::BBScr_setHitstopHook(Entity pawn, int hitstop) {
-	if (!shutdown) {
+	if (!shutdown && !gifMode.mostModDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.hitstopMax = hitstop;
 		player.hitstopElapsed = 0;
@@ -4132,7 +4290,7 @@ void EndScene::HookHelp::beginHitstopHook() {
 }
 
 void EndScene::beginHitstopHook(Entity pawn) {
-	if (pawn.needSetHitstop()) {
+	if (!gifMode.mostModDisabled && pawn.needSetHitstop()) {
 		PlayerInfo& player = findPlayer(pawn);
 		if (pawn.startingHitstop() == 0) {
 			player.lastHitstopBeforeWipe = pawn.hitstop();
@@ -4150,8 +4308,10 @@ void EndScene::HookHelp::BBScr_ignoreDeactivateHook() {
 
 void EndScene::BBScr_ignoreDeactivateHook(Entity pawn) {
 	orig_BBScr_ignoreDeactivate((void*)pawn.ent);
-	PlayerInfo& player = findPlayer(pawn);
-	player.baikenReturningToBlockstunAfterAzami = true;
+	if (!gifMode.mostModDisabled) {
+		PlayerInfo& player = findPlayer(pawn);
+		player.baikenReturningToBlockstunAfterAzami = true;
+	}
 }
 
 bool EndScene::isEntityHidden(const Entity& ent) {
@@ -5014,7 +5174,13 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 						|| defenderPtr.hitboxes()->count[HITBOXTYPE_HITBOX] == 0
 						|| !defenderPtr.isActiveFrames()  // can be turned off using 'attackOff'
 						|| defenderPtr.hitAlreadyHappened() == defenderPtr.theValueHitAlreadyHappenedIsComparedAgainst()  // already landed the hit
-						&& !defenderPtr.hitSomethingOnThisFrame()  // but landed the hit not on this frame, to avoid showing Punish on trades
+						&& !(
+							defenderPtr.hitSomethingOnThisFrame()  // but landed the hit not on this frame, to avoid showing Punish on trades.
+							&& (
+								attackerPtr.inHitstunNextFrame()
+								|| attackerPtr.inBlockstunNextFrame()
+							)
+						)
 					)
 					|| defenderPtr.cmnActIndex() == CmnActJumpLanding
 					|| defenderPtr.cmnActIndex() == CmnActLandingStiff
@@ -5297,68 +5463,70 @@ void EndScene::HookHelp::setSuperFreezeAndRCSlowdownFlagsHook() {
 void EndScene::setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine) {
 	
 	frameCleanup();
-	// since this function is one of the first things that run in a game logic tick,
-	// we are also using it as the starting point of the logic tick in general,
-	// where we advance our state pointer, clone states and register rollback.
-	if (game.getGameMode() == GAME_MODE_NETWORK && game.getPlayerSide() != 2) {
-		int currentStateInd = currentState - stateRingBuffer.data();
-		if (stateRingBuffer.size() < ROLLBACK_MAX) {
-			stateRingBuffer.resize(ROLLBACK_MAX);
+	if (!gifMode.mostModDisabled) {
+		// since this function is one of the first things that run in a game logic tick,
+		// we are also using it as the starting point of the logic tick in general,
+		// where we advance our state pointer, clone states and register rollback.
+		if (game.getGameMode() == GAME_MODE_NETWORK && game.getPlayerSide() != 2) {
+			int currentStateInd = currentState - stateRingBuffer.data();
+			if (stateRingBuffer.size() < ROLLBACK_MAX) {
+				stateRingBuffer.resize(ROLLBACK_MAX);
+			}
+			currentState = stateRingBuffer.data() + currentStateInd;
+			DWORD aswTick = getAswEngineTick();
+			if (aswTick <= currentState->prevAswEngineTickCount) {
+				loadState(findState(aswTick - 1));
+			}
+			EndSceneStoredState* oldCurrentState = currentState;
+			currentState = incrementStatePointer(currentState);
+			cloneState(currentState, oldCurrentState);
+			++stateCount;
+			if (stateCount > (int)stateRingBuffer.size()) {
+				stateCount = stateRingBuffer.size();
+			}
 		}
-		currentState = stateRingBuffer.data() + currentStateInd;
-		DWORD aswTick = getAswEngineTick();
-		if (aswTick <= currentState->prevAswEngineTickCount) {
-			loadState(findState(aswTick - 1));
-		}
-		EndSceneStoredState* oldCurrentState = currentState;
-		currentState = incrementStatePointer(currentState);
-		cloneState(currentState, oldCurrentState);
-		++stateCount;
-		if (stateCount > (int)stateRingBuffer.size()) {
-			stateCount = stateRingBuffer.size();
-		}
-	}
-	
-	for (PlayerInfo& player : currentState->players) {
-		player.rcSlowedDown = false;
-		player.rcSlowedDownCounter = 0;
-		player.rcSlowedDownMax = 0;
-	}
-	for (ProjectileInfo& projectile : currentState->projectiles) {
-		projectile.rcSlowedDown = false;
-		projectile.rcSlowedDownCounter = 0;
-		projectile.rcSlowedDownMax = 0;
-	}
-	
-	entityList.populate();
-	Entity superflashInstigator = getSuperflashInstigator();
-	for (int i = 0; i < 2; ++i) {
-		PlayerInfo& player = currentState->players[i];
-		Entity pawn = entityList.slots[i];
 		
-		player.rcSlowdownCounter = pawn.rcSlowdownCounter();
-		player.rcSlowdownMax = player.rcSlowdownMaxLastSet;
-		if (player.rcSlowdownCounter) {
-			for (int j = 0; j < entityList.count; ++j) {
-				Entity ent = entityList.list[j];
-				if (ent != pawn && ent != superflashInstigator && !ent.immuneToRCSlowdown()) {
-					ProjectileInfo& foundProjectile = findProjectile(ent);
-					if (foundProjectile.ptr) {
-						foundProjectile.rcSlowedDown = true;
-						foundProjectile.rcSlowedDownCounter = max(foundProjectile.rcSlowedDownCounter, player.rcSlowdownCounter);
-						foundProjectile.rcSlowedDownMax = max(foundProjectile.rcSlowedDownMax, player.rcSlowdownMax);
-					} else {
-						PlayerInfo& foundPlayer = findPlayer(ent);
-						if (foundPlayer.pawn) {
-							foundPlayer.rcSlowedDown = true;
-							foundPlayer.rcSlowedDownCounter = max(foundProjectile.rcSlowedDownCounter, player.rcSlowdownCounter);
-							foundPlayer.rcSlowedDownMax = max(foundProjectile.rcSlowedDownMax, player.rcSlowdownMax);
+		for (PlayerInfo& player : currentState->players) {
+			player.rcSlowedDown = false;
+			player.rcSlowedDownCounter = 0;
+			player.rcSlowedDownMax = 0;
+		}
+		for (ProjectileInfo& projectile : currentState->projectiles) {
+			projectile.rcSlowedDown = false;
+			projectile.rcSlowedDownCounter = 0;
+			projectile.rcSlowedDownMax = 0;
+		}
+		
+		entityList.populate();
+		Entity superflashInstigator = getSuperflashInstigator();
+		for (int i = 0; i < 2; ++i) {
+			PlayerInfo& player = currentState->players[i];
+			Entity pawn = entityList.slots[i];
+			
+			player.rcSlowdownCounter = pawn.rcSlowdownCounter();
+			player.rcSlowdownMax = player.rcSlowdownMaxLastSet;
+			if (player.rcSlowdownCounter) {
+				for (int j = 0; j < entityList.count; ++j) {
+					Entity ent = entityList.list[j];
+					if (ent != pawn && ent != superflashInstigator && !ent.immuneToRCSlowdown()) {
+						ProjectileInfo& foundProjectile = findProjectile(ent);
+						if (foundProjectile.ptr) {
+							foundProjectile.rcSlowedDown = true;
+							foundProjectile.rcSlowedDownCounter = max(foundProjectile.rcSlowedDownCounter, player.rcSlowdownCounter);
+							foundProjectile.rcSlowedDownMax = max(foundProjectile.rcSlowedDownMax, player.rcSlowdownMax);
+						} else {
+							PlayerInfo& foundPlayer = findPlayer(ent);
+							if (foundPlayer.pawn) {
+								foundPlayer.rcSlowedDown = true;
+								foundPlayer.rcSlowedDownCounter = max(foundProjectile.rcSlowedDownCounter, player.rcSlowdownCounter);
+								foundPlayer.rcSlowedDownMax = max(foundProjectile.rcSlowedDownMax, player.rcSlowdownMax);
+							}
 						}
 					}
 				}
 			}
+			
 		}
-		
 	}
 	
 	orig_setSuperFreezeAndRCSlowdownFlags(asw_subengine);
@@ -5369,7 +5537,7 @@ void EndScene::HookHelp::BBScr_timeSlowHook(int duration) {
 }
 
 void EndScene::BBScr_timeSlowHook(Entity pawn, int duration) {
-	if (duration != 0) {
+	if (duration != 0 && !gifMode.mostModDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.rcSlowdownMaxLastSet = duration;
 	}
@@ -5381,13 +5549,19 @@ void EndScene::HookHelp::onCmnActXGuardLoopHook(BBScrEvent signal, int type, int
 }
 
 void EndScene::onCmnActXGuardLoopHook(Entity pawn, BBScrEvent signal, int type, int thisIs0) {
-	int oldBlockstun = pawn.blockstun();
+	int oldBlockstun;
+	int newBlockstun;
+	if (!gifMode.mostModDisabled && !gifMode.modDisabled) {
+		oldBlockstun = pawn.blockstun();
+	}
 	orig_onCmnActXGuardLoop((void*)pawn.ent, signal, type, thisIs0);
-	int newBlockstun = pawn.blockstun();
+	if (!gifMode.mostModDisabled && !gifMode.modDisabled) {
+		newBlockstun = pawn.blockstun();
 	
-	if (newBlockstun == oldBlockstun + 4) {
-		PlayerInfo& player = findPlayer(pawn);
-		player.blockstunMaxLandExtra = 4;
+		if (newBlockstun == oldBlockstun + 4) {
+			PlayerInfo& player = findPlayer(pawn);
+			player.blockstunMaxLandExtra = 4;
+		}
 	}
 }
 
@@ -5476,6 +5650,10 @@ void EndScene::HookHelp::drawTrainingHudInputHistoryHook(unsigned int layer) {
 }
 
 void EndScene::drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer) {
+	if (gifMode.mostModDisabled || gifMode.modDisabled) {
+		orig_drawTrainingHudInputHistory(trainingHud, layer);
+		return;
+	}
 	GameModeFast gameMode = *gameModeFast;
 	int DAT_01edb6f0 = *drawTrainingHudInputHistoryVal2;
 	int DAT_01edb6ec = *drawTrainingHudInputHistoryVal3;
@@ -5691,6 +5869,7 @@ bool EndScene::shouldIgnoreEnterKey() const {
 	GameMode gameMode = game.getGameMode();
 	if (gameMode == GAME_MODE_NETWORK && game.getPlayerSide() == 2) return false;
 	if (gameMode == GAME_MODE_REPLAY) return false;
+	if (IsIMEFormOpen && IsIMEFormOpen() || aMenuIsOpen && aMenuIsOpen()) return false;
 	return true;
 }
 
@@ -5699,7 +5878,7 @@ void EndScene::HookHelp::checkFirePerFrameUponsWrapperHook() {
 }
 
 void EndScene::checkFirePerFrameUponsWrapperHook(Entity pawn) {
-	if (pawn.isPawn()) {
+	if (pawn.isPawn() && !gifMode.mostModDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
 		if (player.pawn) {
 			if (player.isFirstCheckFirePerFrameUponsWrapperOfTheFrame) {
@@ -6284,6 +6463,7 @@ BOOL EndScene::Pawn_ArcadeMode_IsBossHook(Entity pawn) {
 			settings.player1IsBoss && pawn.team() == 0
 			|| settings.player2IsBoss && pawn.team() == 1
 		)
+		&& !gifMode.modDisabled
 	) {
 		return TRUE;
 	}
@@ -6982,7 +7162,7 @@ DWORD EndScene::HookHelp::pawnGetColorHook(DWORD* inColor) {
 }
 
 DWORD EndScene::pawnGetColorHook(Entity pawn, DWORD* inColor) {
-	if (*game.gameDataPtr && game.isTrainingMode()) {
+	if (*game.gameDataPtr && game.isTrainingMode() && !gifMode.modDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
 		if (player.pawn && player.overrideColor) {
 			*inColor = 0xFFFFFFFF;
@@ -7110,7 +7290,7 @@ BOOL EndScene::HookHelp::trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirbor
 }
 
 BOOL EndScene::trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook(Entity ent) {
-	if (game.isTrainingMode() && settings.dontResetBurstAndTensionGaugesWhenInStunOrFaint) {
+	if (game.isTrainingMode() && settings.dontResetBurstAndTensionGaugesWhenInStunOrFaint && !gifMode.modDisabled) {
 		if (!findPlayer(ent).isIdle() || !findPlayer(ent.enemyEntity()).isIdle()) {
 			return FALSE;
 		}
@@ -7696,19 +7876,19 @@ void EndScene::HookHelp::execPreBeginPlay_InternalHook(void* stack, void* result
 void EndScene::execPreBeginPlay_InternalHook(UObject* thisArg, void* stack, void* result) {
 	std::vector<BYTE> data;
 	
-	if (settings.enableScriptMods) {
+	if (settings.enableScriptMods && !gifMode.modDisabled) {
 		game.sigscanFNamesAndAppRealloc();
 		bool isWide;
-		void* eitherNarrowOrWideStr = (void*)game.readFName(thisArg->Name.low, &isWide);
+		CONST void* eitherNarrowOrWideStr = game.readFName(thisArg->Name.low, &isWide);
 		int strCmpResult;
 		if (isWide) {
-			strCmpResult = wcscmp((wchar_t*)eitherNarrowOrWideStr, L"REDGameInfo_Battle");
+			strCmpResult = wcscmp((const wchar_t*)eitherNarrowOrWideStr, L"REDGameInfo_Battle");
 		} else {
-			strCmpResult = strcmp((char*)eitherNarrowOrWideStr, "REDGameInfo_Battle");
+			strCmpResult = strcmp((const char*)eitherNarrowOrWideStr, "REDGameInfo_Battle");
 		}
 		// they set the compiler optimization setting so high it crushed multiple separate functions that have same code together.
 		// Luckily, this function is only used by things inheriting from UObject
-		if (strCmpResult == 0) {
+		if (strCmpResult == 0 && thisArg->Name.high == 0) {
 			PANGAEA_MOD_VERSION pangaeaVer = pangaeaVer = getPangaeaModVersion();
 			
 			static Moves::TriBool pangaeasModDefinitelyPresent = Moves::TRIBOOL_DUNNO;
@@ -7794,7 +7974,12 @@ void EndScene::execPreBeginPlay_InternalHook(UObject* thisArg, void* stack, void
 					}
 				}
 				if (pathLengthError) {
-					ui.showErrorDlg("Can't load script mods because the game is installed in a path that exceeds 260 characters or is very close to it.", true);
+					// so it turns out VC Preprocessor expands nested macros when substituing an argument, but only if it's not an operand to an #, #@, ## operator.
+				    #define macro1(x) #x
+				    #define macro2(x) macro1(x)
+					ui.showErrorDlg("Can't load script mods because the game is installed in a path that exceeds " macro2(MAX_PATH) " characters or is very close to it.", true);
+					#undef macro2
+					#undef macro1
 				}
 			}
 		}
@@ -8053,7 +8238,7 @@ bool EndScene::hookLogicTickStepCount() {
 	//                              string loc                        prev         FName::operator=                    our FName
 	byteSpecificationToSigMask("68 rel(?? ?? ?? ??) 8d 4c 24 0c 89 15 ?? ?? ?? ?? e8 ?? ?? ?? ?? 8b 08 6a 01 89 0d",  // ?? ?? ?? ??
 		sig, mask, nullptr, 0, &maskForCaching);
-	memcpy(sig.data() + 1, &stringLocation, 4);
+	substituteWildcard(sig.data(), mask.data(), 0, (void*)stringLocation);
 	uintptr_t stringMentionLocation = sigscanOffset(
 		GUILTY_GEAR_XRD_EXE,
 		sig.data(), mask.data(), nullptr, "IsSpecialCameraAssignment", maskForCaching.data());
@@ -8067,7 +8252,9 @@ bool EndScene::hookLogicTickStepCount() {
 		sig, mask, nullptr, 0, &maskForCaching);
 	DWORD IsSpecialCameraFNameHigh = IsSpecialCameraFName + 4;
 	memcpy(sig.data() + 16, &IsSpecialCameraFNameHigh, 4);
+	memset(mask.data() + 16, 'x', 4);
 	memcpy(sig.data() + 22, &IsSpecialCameraFName, 4);
+	memset(mask.data() + 22, 'x', 4);
 	uintptr_t somewhereCloseToWhereWeReallyWant = sigscanOffset(
 		GUILTY_GEAR_XRD_EXE,
 		sig.data(), mask.data(), nullptr, "IsSpecialCameraUsageInOfflineVerOfTheLogicTick", maskForCaching.data());
@@ -8091,6 +8278,7 @@ bool EndScene::hookLogicTickStepCount() {
 	byteSpecificationToSigMask("8b 0d rel(?? ?? ?? ??) 81 c1 ?? ?? ?? ?? >e8",
 		sig, mask, &pos, 1, &maskForCaching);
 	memcpy(sig.data() + 2, &aswEngine, 4);
+	memset(mask.data() + 2, 'x', 4);
 	uintptr_t replayPauseControlTickCall = sigscanForward(IsSpecialCameraResultCheck,
 		sig.data(), mask.data(), 0x610);
 	if (!replayPauseControlTickCall) return true;
@@ -8178,14 +8366,16 @@ int EndScene::isGameModeNetworkHookWhenDecidingStepCountHook(BOOL pauseMenuActor
 			gifMode.updateFPS();
 			return factor;
 		} else {
-			if (!pauseMenuActorIsActive) {
+			if (!pauseMenuActorIsActive && !gifMode.modDisabled && settings.allowFastForwardOfSupersRoundstartsEtc) {
 				fastForwardingReplay = true;
 				gifMode.fpsSpeedUpReplay = 60.F * (float)factor;
 				if (gifMode.fpsSpeedUpReplay != 60.F) {
 					game.onFPSChanged();
 				}
-				gifMode.updateFPS();
+			} else {
+				gifMode.fpsSpeedUpReplay = 60.F;
 			}
+			gifMode.updateFPS();
 			return 1;
 		}
 	}
@@ -8205,4 +8395,80 @@ static bool pauseMenuActive() {
 
 int EndScene::onlineStepCountDecisionHook() {
 	return isGameModeNetworkHookWhenDecidingStepCountHook(pauseMenuActive());
+}
+
+void EndScene::performBattleChat() {
+	
+	bool canSendTextResult = canSendText();
+	bool aMenuIsOpenResult = true;
+	bool isIMEOpen = false;
+	
+	if (canSendTextResult) {
+		aMenuIsOpenResult = aMenuIsOpen();
+		isIMEOpen = IsIMEFormOpen();
+	}
+	
+	if (canSendTextResult && !aMenuIsOpenResult && !isIMEOpen && keyboard.gotPressed(settings.openBattleChatPrompt)) {
+		openBattleChatWithoutMenu();
+		isIMEOpen = true;
+	}
+	
+	if (!settings.quickBattleChat_enabled || !canSendTextResult) {
+		battleChatText.clear();
+		battleTextsToSend.clear();
+		return;
+	}
+	
+	std::chrono::time_point<std::chrono::system_clock> currentTime = std::chrono::system_clock::now();
+	
+	if (aMenuIsOpenResult || isIMEOpen) {
+		battleChatText.clear();
+		
+	} else {
+		currentTickPerformedBattleChatRoutine = true;
+		
+		if (!battleChatText.empty()) {
+			
+			long long diff = std::chrono::duration_cast<std::chrono::milliseconds>(
+				currentTime - battleChatTextLastUpdated
+			).count();
+			const size_t sz = battleChatText.size();
+			const int textLimit = settings.quickBattleChat_textLimit_ifYouDare;
+			if (diff > settings.quickBattleChat_idleTimeAmount || (int)sz - 1 >= textLimit || keyboard.gotPressed(settings.quickBattleChat_sendImmediately)) {
+				bool partial = (int)sz - 1 > textLimit;
+				wchar_t oldChar;
+				if (partial) {
+					oldChar = battleChatText[textLimit];
+					battleChatText[textLimit] = L'\0';
+				}
+				battleTextsToSend.push_back(battleChatText.data());
+				if (partial) {
+					battleChatText[textLimit] = oldChar;
+					battleChatText.erase(battleChatText.begin(), battleChatText.begin() + textLimit);
+				} else {
+					battleChatText.clear();
+				}
+			}
+		}
+		
+	}
+	
+	if (!battleTextsToSend.empty()) {
+		bool canSend = firstTimeSendingBattleChatText;
+		if (!canSend) {
+			long long diff = std::chrono::duration_cast<std::chrono::milliseconds>(
+				currentTime - battleChatTextLastSent
+			).count();
+			if (diff > settings.quickBattleChat_textSendRateLimit) {
+				canSend = true;
+			}
+		}
+		if (canSend) {
+			firstTimeSendingBattleChatText = false;
+			battleChatTextLastSent = currentTime;
+			auto it = battleTextsToSend.begin();
+			sendText(it->c_str());
+			battleTextsToSend.erase(it);
+		}
+	}
 }

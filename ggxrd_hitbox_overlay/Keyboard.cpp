@@ -5,8 +5,13 @@
 #include "memoryFunctions.h"
 #include "KeyDefinitions.h"
 #include "Detouring.h"
+#include "GifMode.h"
 
 Keyboard keyboard;
+
+extern "C" BOOL needIgnoreKeyboardBattleInputs = FALSE;
+
+extern "C" void setInputsHookAsm();  // define in asmhooks.asm
 
 BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 	DWORD windsProcId = 0;
@@ -24,14 +29,21 @@ BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 }
 
 extern "C" void getJoyStateHookAsm();  // defined in asmhooks.asm
-extern "C" HRESULT __cdecl getJoyStateHook(void* getDeviceStatePtr, void* directInputDevice, size_t size, DIJOYSTATE2* joyState, BYTE* FJoystickInfo) {  // defined here
+extern "C" HRESULT __cdecl getJoyStateHook(
+			void* getDeviceStatePtr,
+			void* directInputDevice,
+			size_t size,
+			DIJOYSTATE2* joyState,
+			BYTE* FJoystickInfo,
+			uintptr_t FWindowsViewport_as_FViewport) {  // defined here
 	typedef HRESULT (__stdcall*GetDeviceState_t)(void*,size_t,void*);
 	HRESULT result = ((GetDeviceState_t)getDeviceStatePtr)(directInputDevice, size, joyState);
 	memcpy(&keyboard.joy, joyState, sizeof DIJOYSTATE2);
-	if (keyboard.captureJoyInput) {
+	if (keyboard.captureJoyInput && !gifMode.modDisabled) {
 		DIJOYSTATE2* PreviousState = (DIJOYSTATE2*)(FJoystickInfo + 0xd0);
 		memcpy(joyState, PreviousState, sizeof DIJOYSTATE2);
 	}
+	keyboard.FWindowsViewport_as_FViewport = FWindowsViewport_as_FViewport;
 	return result;
 }
 
@@ -69,6 +81,11 @@ bool Keyboard::onDllMain() {
 		int offset = calculateRelativeCallOffset(getDeviceStateUsage, (uintptr_t)getJoyStateHookAsm);
 		memcpy(newBytes.data() + 1, &offset, 4);
 		detouring.patchPlace(getDeviceStateUsage, newBytes);
+	}
+	
+	if (settings.disconnectKeyboardFromBattleControls) {
+		needIgnoreKeyboardBattleInputs = TRUE;
+		hookSetInputs();
 	}
 	
 	return true;
@@ -673,4 +690,69 @@ void Keyboard::findJoysticks() {
 		finishedSigscanning();
 	}
 	
+}
+
+void Keyboard::hookSetInputs() {
+	if (attemptedHookSetInputs) return;
+	attemptedHookSetInputs = true;
+	// ghidra sig: 83 ec 0c 33 c0 53 8b d9 89 43 50 89 43 4c 89 43 48 89 43 6c 89 43 68 89 43 64 89 83 88 00 00 00 89 83 84 00 00 00 89 83 80 00 00 00 89 83 a4 00 00 00 89 83 a0 00 00 00 55 89 83 9c 00 00 00 8d 6b 54 89 83 c0 00 00 00 89 83 bc 00 00 00 89 83 b8 00 00 00 89 83 dc 00 00 00 89 83 d8 00 00 00 89 83 d4 00 00 00 89 83 f8 00 00 00 89 83 f4 00 00 00 89 83 f0 00 00 00 56 89 83 14 01 00 00 89 83 10 01 00 00 57 89 83 0c 01 00 00
+	uintptr_t setInputs = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		"83 ec 0c "
+		"33 c0 "
+		"53 "
+		"8b d9 "
+		"89 43 50 "
+		"89 43 4c "
+		"89 43 48 "
+		"89 43 6c "
+		"89 43 68 "
+		"89 43 64 "
+		"89 83 88 00 00 00 "
+		"89 83 84 00 00 00 "
+		"89 83 80 00 00 00 "
+		"89 83 a4 00 00 00 "
+		"89 83 a0 00 00 00 "
+		"55 "
+		"89 83 9c 00 00 00 "
+		"8d 6b 54 "
+		"89 83 c0 00 00 00 "
+		"89 83 bc 00 00 00 "
+		"89 83 b8 00 00 00 "
+		"89 83 dc 00 00 00 "
+		"89 83 d8 00 00 00 "
+		"89 83 d4 00 00 00 "
+		"89 83 f8 00 00 00 "
+		"89 83 f4 00 00 00 "
+		"89 83 f0 00 00 00 "
+		"56 "
+		"89 83 14 01 00 00 "
+		"89 83 10 01 00 00 "
+		"57 "
+		"89 83 0c 01 00 00",
+		nullptr, "KeyThingHolder_SetInputs");
+	if (!setInputs) return;
+	
+	// ghidra sig: b9 01 00 00 00 8b d7 8d 71 12 8d 9b 00 00 00 00
+	uintptr_t patchPlace = sigscanForward(setInputs,
+		"b9 01 00 00 00 "
+		"8b d7 "
+		"8d 71 12 "
+		">8d 9b 00 00 00 00", 0x32f);
+	if (!patchPlace) return;
+	
+	std::vector<char> newBytes(6);
+	int offset = calculateRelativeCallOffset(patchPlace, (uintptr_t)setInputsHookAsm);
+	newBytes[0] = '\xe8';
+	memcpy(newBytes.data() + 1, &offset, 4);
+	newBytes[5] = '\x90';
+	
+	detouring.patchPlace(patchPlace, newBytes);
+}
+
+void Keyboard::onDisconnectKeyboardSettingChanged() {
+	needIgnoreKeyboardBattleInputs = settings.disconnectKeyboardFromBattleControls;
+	if (needIgnoreKeyboardBattleInputs && !attemptedHookSetInputs) {
+		hookSetInputs();
+	}
 }

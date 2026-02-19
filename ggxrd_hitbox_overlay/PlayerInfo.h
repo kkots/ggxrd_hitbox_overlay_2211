@@ -922,7 +922,7 @@ struct FramebarBase {
 };
 
 struct FramebarState : public FramebarBaseState {
-	Frame currentFrame { };  // used to rollback changes to pre-superfreeze frames such as them being active or having hits occuring on them
+	Frame currentFrame { };  // used to rollback changes to pre-superfreeze frames such as them being active or having hits occurring on them
 	int framesCount = 0;  // number of frames in the Framebar::frames vector. Rollbackable. Do not try to calculate where you're in the framebuffer based solely on this number and idleTime. It's impossible.
 	bool completelyEmpty = false;
 	// How many advanced frames has this framebar not been updated for.

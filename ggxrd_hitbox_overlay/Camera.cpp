@@ -68,7 +68,7 @@ void Camera::HookHelp::updateCameraHook(char** param1, char* param2) {
 
 // Runs on the main thread
 void Camera::updateDarkenHook(char* thisArg) {
-	if (!shutdown) {
+	if (!shutdown && !gifMode.mostModDisabled) {
 		if (gifMode.gifModeOn || gifMode.gifModeToggleBackgroundOnly) {
 			*(float*)(thisArg + darkenValue1Offset) = -1.F;
 			*(float*)(thisArg + darkenValue1Offset + 0xC) = 0.F;
@@ -79,7 +79,7 @@ void Camera::updateDarkenHook(char* thisArg) {
 
 // Runs on the main thread
 void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
-	if (!shutdown) {
+	if (!shutdown && !gifMode.mostModDisabled) {
 		if (
 				(
 					gifMode.gifModeOn
@@ -100,7 +100,7 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 		}
 	}
 	orig_updateCamera(thisArg, param1, param2);
-	if (*aswEngine && !shutdown) {  // without *aswEngine check it will actually crash when you quit a match
+	if (*aswEngine && !shutdown && !gifMode.mostModDisabled) {  // without *aswEngine check it will actually crash when you quit a match
 		grabValues();
 		grabbedValues = true;
 	}

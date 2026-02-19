@@ -857,6 +857,7 @@ void HitboxHolder::parse(BYTE* jonbinPtr) {
 	
 }
 
+// this function only handles wide strings containing ASCII characters
 static int wideStrIntoStrbuf(const wchar_t* widePtr, char* buf, size_t bufSize) {
 	char* ptr = buf;
 	if (!bufSize) return 0;
@@ -882,16 +883,16 @@ char* FName::print(char* buf, size_t size) const {
 		return nullptr;
 	}
 	bool isWide;
-	const char* data = game.readFName(low, &isWide);
+	const void* data = game.readFName(low, &isWide);
 	if (!high) {
 		if (!isWide) {
-			strcpy_s(buf, size, data);
+			strcpy_s(buf, size, (const char*)data);
 		} else {
 			wideStrIntoStrbuf((const wchar_t*)data, buf, size);
 		}
 	} else {
 		if (!isWide) {
-			sprintf_s(buf, size, "%s%d", data, high - 1);
+			sprintf_s(buf, size, "%s%d", (const char*)data, high - 1);
 		} else {
 			int count = wideStrIntoStrbuf((const wchar_t*)data, buf, size);
 			// 12, because 11 is the longest int you can print with %d, plus null character
@@ -904,11 +905,11 @@ char* FName::print(char* buf, size_t size) const {
 }
 
 template<typename Key, typename Value>
-int TMap<Key,Value>::find(Key* key) const {
+int TMap<Key,Value>::find(const Key& key) const {
 	int HashSize = Pairs.HashSize;
 	if (HashSize != 0) {
 		DWORD mask = (DWORD)HashSize - 1;
-		int* HashData;
+		const int* HashData;
 		if (Pairs.Hash.Data) {
 			HashData = Pairs.Hash.Data;
 		} else {

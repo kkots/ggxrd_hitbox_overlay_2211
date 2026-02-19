@@ -61,14 +61,14 @@ bool Throws::onDllMain() {
 }
 
 void Throws::HookHelp::hitDetectionMainHook(HitDetectionType hitDetectionType) {
-	if (!gifMode.modDisabled) {
+	if (!gifMode.modDisabled && !gifMode.mostModDisabled) {
 		endScene.onHitDetectionStart(hitDetectionType);
 		if (hitDetectionType == 1) {
 			throws.hitDetectionMainHook();
 		}
 	}
 	throws.orig_hitDetectionMain(this, hitDetectionType);
-	if (!gifMode.modDisabled) {
+	if (!gifMode.modDisabled && !gifMode.mostModDisabled) {
 		endScene.onHitDetectionEnd(hitDetectionType);
 	}
 }

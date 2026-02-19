@@ -178,8 +178,7 @@ struct DrawTextWithIconsParams {
 	int field155_0xf0;
 	// 0x1 makes it green
 	// 0x2 is drop shadow
-	// flag 0x20 means single-byte string
-	// 0x20 made my single-byte encoded text passed into 'text', that said "oig", only display the 'g' letter. Don't use 0x20. Just pass ascii text
+	// 0x20 means wide string
 	// flag 0x200 means outline - specify color in outlineColor
 	// Worse Than You: 0x400 big white text
 	// 0x1000 makes the first letter a little bigger

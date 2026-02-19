@@ -3028,6 +3028,13 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, int frame
 	if (canSpamTheShitOutOfTheMemory && source.stateHead->idleTime) {
 		// make idle time real, so we can refer to each idle frame
 		source.convertIdleTimeToFrames(EntityFramebar::posPlusOne(framebarPositionWithoutScroll), framesTotal);
+		// fix for rollback: prevent this mod's loadState from overwriting (now) idle frames with the last
+		// remembered non-idle frame (source.stateHead->currentFrame) that it last updated on the last non-idle frame
+		// each time the game rolls back.
+		int currentPosRel = source.toRelative(framebarPosition);
+		if (currentPosRel < source.stateHead->framesCount) {
+			source.stateHead->currentFrame = source.frames[currentPosRel];
+		}
 	}
 	
 	// all these are relative, ends are inclusive
@@ -4638,9 +4645,10 @@ void Framebar::convertIdleTimeToFrames(int framebarPosition, int framesTotal, co
 			idleFramesToSoak = 0;
 		}
 		if (realFramesToSoak) {
-			int soakPos = toRelative(EntityFramebar::confinePos(framebarPosition - idleTime - FRAMES_MAX));
+			int soakPos = toRelative(EntityFramebar::confinePos(framebarPosition - idleTime - stateHead->framesCount + framesAlreadyInPreFrame));
 			int i = 0;
 			do {
+				// an out-of-bounds heap buffer access was here
 				soakUpIntoPreFrame(frames[soakPos]);
 				EntityFramebar::incrementPos(soakPos);
 				++i;

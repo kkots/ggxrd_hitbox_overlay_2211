@@ -46,6 +46,7 @@ static ImVec4 RGBToVec(DWORD color);
 static const float inverse_255 = 1.F / 255.F;
 static ImVec4 ARGBToVec(DWORD color);
 static DWORD VecToRGB(const ImVec4& vec);
+static DWORD VecToARGB(const ImVec4& vec);
 static DWORD ARGBToABGR(DWORD color) { return (color & 0xFF00FF00) | ((color & 0xFF0000) >> 16) | ((color & 0xFF) << 16); }
 static DWORD multiplyColor(DWORD colorLeft, DWORD colorRight);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -1114,6 +1115,7 @@ void UI::drawSearchableWindows() {
 		pushSearchStack("Main UI Window");
 		
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Framedata"), ImGuiTreeNodeFlags_DefaultOpen) || searching) {
+			if (!isMostModDisabledPlusMsg())
 			if (ImGui::BeginTable("##PayerData", 3, tableFlags)) {
 				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 				ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
@@ -2532,11 +2534,14 @@ void UI::drawSearchableWindows() {
 				keyComboControl(settings.quickCharSelect_moveDown_2);
 				intSettingPreset(settings.stickDeadzonePercentage, 0, 1, 2, 80.F, 100);
 				floatSettingPreset(settings.stickSpeedMultiplier, FLT_MIN, FLT_MAX, 0.1F, 0.2F);
+				keyComboControl(settings.quickBattleChat_sendImmediately);
+				keyComboControl(settings.openBattleChatPrompt);
 			}
 			popSearchStack();
 			if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
 				booleanSettingPreset(settings.modWindowVisibleOnStart);
 				booleanSettingPreset(settings.useSigscanCaching);
+				booleanSettingPreset(settings.disableMostOfTheModInOnline);
 				booleanSettingPreset(settings.openPinnedWindowsOnStartup);
 				if (booleanSettingPreset(settings.disablePinButton)) {
 					onDisablePinButtonChanged(false);
@@ -2738,12 +2743,26 @@ void UI::drawSearchableWindows() {
 				
 				graySeparatorText("'PUNISH' Message");
 				booleanSettingPreset(settings.showPunishMessageOnWhiff);
-				
 				booleanSettingPreset(settings.showPunishMessageOnBlock);
+				booleanSettingPreset(settings.swapPlayerSideForPunishMessage);
+				colorSettingPreset(settings.punishMessageAppearColor, true);
+				colorSettingPreset(settings.punishMessageMaxHighlightColor, true);
+				colorSettingPreset(settings.punishMessageColor, true);
+				colorSettingPreset(settings.punishMessageDisappearColor, true);
 				
 				graySeparatorText("Fast-Forward");
 				intSettingPreset(settings.fastForwardReplayFactor, 1, 1, 1);
 				intSettingPreset(settings.fastForwardObserverFactor, 1, 1, 1);
+				booleanSettingPreset(settings.allowFastForwardOfSupersRoundstartsEtc);
+				
+				graySeparatorText("Quick Battle Chat");
+				booleanSettingPreset(settings.quickBattleChat_enabled);
+				intSettingPreset(settings.quickBattleChat_idleTimeAmount, 0, 100, 500);
+				intSettingPreset(settings.quickBattleChat_textLimit_ifYouDare, 1, 1, 1);
+				intSettingPreset(settings.quickBattleChat_textSendRateLimit, 0, 100, 1000);
+				if (booleanSettingPreset(settings.disconnectKeyboardFromBattleControls)) {
+					keyboard.onDisconnectKeyboardSettingChanged();
+				}
 				
 				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 				ImGui::PushTextWrapPos(0.F);
@@ -2815,6 +2834,7 @@ void UI::drawSearchableWindows() {
 	searchCollapsibleSection(PinnedWindowEnum_TensionData);
 	if (needDraw(PinnedWindowEnum_TensionData) || searching) {
 		customBegin(PinnedWindowEnum_TensionData);
+		if (!isMostModDisabledPlusMsg())
 		if (ImGui::BeginTable("##TensionData", 3, tableFlags)) {
 			
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
@@ -3107,8 +3127,8 @@ void UI::drawSearchableWindows() {
 	searchCollapsibleSection(PinnedWindowEnum_BurstGain);
 	if (needDraw(PinnedWindowEnum_BurstGain) || searching) {
 		customBegin(PinnedWindowEnum_BurstGain);
-		if (ImGui::BeginTable("##BurstGain", 3, tableFlags)
-		) {
+		if (!isMostModDisabledPlusMsg())
+		if (ImGui::BeginTable("##BurstGain", 3, tableFlags)) {
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
@@ -3242,7 +3262,7 @@ void UI::drawSearchableWindows() {
 			
 			if (!*aswEngine) {
 				ImGui::TextUnformatted("Match isn't running.");
-			} else
+			} else if (!isMostModDisabledPlusMsg())
 			if (ImGui::BeginTable("##ComboDmgStun", 2, tableFlags)) {
 				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5F);
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5F);
@@ -3291,6 +3311,7 @@ void UI::drawSearchableWindows() {
 	searchCollapsibleSection(PinnedWindowEnum_SpeedHitstunProration);
 	if (needDraw(PinnedWindowEnum_SpeedHitstunProration) || searching) {
 		customBegin(PinnedWindowEnum_SpeedHitstunProration);
+		if (!isMostModDisabledPlusMsg())
 		if (ImGui::BeginTable("##SpeedHitstunProrationDotDotDot", 3, tableFlags)) {
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.f);
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
@@ -3583,6 +3604,7 @@ void UI::drawSearchableWindows() {
 	if (needDraw(PinnedWindowEnum_Projectiles) || searching) {
 		customBegin(PinnedWindowEnum_Projectiles);
 		
+		if (!isMostModDisabledPlusMsg())
 		if (ImGui::BeginTable("##Projectiles", 3, tableFlags)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
 			ImGui::TableSetupColumn("##FieldTitle", ImGuiTableColumnFlags_WidthStretch, 0.2f);
@@ -3864,6 +3886,87 @@ void UI::drawSearchableWindows() {
 							"The coordinates shown are relative to the global space.");
 					}
 				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						sprintf_s(strbuf, "%d", projectile.ptr && *aswEngine ? projectile.ptr.dealtAttack()->projectileLvl : 999);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Durability");
+						AddTooltip("Projectile durability or projectile level. Level 0 are unflickable projectiles."
+							" Projectiles can only clash with other projectiles, and can't clash with players."
+							" Levels above 2 are considered to be equal to 2 (just treat them as 2)."
+							" Level 2 can't clash with another level 2 (they just pass through each other without interaction)."
+							" Level 1 receives the clash (and all effects of it) when colliding with"
+							" a level 2, while a level 2 in that situation doesn't acknowledge the clash at all."
+							" Level 1 colliding with a level 1 causes both to receive the clash.\n"
+							"\n"
+							" Clashing normally increments the current 'number of hits' for the projectile."
+							" When the number of hits reaches maximum, most projectiles get destroyed."
+							" If the projectile you're studying does not increment its hits from an interaction,"
+							" it is important to remember that clashing deactivates the current attack's hit,"
+							" which causes it to not hit anything else. This means that projectiles that have received a clash"
+							" or have hit things like Jack O' houses will stop being active until a new hit starts.");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					#define GENERAL_HITS_TOOLTIP "Number of hits. When it reaches the maximum, most projectiles get destroyed."
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						const bool pff = projectile.ptr && *aswEngine;
+						if (pff) {
+							sprintf_s(strbuf, "%d/%d", projectile.ptr.numberOfHitsTaken(), projectile.ptr.numberOfHits());
+							printNoWordWrap
+						} else {
+							printNoWordWrapArg("--")
+						}
+						if (ImGui::BeginItemTooltip()) {
+							ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+							ImGui::TextUnformatted(GENERAL_HITS_TOOLTIP);
+							ImGui::PopTextWrapPos();
+							ImGui::TextUnformatted("Hits taken per type of interaction:");
+							// it stands for "super pendulum demon crest"
+							#define spdc_coolname_2(how_to_access, title) \
+								yellowText(title ":"); \
+								ImGui::SameLine(); \
+								sprintf_s(strbuf, "%d", pff ? how_to_access : 0); \
+								ImGui::TextUnformatted(strbuf);
+							#define spdc_coolname_3(how_to_access, title, comment) \
+								yellowText(title ":"); \
+								ImGui::SameLine(); \
+								sprintf_s(strbuf, "%d", pff ? how_to_access : 0); \
+								ImGui::TextUnformatted(strbuf); \
+								ImGui::SameLine(); \
+								ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY); \
+								ImGui::TextUnformatted("  " comment); \
+								ImGui::PopStyleColor();
+								
+							spdc_coolname_2(projectile.ptr.destroyOnHitPlayer(), "Upon hitting a player")
+							spdc_coolname_2(projectile.ptr.destroyOnBlockOrArmor(), "Upon block or armor")
+							spdc_coolname_3(projectile.ptr.destroyOnHitProjectile(), "Upon hitting another projectile", "// Doesn't include clashes. For hittable projectiles only")
+							spdc_coolname_2(projectile.ptr.destroyOnClash(), "Upon clashing")
+							spdc_coolname_3(projectile.ptr.destroyOnDamageCollision(), "Upon getting hit", "// For hittable projectiles only, like Jack O' houses. Doesn't include clashes. For being hit, blocking, armoring")
+							spdc_coolname_3(projectile.ptr.destroyOnDamageOnly(), "Upon getting hit (2)", "// For hittable projectiles only, like Jack O' houses. Doesn't include clashes. For being hit only")
+							#undef spdc_coolname_2
+							#undef spdc_coolname_3
+							
+							ImGui::EndTooltip();
+						}
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Hits");
+						AddTooltip(GENERAL_HITS_TOOLTIP "\n"
+							"Hover over the text in the left and the right columns specifically to see current parameters"
+							" set for that projectile for how many hits it takes per type of interaction.");
+					}
+				}
 				if (searching) break;
 			}
 			ImGui::EndTable();
@@ -3888,7 +3991,8 @@ void UI::drawSearchableWindows() {
 			
 			if (!*aswEngine || !player.pawn) {
 				ImGui::TextUnformatted("Match not running");
-			} else if (player.charType == CHARACTER_TYPE_SOL) {
+			} else if (!isMostModDisabledPlusMsg())
+			if (player.charType == CHARACTER_TYPE_SOL) {
 				if (player.playerval0) {
 					GGIcon scaledIcon = scaleGGIconToHeight(DISolIcon, 14.F);
 					drawGGIcon(scaledIcon);
@@ -6687,6 +6791,7 @@ void UI::drawSearchableWindows() {
 	searchCollapsibleSection(PinnedWindowEnum_BoxExtents);
 	if (needDraw(PinnedWindowEnum_BoxExtents) || searching) {
 		customBegin(PinnedWindowEnum_BoxExtents);
+		if (!isMostModDisabledPlusMsg())
 		if (ImGui::BeginTable("##PlayerData", 3, tableFlags)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
@@ -6839,62 +6944,64 @@ void UI::drawSearchableWindows() {
 			customBeginPair(PinnedWindowEnum_Cancels, i);
 			drawPlayerIconInWindowTitle(i);
 			
-			const float wrapWidth = ImGui::GetContentRegionAvail().x;
-			ImGui::PushTextWrapPos(wrapWidth);
-			
-			const PlayerInfo& player = endScene.currentState->players[i];
-			
-			const bool useSlang = settings.useSlangNames;
-			const char* lastName = nullptr;
-			int lastNameDuration = 0;
-			prepareLastNames(&lastName, player, false, &lastNameDuration);
-			int animNamesCount = player.prevStartupsDisp.countOfNonEmptyUniqueNames(&lastName, 1, useSlang);
-			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-			yellowText(searchFieldTitle(animNamesCount > 1 ? "Anims: " : "Anim: ", nullptr));
-			char* buf = strbuf;
-			size_t bufSize = sizeof strbuf;
-			player.prevStartupsDisp.printNames(buf, bufSize, &lastName,
-				1,
-				useSlang,
-				false,
-				animNamesCount > 1,
-				&lastNameDuration);
-			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
-			ImGui::PopStyleVar();
-			
-			if (player.cancelsOverflow) {
-				ImGui::TextUnformatted("...Some initial frames skipped...");
-				ImGui::Separator();
-			}
-			bool printedSomething = false;
-			for (int i = 0; i < player.cancelsCount; ++i) {
-				const PlayerCancelInfo& cancels = player.cancels[i];
-				if (cancels.isCompletelyEmpty()) continue;
-				if (printedSomething) {
+			if (!isMostModDisabledPlusMsg()) {
+				const float wrapWidth = ImGui::GetContentRegionAvail().x;
+				ImGui::PushTextWrapPos(wrapWidth);
+				
+				const PlayerInfo& player = endScene.currentState->players[i];
+				
+				const bool useSlang = settings.useSlangNames;
+				const char* lastName = nullptr;
+				int lastNameDuration = 0;
+				prepareLastNames(&lastName, player, false, &lastNameDuration);
+				int animNamesCount = player.prevStartupsDisp.countOfNonEmptyUniqueNames(&lastName, 1, useSlang);
+				ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+				yellowText(searchFieldTitle(animNamesCount > 1 ? "Anims: " : "Anim: ", nullptr));
+				char* buf = strbuf;
+				size_t bufSize = sizeof strbuf;
+				player.prevStartupsDisp.printNames(buf, bufSize, &lastName,
+					1,
+					useSlang,
+					false,
+					animNamesCount > 1,
+					&lastNameDuration);
+				drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
+				ImGui::PopStyleVar();
+				
+				if (player.cancelsOverflow) {
+					ImGui::TextUnformatted("...Some initial frames skipped...");
 					ImGui::Separator();
 				}
-				printedSomething = true;
-				sprintf_s(strbuf, "Frames %d-%d:", cancels.start, cancels.end);
-				textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-				printAllCancels(cancels,
-					cancels.enableSpecialCancel,
-					cancels.clashCancelTimer,
-					cancels.enableJumpCancel,
-					cancels.enableSpecials,
-					cancels.hitAlreadyHappened,
-					cancels.airborne,
-					cancels.canYrc,
-					false,
-					false);
+				bool printedSomething = false;
+				for (int i = 0; i < player.cancelsCount; ++i) {
+					const PlayerCancelInfo& cancels = player.cancels[i];
+					if (cancels.isCompletelyEmpty()) continue;
+					if (printedSomething) {
+						ImGui::Separator();
+					}
+					printedSomething = true;
+					sprintf_s(strbuf, "Frames %d-%d:", cancels.start, cancels.end);
+					textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+					printAllCancels(cancels,
+						cancels.enableSpecialCancel,
+						cancels.clashCancelTimer,
+						cancels.enableJumpCancel,
+						cancels.enableSpecials,
+						cancels.hitAlreadyHappened,
+						cancels.airborne,
+						cancels.canYrc,
+						false,
+						false);
+				}
+				if (!printedSomething) {
+					ImGui::TextUnformatted("No cancels available.");
+				}
+				
+				ImGui::PopTextWrapPos();
+				const GGIcon* scaledIcon = get_tipsIconScaled14();
+				drawGGIcon(*scaledIcon);
+				AddTooltip(thisHelpTextWillRepeat);
 			}
-			if (!printedSomething) {
-				ImGui::TextUnformatted("No cancels available.");
-			}
-			
-			ImGui::PopTextWrapPos();
-			const GGIcon* scaledIcon = get_tipsIconScaled14();
-			drawGGIcon(*scaledIcon);
-			AddTooltip(thisHelpTextWillRepeat);
 			customEnd();
 			ImGui::PopID();
 		}
@@ -6911,327 +7018,362 @@ void UI::drawSearchableWindows() {
 			customBeginPair(PinnedWindowEnum_DamageCalculation, i);
 			drawPlayerIconInWindowTitle(i);
 			
-			const PlayerInfo& player = endScene.currentState->players[1 - i];
-			
-			struct ComboProration {
-				const char* name;
-				int val;
-			};
-			ComboProration comboProrations[] {
-				{ "Normal/Special", player.comboProrationNormal },
-				{ "Overdrive", player.comboProrationOverdrive }
-			};
-			
-			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-			for (int comboProrationI = 0; comboProrationI < 2; ++comboProrationI) {
-				const ComboProration& currentProration = comboProrations[comboProrationI];
+			if (!isMostModDisabledPlusMsg()) {
+				const PlayerInfo& player = endScene.currentState->players[1 - i];
 				
-				searchFieldTitle("Current proration");
-				sprintf_s(strbuf, "Current proration (%s): ", currentProration.name);
-				yellowText(strbuf);
-				AddTooltip(searchTooltip("Here we display only Dust proration * Proration from initial/forced proration * RISC Damage Scale * Guts * Defense Modifier * RC Proration"));
+				struct ComboProration {
+					const char* name;
+					int val;
+				};
+				ComboProration comboProrations[] {
+					{ "Normal/Special", player.comboProrationNormal },
+					{ "Overdrive", player.comboProrationOverdrive }
+				};
 				
-				int totalProration = 10000;
-				totalProration = totalProration * player.dustProration1 / 100;
-				totalProration = totalProration * player.dustProration2 / 100;
-				totalProration = totalProration * player.proration / 100;
-				totalProration = totalProration * currentProration.val / 256;
-				totalProration = totalProration * player.gutsPercentage / 100;
-				totalProration = totalProration * (player.defenseModifier + 256) / 256;
-				if (player.rcProration) totalProration = totalProration * 80 / 100;
-				
-				sprintf_s(strbuf, "%3d%c", player.dustProration1 * player.dustProration2 / 100, '%');
-				ImGui::TextUnformatted(strbuf);
-				AddTooltip(searchTooltip("Dust proration"));
-				ImGui::SameLine();
-				
-				ImGui::TextUnformatted(" * ");
-				ImGui::SameLine();
-				
-				sprintf_s(strbuf, "%3d%c", player.proration, '%');
-				ImGui::TextUnformatted(strbuf);
-				AddTooltip(searchTooltip("Initial/forced proration"));
-				ImGui::SameLine();
-				
-				ImGui::TextUnformatted(" * ");
-				ImGui::SameLine();
-				
-				sprintf_s(strbuf, "%3d%c", currentProration.val * 100 / 256, '%');
-				ImGui::TextUnformatted(strbuf);
-				AddTooltip(searchTooltip("RISC Damage Scale"));
-				ImGui::SameLine();
-				
-				ImGui::TextUnformatted(" * ");
-				ImGui::SameLine();
-				
-				sprintf_s(strbuf, "%3d%c", player.gutsPercentage, '%');
-				ImGui::TextUnformatted(strbuf);
-				AddTooltip(searchTooltip("Guts"));
-				ImGui::SameLine();
-				
-				ImGui::TextUnformatted(" * ");
-				ImGui::SameLine();
-				
-				sprintf_s(strbuf, "%3d%c", (player.defenseModifier + 256) * 100 / 256, '%');
-				ImGui::TextUnformatted(strbuf);
-				AddTooltip(searchTooltip("Defense Modifier"));
-				ImGui::SameLine();
-				
-				ImGui::TextUnformatted(" * ");
-				ImGui::SameLine();
-				
-				ImGui::TextUnformatted(player.rcProration ? " 80%" : "100%");
-				AddTooltip(searchTooltip("Roman Cancel Damage Modifier. Applied during Roman Cancel slowdown."));
-				ImGui::SameLine();
-				
-				ImGui::TextUnformatted(" = ");
-				ImGui::SameLine();
-				
-				sprintf_s(strbuf, "%3d%c", totalProration / 100, '%');
-				ImGui::TextUnformatted(strbuf);
-				AddTooltip(searchTooltip("Total proration"));
-				
-			}
-				
-			ImGui::PopStyleVar();
-			ImGui::Separator();
-			
-			static std::vector<DmgCalc> searchDmgCalcs;
-			if (searching && searchDmgCalcs.empty()) {
-				DmgCalc newCalc;
-				newCalc.hitResult = HIT_RESULT_BLOCKED;
-				newCalc.blockType = BLOCK_TYPE_NORMAL;
-				searchDmgCalcs.push_back(newCalc);
-				
-				newCalc.hitResult = HIT_RESULT_ARMORED;
-				searchDmgCalcs.push_back(newCalc);
-				
-				newCalc.hitResult = HIT_RESULT_NORMAL;
-				newCalc.u.hit.extraInverseProration = 80;
-				newCalc.u.hit.stylishDamageInverseModifier = 80;
-				newCalc.u.hit.handicap = 156;
-				newCalc.u.hit.needReduceRisc = true;
-				searchDmgCalcs.push_back(newCalc);
-			}
-			const std::vector<DmgCalc>& dmgCalcsUse = searching ? searchDmgCalcs : player.dmgCalcs;
-			
-			if (!dmgCalcsUse.empty()) {
-				
-				bool isFirst = true;
-				bool needPrintHitNumbers = dmgCalcsUse.size() > 1;
-				bool useSlang = settings.useSlangNames;
-				int hitCounter = (searching ? 0 : player.dmgCalcsSkippedHits) + dmgCalcsUse.size() - 1;
-				for (auto it = dmgCalcsUse.begin() + (dmgCalcsUse.size() - 1); ; ) {
-					const DmgCalc& dmgCalc = *it;
+				ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+				for (int comboProrationI = 0; comboProrationI < 2; ++comboProrationI) {
+					const ComboProration& currentProration = comboProrations[comboProrationI];
 					
-					if (!isFirst) ImGui::Separator();
-					isFirst = false;
+					searchFieldTitle("Current proration");
+					sprintf_s(strbuf, "Current proration (%s): ", currentProration.name);
+					yellowText(strbuf);
+					AddTooltip(searchTooltip("Here we display only Dust proration * Proration from initial/forced proration * RISC Damage Scale * Guts * Defense Modifier * RC Proration"));
 					
-					if (needPrintHitNumbers) {
-						ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-						yellowText(searchFieldTitle("Hit Number: "));
-						ImGui::SameLine();
-						sprintf_s(strbuf, "%d", hitCounter + 1);
-						ImGui::TextUnformatted(strbuf);
-						ImGui::PopStyleVar();
-					}
-					--hitCounter;
+					int totalProration = 10000;
+					totalProration = totalProration * player.dustProration1 / 100;
+					totalProration = totalProration * player.dustProration2 / 100;
+					totalProration = totalProration * player.proration / 100;
+					totalProration = totalProration * currentProration.val / 256;
+					totalProration = totalProration * player.gutsPercentage / 100;
+					totalProration = totalProration * (player.defenseModifier + 256) / 256;
+					if (player.rcProration) totalProration = totalProration * 80 / 100;
 					
-					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-					
-					yellowText(searchFieldTitle("Attack Name: "));
+					sprintf_s(strbuf, "%3d%c", player.dustProration1 * player.dustProration2 / 100, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip(searchTooltip("Dust proration"));
 					ImGui::SameLine();
-					if (dmgCalc.attackName) {
-						ImGui::TextUnformatted(useSlang && dmgCalc.attackName->slang ? dmgCalc.attackName->slang : dmgCalc.attackName->name);
-						if (dmgCalc.nameFull || useSlang && dmgCalc.attackName->slang && dmgCalc.attackName->name) {
-							AddTooltip(dmgCalc.nameFull ? dmgCalc.nameFull : dmgCalc.attackName->name);
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", player.proration, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip(searchTooltip("Initial/forced proration"));
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", currentProration.val * 100 / 256, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip(searchTooltip("RISC Damage Scale"));
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", player.gutsPercentage, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip(searchTooltip("Guts"));
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", (player.defenseModifier + 256) * 100 / 256, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip(searchTooltip("Defense Modifier"));
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(player.rcProration ? " 80%" : "100%");
+					AddTooltip(searchTooltip("Roman Cancel Damage Modifier. Applied during Roman Cancel slowdown."));
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" = ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", totalProration / 100, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip(searchTooltip("Total proration"));
+					
+				}
+					
+				ImGui::PopStyleVar();
+				ImGui::Separator();
+				
+				static std::vector<DmgCalc> searchDmgCalcs;
+				if (searching && searchDmgCalcs.empty()) {
+					DmgCalc newCalc;
+					newCalc.hitResult = HIT_RESULT_BLOCKED;
+					newCalc.blockType = BLOCK_TYPE_NORMAL;
+					searchDmgCalcs.push_back(newCalc);
+					
+					newCalc.hitResult = HIT_RESULT_ARMORED;
+					searchDmgCalcs.push_back(newCalc);
+					
+					newCalc.hitResult = HIT_RESULT_NORMAL;
+					newCalc.u.hit.extraInverseProration = 80;
+					newCalc.u.hit.stylishDamageInverseModifier = 80;
+					newCalc.u.hit.handicap = 156;
+					newCalc.u.hit.needReduceRisc = true;
+					searchDmgCalcs.push_back(newCalc);
+				}
+				const std::vector<DmgCalc>& dmgCalcsUse = searching ? searchDmgCalcs : player.dmgCalcs;
+				
+				if (!dmgCalcsUse.empty()) {
+					
+					bool isFirst = true;
+					bool needPrintHitNumbers = dmgCalcsUse.size() > 1;
+					bool useSlang = settings.useSlangNames;
+					int hitCounter = (searching ? 0 : player.dmgCalcsSkippedHits) + dmgCalcsUse.size() - 1;
+					for (auto it = dmgCalcsUse.begin() + (dmgCalcsUse.size() - 1); ; ) {
+						const DmgCalc& dmgCalc = *it;
+						
+						if (!isFirst) ImGui::Separator();
+						isFirst = false;
+						
+						if (needPrintHitNumbers) {
+							ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+							yellowText(searchFieldTitle("Hit Number: "));
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d", hitCounter + 1);
+							ImGui::TextUnformatted(strbuf);
+							ImGui::PopStyleVar();
 						}
-					}
-					
-					printAttackLevel(dmgCalc);
-					
-					yellowText(searchFieldTitle("Is Projectile: "));
-					ImGui::SameLine();
-					ImGui::TextUnformatted(dmgCalc.isProjectile ? "Yes" : "No");
-					
-					yellowText(searchFieldTitle("Guard Type: "));
-					ImGui::SameLine();
-					const char* guardTypeStr;
-					if (dmgCalc.isThrow) {
-						guardTypeStr = "Throw";
-					} else {
-						guardTypeStr = formatGuardType(dmgCalc.guardType);
-					}
-					ImGui::TextUnformatted(guardTypeStr);
-					
-					yellowText(searchFieldTitle("Air Blockable: "));
-					AddTooltip(searchTooltip("Is air blockable - if not, then requires Faultless Defense to be blocked in the air."));
-					ImGui::SameLine();
-					ImGui::TextUnformatted(dmgCalc.airUnblockable ? "No" : "Yes");
-					
-					if (dmgCalc.guardCrush || searching) {
-						yellowText(searchFieldTitle("Guard Crush: "));
-						AddTooltip(searchTooltip("Guard break. When blocked, this attack causes the defender to enter hitstun on the next frame."));
+						--hitCounter;
+						
+						ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+						
+						yellowText(searchFieldTitle("Attack Name: "));
 						ImGui::SameLine();
-						ImGui::TextUnformatted(dmgCalc.guardCrush ? "Yes" : "No");
-					}
-					
-					ImGui::PopStyleVar();
-					
-					zerohspacing
-					yellowText(searchFieldTitle("Last Hit Result: "));
-					ImGui::SameLine();
-					ImGui::TextUnformatted(formatHitResult(dmgCalc.hitResult));
-					_zerohspacing
-					
-					if (dmgCalc.hitResult == HIT_RESULT_BLOCKED) {
+						if (dmgCalc.attackName) {
+							ImGui::TextUnformatted(useSlang && dmgCalc.attackName->slang ? dmgCalc.attackName->slang : dmgCalc.attackName->name);
+							if (dmgCalc.nameFull || useSlang && dmgCalc.attackName->slang && dmgCalc.attackName->name) {
+								AddTooltip(dmgCalc.nameFull ? dmgCalc.nameFull : dmgCalc.attackName->name);
+							}
+						}
+						
+						printAttackLevel(dmgCalc);
+						
+						yellowText(searchFieldTitle("Is Projectile: "));
+						ImGui::SameLine();
+						ImGui::TextUnformatted(dmgCalc.isProjectile ? "Yes" : "No");
+						
+						yellowText(searchFieldTitle("Guard Type: "));
+						ImGui::SameLine();
+						const char* guardTypeStr;
+						if (dmgCalc.isThrow) {
+							guardTypeStr = "Throw";
+						} else {
+							guardTypeStr = formatGuardType(dmgCalc.guardType);
+						}
+						ImGui::TextUnformatted(guardTypeStr);
+						
+						yellowText(searchFieldTitle("Air Blockable: "));
+						AddTooltip(searchTooltip("Is air blockable - if not, then requires Faultless Defense to be blocked in the air."));
+						ImGui::SameLine();
+						ImGui::TextUnformatted(dmgCalc.airUnblockable ? "No" : "Yes");
+						
+						if (dmgCalc.guardCrush || searching) {
+							yellowText(searchFieldTitle("Guard Crush: "));
+							AddTooltip(searchTooltip("Guard break. When blocked, this attack causes the defender to enter hitstun on the next frame."));
+							ImGui::SameLine();
+							ImGui::TextUnformatted(dmgCalc.guardCrush ? "Yes" : "No");
+						}
+						
+						ImGui::PopStyleVar();
+						
 						zerohspacing
-						yellowText(searchFieldTitle("Block Type: "));
+						yellowText(searchFieldTitle("Last Hit Result: "));
 						ImGui::SameLine();
-						ImGui::TextUnformatted(formatBlockType(dmgCalc.blockType));
+						ImGui::TextUnformatted(formatHitResult(dmgCalc.hitResult));
 						_zerohspacing
-						if (dmgCalc.blockType != BLOCK_TYPE_FAULTLESS) {
-							const DmgCalc::DmgCalcU::DmgCalcBlock& data = dmgCalc.u.block;
+						
+						if (dmgCalc.hitResult == HIT_RESULT_BLOCKED) {
+							zerohspacing
+							yellowText(searchFieldTitle("Block Type: "));
+							ImGui::SameLine();
+							ImGui::TextUnformatted(formatBlockType(dmgCalc.blockType));
+							_zerohspacing
+							if (dmgCalc.blockType != BLOCK_TYPE_FAULTLESS) {
+								const DmgCalc::DmgCalcU::DmgCalcBlock& data = dmgCalc.u.block;
+								if (ImGui::BeginTable("##DmgCalc", 2, tableFlags)) {
+									ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+									ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+									ImGui::TableHeadersRow();
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+									AddTooltip(searchTooltip("The base value for determining how much RISC this attack adds on block."));
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d", data.riscPlusBase);
+									const char* needHelp = nullptr;
+									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+									ImVec4* color = &RED_COLOR;
+									if (data.riscPlusBase > data.riscPlusBaseStandard) {
+										needHelp = "higher";
+									} else if (data.riscPlusBase < data.riscPlusBaseStandard) {
+										needHelp = "lower";
+										color = &LIGHT_BLUE_COLOR;
+									}
+									if (needHelp) {
+										ImGui::SameLine();
+										textUnformattedColored(*color, "(!)");
+										if (ImGui::BeginItemTooltip()) {
+											ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+											sprintf_s(strbuf, "This attack's RISC+ (%d) is %s than the standard RISC+ (%d) for its attack level %s(%d).",
+												data.riscPlusBase,
+												needHelp,
+												data.riscPlusBaseStandard,
+												dmgCalc.attackOriginalAttackLevel == dmgCalc.attackLevelForGuard ? "" : "on block/armor",
+												dmgCalc.attackLevelForGuard);
+											ImGui::TextUnformatted(strbuf);
+											ImGui::PopTextWrapPos();
+											ImGui::EndTooltip();
+										}
+									}
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted(searchFieldTitle("RISC Gain Rate"));
+									AddTooltip(searchTooltip("A per-character constant value that alters incoming values of RISC+."
+										" Depends on the defending player's character."));
+									ImGui::TableNextColumn();
+									printDecimal(data.guardBalanceDefence * 100 / 32, 0, 0, true);
+									sprintf_s(strbuf, "%d (%s)", data.guardBalanceDefence, printdecimalbuf);
+									ImGui::TextUnformatted(strbuf);
+									
+									int x = data.riscPlusBase * 100 * data.guardBalanceDefence / 32;
+									ImGui::TableNextColumn();
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * Gain Rate");
+									_zerohspacing
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d * %s = ", data.riscPlusBase, printdecimalbuf);
+									zerohspacing
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%s", printDecimal(x, 2, 0, false));
+									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+									_zerohspacing
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted(searchFieldTitle("Grounded and Overhead/Low"));
+									AddTooltip(searchTooltip("The defender was on the ground and the attack was either an overhead or a low."
+										" If yes, the modifier is 75%, otherwise RISC+ is unchanged."));
+									ImGui::TableNextColumn();
+									int oldX = x;
+									if (data.groundedAndOverheadOrLow) {
+										ImGui::TextUnformatted("Yes: 75% modifier");
+										x -= x / 4;
+									} else {
+										ImGui::TextUnformatted("No: 100% (no) modifier");
+									}
+									
+									ImGui::TableNextColumn();
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * Overhead/Low");
+									_zerohspacing
+									ImGui::TableNextColumn();
+									zerohspacing
+									sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.groundedAndOverheadOrLow ? "75%" : "100%");
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
+									_zerohspacing
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted(searchFieldTitle("Was In Blockstun"));
+									AddTooltip(searchTooltip("The defender was already in blockstun at the time of attack."
+										" If yes, the modifier is 50%, otherwise RISC+ is unchanged."));
+									ImGui::TableNextColumn();
+									oldX = x;
+									if (data.wasInBlockstun) {
+										ImGui::TextUnformatted("Yes: 50% modifier");
+										x /= 2;
+									} else {
+										ImGui::TextUnformatted("No: 100% (no) modifier");
+									}
+									
+									ImGui::TableNextColumn();
+									searchFieldTitle("RISC+");
+									const char* tooltip = searchTooltip("This is the final RISC value that gets added to the RISC gauge.");
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * Was In Blockstun");
+									AddTooltip(tooltip);
+									_zerohspacing
+									ImGui::TableNextColumn();
+									zerohspacing
+									sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.wasInBlockstun ? "50%" : "100%");
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
+									_zerohspacing
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("RISC");
+									AddTooltip(searchTooltip("Final value for RISC, without bounds check for [-128.00; 128.00] is"
+										" the old value + change = final value."));
+									ImGui::TableNextColumn();
+									
+									char* buf = strbuf;
+									size_t bufSize = sizeof strbuf;
+									int result = sprintf_s(buf, bufSize, "%s + ", printDecimal(data.defenderRisc, 2, 0, false));
+									advanceBuf
+									
+									result = sprintf_s(buf, bufSize, "%s = ", printDecimal(x, 2, 0, false));
+									advanceBuf
+									
+									sprintf_s(buf, bufSize, "%s", printDecimal(data.defenderRisc + x, 2, 0, false));
+									
+									ImGui::TextUnformatted(strbuf);
+									
+									x = printBaseDamageCalc(dmgCalc, nullptr);
+									
+									x = printChipDamageCalculation(x, data.baseDamage, data.attackKezuri, data.attackKezuriStandard);
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("HP");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d - %d = %d", dmgCalc.oldHp, x, dmgCalc.oldHp - x);
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::EndTable();
+								}
+							}
+						} else if (dmgCalc.hitResult == HIT_RESULT_ARMORED || dmgCalc.hitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
+							const DmgCalc::DmgCalcU::DmgCalcArmor& data = dmgCalc.u.armor;
 							if (ImGui::BeginTable("##DmgCalc", 2, tableFlags)) {
 								ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 								ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 								ImGui::TableHeadersRow();
 								
-								ImGui::TableNextColumn();
-								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
-								AddTooltip(searchTooltip("The base value for determining how much RISC this attack adds on block."));
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d", data.riscPlusBase);
-								const char* needHelp = nullptr;
-								textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-								ImVec4* color = &RED_COLOR;
-								if (data.riscPlusBase > data.riscPlusBaseStandard) {
-									needHelp = "higher";
-								} else if (data.riscPlusBase < data.riscPlusBaseStandard) {
-									needHelp = "lower";
-									color = &LIGHT_BLUE_COLOR;
-								}
-								if (needHelp) {
-									ImGui::SameLine();
-									textUnformattedColored(*color, "(!)");
-									if (ImGui::BeginItemTooltip()) {
-										ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-										sprintf_s(strbuf, "This attack's RISC+ (%d) is %s than the standard RISC+ (%d) for its attack level %s(%d).",
-											data.riscPlusBase,
-											needHelp,
-											data.riscPlusBaseStandard,
-											dmgCalc.attackOriginalAttackLevel == dmgCalc.attackLevelForGuard ? "" : "on block/armor",
-											dmgCalc.attackLevelForGuard);
-										ImGui::TextUnformatted(strbuf);
-										ImGui::PopTextWrapPos();
-										ImGui::EndTooltip();
-									}
-								}
+								int x = printBaseDamageCalc(dmgCalc, nullptr);
+								int baseDamage = x;
+								
+								x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, dmgCalc.hitResult, data.superArmorDamagePercent);
 								
 								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(searchFieldTitle("RISC Gain Rate"));
-								AddTooltip(searchTooltip("A per-character constant value that alters incoming values of RISC+."
-									" Depends on the defending player's character."));
+								ImGui::TextUnformatted(searchFieldTitle("Armor Is Like Block?"));
+								AddTooltip(searchTooltip("If the armor behaves like blocking when tanking hits, it won't use guts calculation and will use the"
+									" same chip damage calculation as blocking uses. Otherwise it will apply guts and take that as damage."));
 								ImGui::TableNextColumn();
-								printDecimal(data.guardBalanceDefence * 100 / 32, 0, 0, true);
-								sprintf_s(strbuf, "%d (%s)", data.guardBalanceDefence, printdecimalbuf);
-								ImGui::TextUnformatted(strbuf);
+								ImGui::TextUnformatted(data.superArmorHeadAttribute ? "Yes" : "No");
 								
-								int x = data.riscPlusBase * 100 * data.guardBalanceDefence / 32;
-								ImGui::TableNextColumn();
-								zerohspacing
-								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" * Gain Rate");
-								_zerohspacing
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d * %s = ", data.riscPlusBase, printdecimalbuf);
-								zerohspacing
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%s", printDecimal(x, 2, 0, false));
-								textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-								_zerohspacing
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(searchFieldTitle("Grounded and Overhead/Low"));
-								AddTooltip(searchTooltip("The defender was on the ground and the attack was either an overhead or a low."
-									" If yes, the modifier is 75%, otherwise RISC+ is unchanged."));
-								ImGui::TableNextColumn();
-								int oldX = x;
-								if (data.groundedAndOverheadOrLow) {
-									ImGui::TextUnformatted("Yes: 75% modifier");
-									x -= x / 4;
+								if (data.superArmorHeadAttribute) {
+									x = printChipDamageCalculation(x, baseDamage, data.attackKezuri, data.attackKezuriStandard);;
 								} else {
-									ImGui::TextUnformatted("No: 100% (no) modifier");
+									x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
 								}
-								
-								ImGui::TableNextColumn();
-								zerohspacing
-								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" * Overhead/Low");
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.groundedAndOverheadOrLow ? "75%" : "100%");
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
-								_zerohspacing
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(searchFieldTitle("Was In Blockstun"));
-								AddTooltip(searchTooltip("The defender was already in blockstun at the time of attack."
-									" If yes, the modifier is 50%, otherwise RISC+ is unchanged."));
-								ImGui::TableNextColumn();
-								oldX = x;
-								if (data.wasInBlockstun) {
-									ImGui::TextUnformatted("Yes: 50% modifier");
-									x /= 2;
-								} else {
-									ImGui::TextUnformatted("No: 100% (no) modifier");
-								}
-								
-								ImGui::TableNextColumn();
-								searchFieldTitle("RISC+");
-								const char* tooltip = searchTooltip("This is the final RISC value that gets added to the RISC gauge.");
-								zerohspacing
-								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
-								AddTooltip(tooltip);
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" * Was In Blockstun");
-								AddTooltip(tooltip);
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.wasInBlockstun ? "50%" : "100%");
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
-								_zerohspacing
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("RISC");
-								AddTooltip(searchTooltip("Final value for RISC, without bounds check for [-128.00; 128.00] is"
-									" the old value + change = final value."));
-								ImGui::TableNextColumn();
-								
-								char* buf = strbuf;
-								size_t bufSize = sizeof strbuf;
-								int result = sprintf_s(buf, bufSize, "%s + ", printDecimal(data.defenderRisc, 2, 0, false));
-								advanceBuf
-								
-								result = sprintf_s(buf, bufSize, "%s = ", printDecimal(x, 2, 0, false));
-								advanceBuf
-								
-								sprintf_s(buf, bufSize, "%s", printDecimal(data.defenderRisc + x, 2, 0, false));
-								
-								ImGui::TextUnformatted(strbuf);
-								
-								x = printBaseDamageCalc(dmgCalc, nullptr);
-								
-								x = printChipDamageCalculation(x, data.baseDamage, data.attackKezuri, data.attackKezuriStandard);
 								
 								ImGui::TableNextColumn();
 								ImGui::TextUnformatted("HP");
@@ -7241,1032 +7383,999 @@ void UI::drawSearchableWindows() {
 								
 								ImGui::EndTable();
 							}
-						}
-					} else if (dmgCalc.hitResult == HIT_RESULT_ARMORED || dmgCalc.hitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
-						const DmgCalc::DmgCalcU::DmgCalcArmor& data = dmgCalc.u.armor;
-						if (ImGui::BeginTable("##DmgCalc", 2, tableFlags)) {
-							ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-							ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-							ImGui::TableHeadersRow();
-							
-							int x = printBaseDamageCalc(dmgCalc, nullptr);
-							int baseDamage = x;
-							
-							x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, dmgCalc.hitResult, data.superArmorDamagePercent);
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Armor Is Like Block?"));
-							AddTooltip(searchTooltip("If the armor behaves like blocking when tanking hits, it won't use guts calculation and will use the"
-								" same chip damage calculation as blocking uses. Otherwise it will apply guts and take that as damage."));
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(data.superArmorHeadAttribute ? "Yes" : "No");
-							
-							if (data.superArmorHeadAttribute) {
-								x = printChipDamageCalculation(x, baseDamage, data.attackKezuri, data.attackKezuriStandard);;
-							} else {
-								x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
-							}
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted("HP");
-							ImGui::TableNextColumn();
-							sprintf_s(strbuf, "%d - %d = %d", dmgCalc.oldHp, x, dmgCalc.oldHp - x);
-							ImGui::TextUnformatted(strbuf);
-							
-							ImGui::EndTable();
-						}
-					} else if (dmgCalc.hitResult == HIT_RESULT_NORMAL) {
-						const DmgCalc::DmgCalcU::DmgCalcHit& data = dmgCalc.u.hit;
-						if (ImGui::BeginTable("##DmgCalc", 2, tableFlags)) {
-							ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-							ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-							ImGui::TableHeadersRow();
-							
-							int damageAfterHpScaling;
-							int x = printBaseDamageCalc(dmgCalc, &damageAfterHpScaling);
-							int baseDamage = x;
-							
-							int oldX = x;
-							if (data.increaseDmgBy50Percent) {
-								x = x * 150 / 100;
-								ImGui::TableNextColumn();
-								const char* tooltip = searchTooltip("Maybe Dustloop or someone knows what this is.");
-								zerohspacing
-								yellowText("Dmg");
-								AddTooltip(tooltip);
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" * 150%");
-								AddTooltip(tooltip);
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								sprintf_s(strbuf, "%d * 150%c = ", oldX, '%');
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%d", x);
-								yellowText(strbuf);
-								_zerohspacing
-							}
-							
-							oldX = x;
-							if (data.extraInverseProration != 100 && data.extraInverseProration != 0) {
-								x = x * 100 / data.extraInverseProration;
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(searchFieldTitle("Extra Inverse Modif"));
-								AddTooltip("Damage = Damage * 100 / Extra Inverse Modif");
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d%c", data.extraInverseProration, '%');
-								ImGui::TextUnformatted(strbuf);
+						} else if (dmgCalc.hitResult == HIT_RESULT_NORMAL) {
+							const DmgCalc::DmgCalcU::DmgCalcHit& data = dmgCalc.u.hit;
+							if (ImGui::BeginTable("##DmgCalc", 2, tableFlags)) {
+								ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+								ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+								ImGui::TableHeadersRow();
 								
-								ImGui::TableNextColumn();
-								const char* tooltip = "Damage = Damage * 100 / Extra Inverse Modif";
-								zerohspacing
-								yellowText("Dmg");
-								AddTooltip(tooltip);
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" / Extra Inv. Modif");
-								AddTooltip(tooltip);
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								sprintf_s(strbuf, "%d / %d%c = ", oldX, data.extraInverseProration, '%');
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%d", x);
-								yellowText(strbuf);
-								_zerohspacing
-							}
-							
-							oldX = x;
-							if (data.isStylish && data.stylishDamageInverseModifier != 0) {
-								x = x * 100 / data.stylishDamageInverseModifier;
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(searchFieldTitle("Stylish Inverse Modifier"));
-								AddTooltip(searchTooltip("Inverse modifier applied to the damage dealt to the defender for defender using the Stylish mode."
-									" Depends on the defender using the Stylish mode."));
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d%c", data.stylishDamageInverseModifier, '%');
-								ImGui::TextUnformatted(strbuf);
+								int damageAfterHpScaling;
+								int x = printBaseDamageCalc(dmgCalc, &damageAfterHpScaling);
+								int baseDamage = x;
 								
-								ImGui::TableNextColumn();
-								zerohspacing
-								yellowText("Dmg");
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" / Stylish");
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								sprintf_s(strbuf, "%d / %d%c = ", oldX, data.stylishDamageInverseModifier, '%');
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%d", x);
-								yellowText(strbuf);
-								_zerohspacing
-							}
-							
-							oldX = x;
-							if (data.handicap != 100) {
-								x = x * data.handicap / 100;
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(searchFieldTitle("Handicap"));
-								AddTooltip(searchTooltip("Handicap used by the defender modifies their incoming damage."
-									" Handicap levels:\n"
-									"1) 156%;\n"
-									"2) 125%;\n"
-									"3) 100%;\n"
-									"4) 80%;\n"
-									"5) 64%;"));
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d%c", data.handicap, '%');
-								ImGui::TextUnformatted(strbuf);
+								int oldX = x;
+								if (data.increaseDmgBy50Percent) {
+									x = x * 150 / 100;
+									ImGui::TableNextColumn();
+									const char* tooltip = searchTooltip("Maybe Dustloop or someone knows what this is.");
+									zerohspacing
+									yellowText("Dmg");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * 150%");
+									AddTooltip(tooltip);
+									_zerohspacing
+									ImGui::TableNextColumn();
+									zerohspacing
+									sprintf_s(strbuf, "%d * 150%c = ", oldX, '%');
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									yellowText(strbuf);
+									_zerohspacing
+								}
 								
+								oldX = x;
+								if (data.extraInverseProration != 100 && data.extraInverseProration != 0) {
+									x = x * 100 / data.extraInverseProration;
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted(searchFieldTitle("Extra Inverse Modif"));
+									AddTooltip("Damage = Damage * 100 / Extra Inverse Modif");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d%c", data.extraInverseProration, '%');
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									const char* tooltip = "Damage = Damage * 100 / Extra Inverse Modif";
+									zerohspacing
+									yellowText("Dmg");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" / Extra Inv. Modif");
+									AddTooltip(tooltip);
+									_zerohspacing
+									ImGui::TableNextColumn();
+									zerohspacing
+									sprintf_s(strbuf, "%d / %d%c = ", oldX, data.extraInverseProration, '%');
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									yellowText(strbuf);
+									_zerohspacing
+								}
+								
+								oldX = x;
+								if (data.isStylish && data.stylishDamageInverseModifier != 0) {
+									x = x * 100 / data.stylishDamageInverseModifier;
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted(searchFieldTitle("Stylish Inverse Modifier"));
+									AddTooltip(searchTooltip("Inverse modifier applied to the damage dealt to the defender for defender using the Stylish mode."
+										" Depends on the defender using the Stylish mode."));
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d%c", data.stylishDamageInverseModifier, '%');
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									zerohspacing
+									yellowText("Dmg");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" / Stylish");
+									_zerohspacing
+									ImGui::TableNextColumn();
+									zerohspacing
+									sprintf_s(strbuf, "%d / %d%c = ", oldX, data.stylishDamageInverseModifier, '%');
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									yellowText(strbuf);
+									_zerohspacing
+								}
+								
+								oldX = x;
+								if (data.handicap != 100) {
+									x = x * data.handicap / 100;
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted(searchFieldTitle("Handicap"));
+									AddTooltip(searchTooltip("Handicap used by the defender modifies their incoming damage."
+										" Handicap levels:\n"
+										"1) 156%;\n"
+										"2) 125%;\n"
+										"3) 100%;\n"
+										"4) 80%;\n"
+										"5) 64%;"));
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d%c", data.handicap, '%');
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									zerohspacing
+									yellowText("Dmg");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * Handicap");
+									_zerohspacing
+									ImGui::TableNextColumn();
+									zerohspacing
+									sprintf_s(strbuf, "%d * %d%c = ", oldX, data.handicap, '%');
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									yellowText(strbuf);
+									_zerohspacing
+								}
+								
+								x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, HIT_RESULT_NORMAL, 100);
+								
+								oldX = x;
+								if (data.dustProration1 != 100) {
+									x = x * data.dustProration1 / 100;
+									ImGui::TableNextColumn();
+									if (data.dustProration2 != 100) {
+										ImGui::TextUnformatted(searchFieldTitle("Dust Proration #1"));
+									} else {
+										ImGui::TextUnformatted(searchFieldTitle("Dust Proration"));
+									}
+									sprintf_s(strbuf, "%d%c", data.dustProration1, '%');
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									zerohspacing
+									yellowText("Dmg");
+									ImGui::SameLine();
+									if (data.dustProration2 != 100) {
+										ImGui::TextUnformatted(" * Dust Proration #1");
+									} else {
+										ImGui::TextUnformatted(" * Dust Proration");
+									}
+									_zerohspacing
+									ImGui::TableNextColumn();
+									zerohspacing
+									sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration1, '%');
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									yellowText(strbuf);
+									_zerohspacing
+								}
+								
+								oldX = x;
+								x = x * data.dustProration2 / 100;
 								ImGui::TableNextColumn();
-								zerohspacing
-								yellowText("Dmg");
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" * Handicap");
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								sprintf_s(strbuf, "%d * %d%c = ", oldX, data.handicap, '%');
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%d", x);
-								yellowText(strbuf);
-								_zerohspacing
-							}
-							
-							x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, HIT_RESULT_NORMAL, 100);
-							
-							oldX = x;
-							if (data.dustProration1 != 100) {
-								x = x * data.dustProration1 / 100;
-								ImGui::TableNextColumn();
-								if (data.dustProration2 != 100) {
-									ImGui::TextUnformatted(searchFieldTitle("Dust Proration #1"));
+								if (data.dustProration1 != 100) {
+									ImGui::TextUnformatted(searchFieldTitle("Dust Proration #2"));
 								} else {
 									ImGui::TextUnformatted(searchFieldTitle("Dust Proration"));
 								}
-								sprintf_s(strbuf, "%d%c", data.dustProration1, '%');
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d%c", data.dustProration2, '%');
 								ImGui::TextUnformatted(strbuf);
 								
 								ImGui::TableNextColumn();
 								zerohspacing
 								yellowText("Dmg");
 								ImGui::SameLine();
-								if (data.dustProration2 != 100) {
-									ImGui::TextUnformatted(" * Dust Proration #1");
+								if (data.dustProration1 != 100) {
+									ImGui::TextUnformatted(" * Dust Proration #2");
 								} else {
 									ImGui::TextUnformatted(" * Dust Proration");
 								}
 								_zerohspacing
 								ImGui::TableNextColumn();
 								zerohspacing
-								sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration1, '%');
+								sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration2, '%');
 								ImGui::TextUnformatted(strbuf);
 								ImGui::SameLine();
 								sprintf_s(strbuf, "%d", x);
 								yellowText(strbuf);
 								_zerohspacing
-							}
-							
-							oldX = x;
-							x = x * data.dustProration2 / 100;
-							ImGui::TableNextColumn();
-							if (data.dustProration1 != 100) {
-								ImGui::TextUnformatted(searchFieldTitle("Dust Proration #2"));
-							} else {
-								ImGui::TextUnformatted(searchFieldTitle("Dust Proration"));
-							}
-							ImGui::TableNextColumn();
-							sprintf_s(strbuf, "%d%c", data.dustProration2, '%');
-							ImGui::TextUnformatted(strbuf);
-							
-							ImGui::TableNextColumn();
-							zerohspacing
-							yellowText("Dmg");
-							ImGui::SameLine();
-							if (data.dustProration1 != 100) {
-								ImGui::TextUnformatted(" * Dust Proration #2");
-							} else {
-								ImGui::TextUnformatted(" * Dust Proration");
-							}
-							_zerohspacing
-							ImGui::TableNextColumn();
-							zerohspacing
-							sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration2, '%');
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							yellowText(strbuf);
-							_zerohspacing
-							
-							bool hellfire = (data.attackerHellfireState || data.attackerHpLessThan10Percent) && data.attackHasHellfireEnabled;
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Hellfire"));
-							AddTooltip(searchTooltip("To gain 20% damage bonus, the attacker must have hellfire state enabled, they must have <= 10% HP (<= 42 HP),"
-								" and the attack must be Hellfire-enabled. All overdrives should be Hellfire-enabled."));
-							ImGui::TableNextColumn();
-							if (hellfire) {
-								ImGui::TextUnformatted("Yes (120%)");
-							} else if (data.attackHasHellfireEnabled) {
-								ImGui::TextUnformatted("No (100%)");
-							} else if (dmgCalc.attackType == ATTACK_TYPE_OVERDRIVE) {
-								ImGui::TextUnformatted("No, attack does not allow hellfire (100%)");
-							} else {
-								ImGui::TextUnformatted("No, not a super (100%)");
-							}
-							
-							oldX = x;
-							ImGui::TableNextColumn();
-							zerohspacing
-							yellowText("Dmg");
-							ImGui::SameLine();
-							ImGui::TextUnformatted(" * Hellfire");
-							_zerohspacing
-							ImGui::TableNextColumn();
-							zerohspacing
-							if (hellfire) {
-								x = x * 120 / 100;
-								sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
-							} else {
-								sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
-							}
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							yellowText(strbuf);
-							_zerohspacing
-							
-							if (data.trainingSettingIsForceCounterHit) {
+								
+								bool hellfire = (data.attackerHellfireState || data.attackerHpLessThan10Percent) && data.attackHasHellfireEnabled;
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Hellfire"));
+								AddTooltip(searchTooltip("To gain 20% damage bonus, the attacker must have hellfire state enabled, they must have <= 10% HP (<= 42 HP),"
+									" and the attack must be Hellfire-enabled. All overdrives should be Hellfire-enabled."));
+								ImGui::TableNextColumn();
+								if (hellfire) {
+									ImGui::TextUnformatted("Yes (120%)");
+								} else if (data.attackHasHellfireEnabled) {
+									ImGui::TextUnformatted("No (100%)");
+								} else if (dmgCalc.attackType == ATTACK_TYPE_OVERDRIVE) {
+									ImGui::TextUnformatted("No, attack does not allow hellfire (100%)");
+								} else {
+									ImGui::TextUnformatted("No, not a super (100%)");
+								}
+								
+								oldX = x;
+								ImGui::TableNextColumn();
+								zerohspacing
+								yellowText("Dmg");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * Hellfire");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								if (hellfire) {
+									x = x * 120 / 100;
+									sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
+								} else {
+									sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
+								}
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								yellowText(strbuf);
+								_zerohspacing
+								
+								if (data.trainingSettingIsForceCounterHit) {
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted(searchFieldTitle("Attack Can't Counter Hit"));
+									AddTooltip(searchTooltip("Some attacks cannot be counter hits even when the 'Counter Hit' training setting is set to 'Forced' or 'Forced Mortal Counter'."
+										" However, triggering Danger Time normally and doing the attack still produces the Mortal Counter and gives the 20% damage boost."));
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted(
+										data.attackCounterHitType == COUNTERHIT_TYPE_NO_COUNTER
+											? "Yes"
+											: "No"
+									);
+								}
+								
+								oldX = x;
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Danger Time"));
+								ImGui::TableNextColumn();
+								if (data.dangerTime) {
+									x = x * 120 / 100;
+									ImGui::TextUnformatted("Yes (120%)");
+								} else {
+									ImGui::TextUnformatted("No (100%)");
+								}
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								yellowText("Dmg");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * Danger Time");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								if (data.dangerTime) {
+									sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
+								} else {
+									sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
+								}
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								yellowText(strbuf);
+								_zerohspacing
+								
+								bool rcProration = data.rcDmgProration || data.wasHitDuringRc;
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Current Proration"));
+								AddTooltip(searchTooltip("Forced/initial proration that was at the moment of impact. Stored in the defender."));
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d%c", data.proration, '%');
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("RISC"));
+								AddTooltip(searchTooltip("RISC that was at the moment of impact."));
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(printDecimal(data.risc, 2, 0, false));
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Is First Hit");
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(data.isFirstHit ? "Yes" : "No");
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Initial Proration"));
+								AddTooltip(searchTooltip("Depends on the attack."
+									" May only be applied on first hit."
+									" Does not prorate the current hit, only the consecutive hits."));
+								ImGui::TableNextColumn();
+								int nextProration = data.proration;
+								const char* nextProrationWhich = nullptr;
+								if (data.isFirstHit) {
+									if (data.initialProration == INT_MAX) {
+										ImGui::TextUnformatted("None (100%)");
+									} else {
+										nextProration = data.initialProration;
+										nextProrationWhich = "initial";
+										sprintf_s(strbuf, "%d%c", data.initialProration, '%');
+										ImGui::TextUnformatted(strbuf);
+									}
+								} else {
+									sprintf_s(strbuf, "Not first hit (would be %d%c otherwise)", data.initialProration, '%');
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Forced Proration"));
+								AddTooltip(searchTooltip("Depends on the attack."
+									" May be applied at any point in the combo, not just on first hit."
+									" Only gets applied if lower than the 'Current Proration'."
+									" Does not prorate the current hit, only the consecutive hits."));
+								ImGui::TableNextColumn();
+								if (data.forcedProration == INT_MAX) {
+									ImGui::TextUnformatted("None (100%)");
+								} else {
+									if (data.forcedProration < nextProration) {
+										nextProration = data.forcedProration;
+										nextProrationWhich = "forced";
+									}
+									sprintf_s(strbuf, "%d%c", data.forcedProration, '%');
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Next Proration"));
+								AddTooltip(searchTooltip("The proration that is chosen out of initial or forced prorations (the lowest is chosen)"
+									" that will apply to the consecutive combo."));
+								ImGui::TableNextColumn();
+								if (!nextProrationWhich) {
+									sprintf_s(strbuf, "Unchanged (%d%c)", data.proration, '%');
+								} else {
+									sprintf_s(strbuf, "%d%c (%s)", nextProration, '%', nextProrationWhich);
+								}
+								ImGui::TextUnformatted(strbuf);
+								
+								if (!data.needReduceRisc) {
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Attack Reduces RISC");
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("No");
+								} else {
+									int riscMinusTotal = 0;
+									
+									ImGui::TableNextColumn();
+									searchFieldTitle("RISC- Initial");
+									const char* tooltip = searchTooltip("This RISC- is applied on first hit only. Depends on the attack.");
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" Initial");
+									AddTooltip(tooltip);
+									_zerohspacing
+									ImGui::TableNextColumn();
+									if (!data.isFirstHit) {
+										zerohspacing
+										ImGui::TextUnformatted("Not first hit (");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
+									} else {
+										riscMinusTotal = data.riscMinusStarter * 100;
+										sprintf_s(strbuf, "%d", data.riscMinusStarter);
+										textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+									}
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("RISC-"));
+									AddTooltip(searchTooltip("Depends on the attack."));
+									ImGui::TableNextColumn();
+									riscMinusTotal += data.riscMinus * 100;
+									sprintf_s(strbuf, "%d", data.riscMinus);
+									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+									
+									ImGui::TableNextColumn();
+									searchFieldTitle("RISC- Once");
+									tooltip = searchTooltip("This RISC- may only be applied once. Depends on the attack.");
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" Once");
+									AddTooltip(tooltip);
+									_zerohspacing
+									ImGui::TableNextColumn();
+									if (data.riscMinusOnceUsed) {
+										zerohspacing
+										ImGui::TextUnformatted("Already applied (");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
+									} else if (data.riscMinusOnce == INT_MAX) {
+										zerohspacing
+										ImGui::TextUnformatted("None (");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
+									} else {
+										riscMinusTotal += data.riscMinusOnce * 100;
+										sprintf_s(strbuf, "%d", data.riscMinusOnce);
+										textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+									}
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("RISC > 0 ?");
+									AddTooltip("RISC reduces by 25% extra on each hit when it is positive.");
+									ImGui::TableNextColumn();
+									int riscReductionExtra = 0;
+									if (data.risc > 0) {
+										riscReductionExtra = data.risc >> 3;
+										riscMinusTotal += riscReductionExtra;
+										zerohspacing
+										ImGui::TextUnformatted("Yes (extra 'RISC-' = ");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscReductionExtra, 2, 0, false));
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
+									} else {
+										zerohspacing
+										ImGui::TextUnformatted("No (extra 'RISC-' = ");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
+									}
+									
+									ImGui::TableNextColumn();
+									zerohspacing
+									tooltip = "Total RISC- that will be applied by the current hit is"
+										" RISC- Initial + RISC- + RISC- Once + Extra RISC-.";
+									textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("RISC-"));
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" Total");
+									AddTooltip(tooltip);
+									_zerohspacing
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d + %d + %d + %s = ",
+										data.isFirstHit ? data.riscMinusStarter : 0,
+										data.riscMinus,
+										!data.riscMinusOnceUsed && data.riscMinusOnce != INT_MAX ? data.riscMinusOnce : 0,
+										printDecimal(riscReductionExtra, 2, 0, false));
+									zerohspacing
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscMinusTotal, 2, 0, false));
+									_zerohspacing
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Next RISC");
+									ImGui::TableNextColumn();
+									char* buf = strbuf;
+									size_t bufSize = sizeof strbuf;
+									int result = sprintf_s(strbuf, "%s - ", printDecimal(data.risc, 2, 0, false));
+									advanceBuf
+									result = sprintf_s(buf, bufSize, "%s = ", printDecimal(riscMinusTotal, 2, 0, false));
+									advanceBuf
+									result = sprintf_s(buf, bufSize, "%s", printDecimal(data.risc - riscMinusTotal, 2, 0, false));
+									advanceBuf
+									ImGui::TextUnformatted(strbuf);
+									
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Attack Type"));
+								AddTooltip(searchTooltip("Attack type affects which RISC Damage Scaling table is used. Overdrives prorate differently from normals and specials.\n"
+									"More info in the tooltip of the field below."));
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(formatAttackType(dmgCalc.attackType));
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("RISC Dmg Scaling"));
+								AddTooltip(searchTooltip("This damage scaling depends on the defender's RISC that was at the moment of impact"
+									" and the attacker's attack type.\n"
+									"Normal and special attacks use this table:\n"
+									"256, 200, 152, 112, 80, 48, 32, 16, 8, 8, 8;\n"
+									"Overdrives use this table:\n"
+									"256, 176, 128, 96, 80, 48, 40, 32, 24, 16, 16;\n"
+									"X = -(RISC/100) - 1; Round the division down. The RISC here is [-12800; +12800].\n"
+									"If RISC >= 0, the table is not used and RISC Damage Scaling is 256 (100%).\n"
+									"Index into the table = X / 16; Round down. Index starts from 0.\n"
+									"M = remainder of division of X by 16. From 0 to 15.\n"
+									"RISC Dmg Scaling (%) = (table[index] * 16 - (table[index] - table[index + 1]) * M) / 16 * 100% / 256;"
+									" Round down both divisions.\n"));
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d%c", data.comboProration * 100 / 256, '%');
+								ImGui::TextUnformatted(strbuf);
+								
+								int proration = data.proration * data.comboProration / 100;
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Current Pror. * RISC Scaling"));
+								AddTooltip(searchTooltip("Current Proration, which is forced/initial proration that was at the moment of impact,"
+									" * RISC Damage Scaling"));
+								ImGui::TableNextColumn();
+								if (data.noDamageScaling) {
+									proration = 256;
+									ImGui::TextUnformatted("No Damage Scaling (100%)");
+									ImGui::SameLine();
+									HelpMarker("Depends on the attack. Attack ignores initial/forced proration and RISC Damage Scaling.");
+								} else {
+									sprintf_s(strbuf, "%d%c * %d%c = %d%c",
+										data.proration,
+										'%',
+										data.comboProration * 100 / 256,
+										'%',
+										proration * 100 / 256,
+										'%');
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								int damagePriorToProration = x;
+								oldX = x;
+								x = x * proration / 256;
+								ImGui::TableNextColumn();
+								const char* tooltip = "Damage * Current proration * RISC Damage Scaling."
+									" Current proration is forced/initial proration that was at the moment of impact.";
+								zerohspacing
+								yellowText("Dmg");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * (Pror. * Scaling)");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								sprintf_s(strbuf, "%d * %d%c = ",
+										oldX,
+										proration * 100 / 256,
+										'%');
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								yellowText(strbuf);
+								_zerohspacing
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Roman Cancel"));
+								AddTooltip(searchTooltip("Proration resulting from landing a hit during Roman Cancel slowdown."));
+								ImGui::TableNextColumn();
+								if (rcProration) {
+									ImGui::TextUnformatted("Yes (80%)");
+								} else {
+									ImGui::TextUnformatted("No (100%)");
+								}
+								
+								oldX = x;
+								ImGui::TableNextColumn();
+								tooltip = "Damage * Roman Cancel proration";
+								zerohspacing
+								yellowText("Damage");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * RC");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								if (rcProration) {
+									x = x * 80 / 100;
+									sprintf_s(strbuf, "%d * 80%c = ", oldX, '%');
+									ImGui::TextUnformatted(strbuf);
+								} else {
+									ImGui::TextUnformatted("Doesn't apply (");
+								}
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								yellowText(strbuf);
+								if (!rcProration) {
+									ImGui::SameLine();
+									ImGui::TextUnformatted(")");
+								}
+								_zerohspacing
+								
+								if (damagePriorToProration > 0 && x < 1) {
+									x = 1;
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Minimum Dmg %"));
+								AddTooltip(searchTooltip("Minimum Damage Percent. Depends on the attack."));
+								ImGui::TableNextColumn();
+								if (data.minimumDamagePercent == 0) {
+									ImGui::TextUnformatted("None (0%)");
+								} else {
+									sprintf_s(strbuf, "%d%c", data.minimumDamagePercent, '%');
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Base Dmg * Min Dmg %"));
+								ImGui::TableNextColumn();
+								int minDmg = 0;
+								if (data.minimumDamagePercent == 0) {
+									sprintf_s(strbuf, "Doesn't apply (0)");
+								} else {
+									minDmg = baseDamage * data.minimumDamagePercent / 100;
+									sprintf_s(strbuf, "%d * %d%c = %d", baseDamage, data.minimumDamagePercent, '%', minDmg);
+								}
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								yellowText("Damage");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" or Min ");
+								ImGui::SameLine();
+								yellowText("Dmg");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								if (data.minimumDamagePercent != 0 && x < minDmg) x = minDmg;
+								sprintf_s(strbuf, "%d", x);
+								yellowText(strbuf);
+								
+								x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("HP<=Dmg and HP>=30% MaxHP"));
+								AddTooltip(searchTooltip("When HP at the moment of hit is less than or equal to the damage,"
+									" and HP is greater than or equal to max HP * 30% (i.e. HP>=126),"
+									" the damage gets changed to:\n"
+									"Damage = HP - Max HP * 5% or, in other words, Damage = HP - 21"));
+								ImGui::TableNextColumn();
+								bool attackIsTooOP = dmgCalc.oldHp <= x && dmgCalc.oldHp >= dmgCalc.maxHp * 30 / 100;
+								ImGui::TextUnformatted(attackIsTooOP ? "Yes" : "No");
+								
+								ImGui::TableNextColumn();
+								tooltip = "Damage after change due to the condition above.";
+								zerohspacing
+								yellowText("Damage");
+								AddTooltip(tooltip);
+								if (attackIsTooOP) {
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" = HP - 21");
+									AddTooltip(tooltip);
+								}
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								if (attackIsTooOP) {
+									x = dmgCalc.oldHp - dmgCalc.maxHp * 5 / 100;
+									sprintf_s(strbuf, "%d - 21 = ", dmgCalc.oldHp);
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+								}
+								sprintf_s(strbuf, "%d", x);
+								yellowText(strbuf);
+								_zerohspacing
+								
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Attack Is Kill"));
+								AddTooltip(searchTooltip("This was observed to not happen immediately when landing an IK, but it does happen during the IK cinematic."
+									" When an attack is a kill, it always deals damage equal to the entire remaining health of the defender no matter what."));
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(data.kill ? "Yes" : "No");
+								
+								ImGui::TableNextColumn();
+								yellowText("Damage");
+								AddTooltip("Damage after change due to the condition above.");
+								ImGui::TableNextColumn();
+								if (data.kill) x = dmgCalc.oldHp;
+								sprintf_s(strbuf, "%d", x);
+								yellowText(strbuf);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("HP");
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d - %d = %d", dmgCalc.oldHp, x, dmgCalc.oldHp - x);
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								searchFieldTitle("Base Stun");
+								tooltip = searchTooltip("The base stun value that the attack deals. Stun can only be dealt on hit, not on block or armor.");
+								zerohspacing
+								ImGui::TextUnformatted("Base ");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								textUnformattedColored(RED_COLOR, "Stun");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								
+								int defaultStun = damageAfterHpScaling;
+								if (data.throwLockExecute) defaultStun /= 2;
+								
+								if (data.baseStun != defaultStun) {
+									sprintf_s(strbuf, "%d", data.baseStun);
+									textUnformattedColored(RED_COLOR, strbuf);
+									
+									const char* isLessGreater;
+									ImVec4* color;
+									if (data.baseStun < defaultStun) {
+										isLessGreater = "less";
+										color = &LIGHT_BLUE_COLOR;
+									} else {
+										isLessGreater = "greater";
+										color = &RED_COLOR;
+									}
+									ImGui::SameLine();
+									textUnformattedColored(*color, "(!)");
+									if (ImGui::BeginItemTooltip()) {
+										ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+										char* buf = strbuf;
+										size_t bufSize = sizeof strbuf;
+										int result = sprintf_s(strbuf, "This attack's base stun value (%d) is %s than the default value (= damage%s (%d)",
+											data.baseStun,
+											isLessGreater,
+											dmgCalc.scaleDamageWithHp ? " after HP Damage Scale" : "",
+											damageAfterHpScaling);
+										advanceBuf
+										if (data.throwLockExecute) {
+											sprintf_s(buf, bufSize, "%s", " * 50% (due to throw animation) ).");
+										} else {
+											sprintf_s(buf, bufSize, " ).");
+										}
+										ImGui::TextUnformatted(strbuf);
+										ImGui::PopTextWrapPos();
+										ImGui::EndTooltip();
+									}
+								} else {
+									zerohspacing
+									sprintf_s(strbuf, "%d", data.baseStun);
+									textUnformattedColored(RED_COLOR, strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, " = Base Damage%s%s",
+										dmgCalc.scaleDamageWithHp ? " After HP Scale" : "",
+										data.throwLockExecute ? " * 50%" : "");
+									ImGui::TextUnformatted(strbuf);
+									_zerohspacing
+									AddTooltip("The 50% modifier is applied probably due to it being part of a throw animation.");
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Combo Count"));
+								AddTooltip(searchTooltip("The current number of hits in a combo, including this very hit."));
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d", data.comboCount);
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Combo Stun Multiplier"));
+								AddTooltip(searchTooltip("This multiplier is only applied when combo count is > 1. The limit for combo count is 12.\n"
+									"X = (combo count + 2) * base stun;\n"
+									"new stun = base stun - X / 16, round down."));
+								
+								ImGui::TableNextColumn();
+								int comboCountLimited = data.comboCount;
+								int somePercentage;
+								if (data.comboCount <= 1) {
+									ImGui::TextUnformatted("100%");
+									somePercentage = 100;
+								} else {
+									if (data.comboCount > 12) comboCountLimited = 12;
+									somePercentage = 100 - (comboCountLimited + 2) * 100 / 16;
+									sprintf_s(strbuf, "%d%c", somePercentage, '%');
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								searchFieldTitle("Attack Stun");
+								tooltip = searchTooltip("Attack's stun after multiplication by the combo stun multiplier.");
+								ImGui::TextUnformatted("Attack ");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								textUnformattedColored(RED_COLOR, "Stun");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								x = data.baseStun;
+								if (data.comboCount > 1) {
+									x -= (comboCountLimited + 2) * x / 16;
+								}
+								zerohspacing
+								sprintf_s(strbuf, "%d * %d%c = ", data.baseStun, somePercentage, '%');
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(RED_COLOR, strbuf);
+								_zerohspacing
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("OTG"));
+								AddTooltip(searchTooltip("OTG (off the ground) hits reduce attack's stun to 25% of its value."));
+								ImGui::TableNextColumn();
+								if (dmgCalc.isOtg) {
+									ImGui::TextUnformatted("Yes (25%)");
+									somePercentage = 25;
+								} else {
+									ImGui::TextUnformatted("No (100%)");
+									somePercentage = 100;
+								}
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								searchFieldTitle("Attack Stun");
+								tooltip = searchTooltip("Attack's stun after multiplication by the OTG modifier.");
+								ImGui::TextUnformatted("Attack ");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								textUnformattedColored(RED_COLOR, "Stun");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								oldX = x;
+								if (dmgCalc.isOtg) {
+									x >>= 2;
+								}
+								sprintf_s(strbuf, "%d * %d%c = ", oldX, somePercentage, '%');
+								zerohspacing
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(RED_COLOR, strbuf);
+								_zerohspacing
+								
 								ImGui::TableNextColumn();
 								ImGui::TextUnformatted(searchFieldTitle("Attack Can't Counter Hit"));
-								AddTooltip(searchTooltip("Some attacks cannot be counter hits even when the 'Counter Hit' training setting is set to 'Forced' or 'Forced Mortal Counter'."
-									" However, triggering Danger Time normally and doing the attack still produces the Mortal Counter and gives the 20% damage boost."));
+								AddTooltip(searchTooltip("Some attacks cannot be counter hits even when the 'Counter Hit' training setting is set to 'Forced' or 'Forced Mortal Counter'."));
 								ImGui::TableNextColumn();
 								ImGui::TextUnformatted(
 									data.attackCounterHitType == COUNTERHIT_TYPE_NO_COUNTER
 										? "Yes"
 										: "No"
 								);
-							}
-							
-							oldX = x;
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Danger Time"));
-							ImGui::TableNextColumn();
-							if (data.dangerTime) {
-								x = x * 120 / 100;
-								ImGui::TextUnformatted("Yes (120%)");
-							} else {
-								ImGui::TextUnformatted("No (100%)");
-							}
-							
-							ImGui::TableNextColumn();
-							zerohspacing
-							yellowText("Dmg");
-							ImGui::SameLine();
-							ImGui::TextUnformatted(" * Danger Time");
-							_zerohspacing
-							ImGui::TableNextColumn();
-							zerohspacing
-							if (data.dangerTime) {
-								sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
-							} else {
-								sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
-							}
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							yellowText(strbuf);
-							_zerohspacing
-							
-							bool rcProration = data.rcDmgProration || data.wasHitDuringRc;
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Current Proration"));
-							AddTooltip(searchTooltip("Forced/initial proration that was at the moment of impact. Stored in the defender."));
-							ImGui::TableNextColumn();
-							sprintf_s(strbuf, "%d%c", data.proration, '%');
-							ImGui::TextUnformatted(strbuf);
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("RISC"));
-							AddTooltip(searchTooltip("RISC that was at the moment of impact."));
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(printDecimal(data.risc, 2, 0, false));
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted("Is First Hit");
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(data.isFirstHit ? "Yes" : "No");
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Initial Proration"));
-							AddTooltip(searchTooltip("Depends on the attack."
-								" May only be applied on first hit."
-								" Does not prorate the current hit, only the consecutive hits."));
-							ImGui::TableNextColumn();
-							int nextProration = data.proration;
-							const char* nextProrationWhich = nullptr;
-							if (data.isFirstHit) {
-								if (data.initialProration == INT_MAX) {
-									ImGui::TextUnformatted("None (100%)");
-								} else {
-									nextProration = data.initialProration;
-									nextProrationWhich = "initial";
-									sprintf_s(strbuf, "%d%c", data.initialProration, '%');
-									ImGui::TextUnformatted(strbuf);
-								}
-							} else {
-								sprintf_s(strbuf, "Not first hit (would be %d%c otherwise)", data.initialProration, '%');
-								ImGui::TextUnformatted(strbuf);
-							}
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Forced Proration"));
-							AddTooltip(searchTooltip("Depends on the attack."
-								" May be applied at any point in the combo, not just on first hit."
-								" Only gets applied if lower than the 'Current Proration'."
-								" Does not prorate the current hit, only the consecutive hits."));
-							ImGui::TableNextColumn();
-							if (data.forcedProration == INT_MAX) {
-								ImGui::TextUnformatted("None (100%)");
-							} else {
-								if (data.forcedProration < nextProration) {
-									nextProration = data.forcedProration;
-									nextProrationWhich = "forced";
-								}
-								sprintf_s(strbuf, "%d%c", data.forcedProration, '%');
-								ImGui::TextUnformatted(strbuf);
-							}
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Next Proration"));
-							AddTooltip(searchTooltip("The proration that is chosen out of initial or forced prorations (the lowest is chosen)"
-								" that will apply to the consecutive combo."));
-							ImGui::TableNextColumn();
-							if (!nextProrationWhich) {
-								sprintf_s(strbuf, "Unchanged (%d%c)", data.proration, '%');
-							} else {
-								sprintf_s(strbuf, "%d%c (%s)", nextProration, '%', nextProrationWhich);
-							}
-							ImGui::TextUnformatted(strbuf);
-							
-							if (!data.needReduceRisc) {
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Attack Reduces RISC");
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("No");
-							} else {
-								int riscMinusTotal = 0;
 								
 								ImGui::TableNextColumn();
-								searchFieldTitle("RISC- Initial");
-								const char* tooltip = searchTooltip("This RISC- is applied on first hit only. Depends on the attack.");
-								zerohspacing
-								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
-								AddTooltip(tooltip);
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" Initial");
-								AddTooltip(tooltip);
-								_zerohspacing
+								ImGui::TextUnformatted(searchFieldTitle("Counter Hit"));
+								AddTooltip(searchTooltip("Counter hits cause twice the stun."));
 								ImGui::TableNextColumn();
-								if (!data.isFirstHit) {
-									zerohspacing
-									ImGui::TextUnformatted("Not first hit (");
-									ImGui::SameLine();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "0");
-									ImGui::SameLine();
-									ImGui::TextUnformatted(")");
-									_zerohspacing
+								if (data.counterHit != COUNTER_HIT_ENTITY_VALUE_NO_COUNTERHIT) {
+									ImGui::TextUnformatted("Yes (200%)");
+									somePercentage = 200;
 								} else {
-									riscMinusTotal = data.riscMinusStarter * 100;
-									sprintf_s(strbuf, "%d", data.riscMinusStarter);
-									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-								}
-								
-								ImGui::TableNextColumn();
-								textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("RISC-"));
-								AddTooltip(searchTooltip("Depends on the attack."));
-								ImGui::TableNextColumn();
-								riscMinusTotal += data.riscMinus * 100;
-								sprintf_s(strbuf, "%d", data.riscMinus);
-								textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-								
-								ImGui::TableNextColumn();
-								searchFieldTitle("RISC- Once");
-								tooltip = searchTooltip("This RISC- may only be applied once. Depends on the attack.");
-								zerohspacing
-								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
-								AddTooltip(tooltip);
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" Once");
-								AddTooltip(tooltip);
-								_zerohspacing
-								ImGui::TableNextColumn();
-								if (data.riscMinusOnceUsed) {
-									zerohspacing
-									ImGui::TextUnformatted("Already applied (");
-									ImGui::SameLine();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "0");
-									ImGui::SameLine();
-									ImGui::TextUnformatted(")");
-									_zerohspacing
-								} else if (data.riscMinusOnce == INT_MAX) {
-									zerohspacing
-									ImGui::TextUnformatted("None (");
-									ImGui::SameLine();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "0");
-									ImGui::SameLine();
-									ImGui::TextUnformatted(")");
-									_zerohspacing
-								} else {
-									riscMinusTotal += data.riscMinusOnce * 100;
-									sprintf_s(strbuf, "%d", data.riscMinusOnce);
-									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-								}
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("RISC > 0 ?");
-								AddTooltip("RISC reduces by 25% extra on each hit when it is positive.");
-								ImGui::TableNextColumn();
-								int riscReductionExtra = 0;
-								if (data.risc > 0) {
-									riscReductionExtra = data.risc >> 3;
-									riscMinusTotal += riscReductionExtra;
-									zerohspacing
-									ImGui::TextUnformatted("Yes (extra 'RISC-' = ");
-									ImGui::SameLine();
-									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscReductionExtra, 2, 0, false));
-									ImGui::SameLine();
-									ImGui::TextUnformatted(")");
-									_zerohspacing
-								} else {
-									zerohspacing
-									ImGui::TextUnformatted("No (extra 'RISC-' = ");
-									ImGui::SameLine();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "0");
-									ImGui::SameLine();
-									ImGui::TextUnformatted(")");
-									_zerohspacing
+									ImGui::TextUnformatted("No (100%)");
+									somePercentage = 100;
 								}
 								
 								ImGui::TableNextColumn();
 								zerohspacing
-								tooltip = "Total RISC- that will be applied by the current hit is"
-									" RISC- Initial + RISC- + RISC- Once + Extra RISC-.";
-								textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("RISC-"));
+								searchFieldTitle("Attack Stun");
+								tooltip = searchTooltip("Attack's stun after multiplication by the counter hit modifier.");
+								ImGui::TextUnformatted("Attack ");
 								AddTooltip(tooltip);
 								ImGui::SameLine();
-								ImGui::TextUnformatted(" Total");
+								textUnformattedColored(RED_COLOR, "Stun");
 								AddTooltip(tooltip);
 								_zerohspacing
 								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d + %d + %d + %s = ",
-									data.isFirstHit ? data.riscMinusStarter : 0,
-									data.riscMinus,
-									!data.riscMinusOnceUsed && data.riscMinusOnce != INT_MAX ? data.riscMinusOnce : 0,
-									printDecimal(riscReductionExtra, 2, 0, false));
+								oldX = x;
+								if (data.counterHit != COUNTER_HIT_ENTITY_VALUE_NO_COUNTERHIT) {
+									x *= 2;
+								}
+								sprintf_s(strbuf, "%d * %d%c = ", oldX, somePercentage, '%');
 								zerohspacing
 								ImGui::TextUnformatted(strbuf);
 								ImGui::SameLine();
-								textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscMinusTotal, 2, 0, false));
-								_zerohspacing
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Next RISC");
-								ImGui::TableNextColumn();
-								char* buf = strbuf;
-								size_t bufSize = sizeof strbuf;
-								int result = sprintf_s(strbuf, "%s - ", printDecimal(data.risc, 2, 0, false));
-								advanceBuf
-								result = sprintf_s(buf, bufSize, "%s = ", printDecimal(riscMinusTotal, 2, 0, false));
-								advanceBuf
-								result = sprintf_s(buf, bufSize, "%s", printDecimal(data.risc - riscMinusTotal, 2, 0, false));
-								advanceBuf
-								ImGui::TextUnformatted(strbuf);
-								
-							}
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Attack Type"));
-							AddTooltip(searchTooltip("Attack type affects which RISC Damage Scaling table is used. Overdrives prorate differently from normals and specials.\n"
-								"More info in the tooltip of the field below."));
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(formatAttackType(dmgCalc.attackType));
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("RISC Dmg Scaling"));
-							AddTooltip(searchTooltip("This damage scaling depends on the defender's RISC that was at the moment of impact"
-								" and the attacker's attack type.\n"
-								"Normal and special attacks use this table:\n"
-								"256, 200, 152, 112, 80, 48, 32, 16, 8, 8, 8;\n"
-								"Overdrives use this table:\n"
-								"256, 176, 128, 96, 80, 48, 40, 32, 24, 16, 16;\n"
-								"X = -(RISC/100) - 1; Round the division down. The RISC here is [-12800; +12800].\n"
-								"If RISC >= 0, the table is not used and RISC Damage Scaling is 256 (100%).\n"
-								"Index into the table = X / 16; Round down. Index starts from 0.\n"
-								"M = remainder of division of X by 16. From 0 to 15.\n"
-								"RISC Dmg Scaling (%) = (table[index] * 16 - (table[index] - table[index + 1]) * M) / 16 * 100% / 256;"
-								" Round down both divisions.\n"));
-							ImGui::TableNextColumn();
-							sprintf_s(strbuf, "%d%c", data.comboProration * 100 / 256, '%');
-							ImGui::TextUnformatted(strbuf);
-							
-							int proration = data.proration * data.comboProration / 100;
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Current Pror. * RISC Scaling"));
-							AddTooltip(searchTooltip("Current Proration, which is forced/initial proration that was at the moment of impact,"
-								" * RISC Damage Scaling"));
-							ImGui::TableNextColumn();
-							if (data.noDamageScaling) {
-								proration = 256;
-								ImGui::TextUnformatted("No Damage Scaling (100%)");
-								ImGui::SameLine();
-								HelpMarker("Depends on the attack. Attack ignores initial/forced proration and RISC Damage Scaling.");
-							} else {
-								sprintf_s(strbuf, "%d%c * %d%c = %d%c",
-									data.proration,
-									'%',
-									data.comboProration * 100 / 256,
-									'%',
-									proration * 100 / 256,
-									'%');
-								ImGui::TextUnformatted(strbuf);
-							}
-							
-							int damagePriorToProration = x;
-							oldX = x;
-							x = x * proration / 256;
-							ImGui::TableNextColumn();
-							const char* tooltip = "Damage * Current proration * RISC Damage Scaling."
-								" Current proration is forced/initial proration that was at the moment of impact.";
-							zerohspacing
-							yellowText("Dmg");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							ImGui::TextUnformatted(" * (Pror. * Scaling)");
-							AddTooltip(tooltip);
-							_zerohspacing
-							ImGui::TableNextColumn();
-							zerohspacing
-							sprintf_s(strbuf, "%d * %d%c = ",
-									oldX,
-									proration * 100 / 256,
-									'%');
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							yellowText(strbuf);
-							_zerohspacing
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Roman Cancel"));
-							AddTooltip(searchTooltip("Proration resulting from landing a hit during Roman Cancel slowdown."));
-							ImGui::TableNextColumn();
-							if (rcProration) {
-								ImGui::TextUnformatted("Yes (80%)");
-							} else {
-								ImGui::TextUnformatted("No (100%)");
-							}
-							
-							oldX = x;
-							ImGui::TableNextColumn();
-							tooltip = "Damage * Roman Cancel proration";
-							zerohspacing
-							yellowText("Damage");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							ImGui::TextUnformatted(" * RC");
-							AddTooltip(tooltip);
-							_zerohspacing
-							ImGui::TableNextColumn();
-							zerohspacing
-							if (rcProration) {
-								x = x * 80 / 100;
-								sprintf_s(strbuf, "%d * 80%c = ", oldX, '%');
-								ImGui::TextUnformatted(strbuf);
-							} else {
-								ImGui::TextUnformatted("Doesn't apply (");
-							}
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							yellowText(strbuf);
-							if (!rcProration) {
-								ImGui::SameLine();
-								ImGui::TextUnformatted(")");
-							}
-							_zerohspacing
-							
-							if (damagePriorToProration > 0 && x < 1) {
-								x = 1;
-							}
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Minimum Dmg %"));
-							AddTooltip(searchTooltip("Minimum Damage Percent. Depends on the attack."));
-							ImGui::TableNextColumn();
-							if (data.minimumDamagePercent == 0) {
-								ImGui::TextUnformatted("None (0%)");
-							} else {
-								sprintf_s(strbuf, "%d%c", data.minimumDamagePercent, '%');
-								ImGui::TextUnformatted(strbuf);
-							}
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Base Dmg * Min Dmg %"));
-							ImGui::TableNextColumn();
-							int minDmg = 0;
-							if (data.minimumDamagePercent == 0) {
-								sprintf_s(strbuf, "Doesn't apply (0)");
-							} else {
-								minDmg = baseDamage * data.minimumDamagePercent / 100;
-								sprintf_s(strbuf, "%d * %d%c = %d", baseDamage, data.minimumDamagePercent, '%', minDmg);
-							}
-							ImGui::TextUnformatted(strbuf);
-							
-							ImGui::TableNextColumn();
-							zerohspacing
-							yellowText("Damage");
-							ImGui::SameLine();
-							ImGui::TextUnformatted(" or Min ");
-							ImGui::SameLine();
-							yellowText("Dmg");
-							_zerohspacing
-							ImGui::TableNextColumn();
-							if (data.minimumDamagePercent != 0 && x < minDmg) x = minDmg;
-							sprintf_s(strbuf, "%d", x);
-							yellowText(strbuf);
-							
-							x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("HP<=Dmg and HP>=30% MaxHP"));
-							AddTooltip(searchTooltip("When HP at the moment of hit is less than or equal to the damage,"
-								" and HP is greater than or equal to max HP * 30% (i.e. HP>=126),"
-								" the damage gets changed to:\n"
-								"Damage = HP - Max HP * 5% or, in other words, Damage = HP - 21"));
-							ImGui::TableNextColumn();
-							bool attackIsTooOP = dmgCalc.oldHp <= x && dmgCalc.oldHp >= dmgCalc.maxHp * 30 / 100;
-							ImGui::TextUnformatted(attackIsTooOP ? "Yes" : "No");
-							
-							ImGui::TableNextColumn();
-							tooltip = "Damage after change due to the condition above.";
-							zerohspacing
-							yellowText("Damage");
-							AddTooltip(tooltip);
-							if (attackIsTooOP) {
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" = HP - 21");
-								AddTooltip(tooltip);
-							}
-							_zerohspacing
-							ImGui::TableNextColumn();
-							zerohspacing
-							if (attackIsTooOP) {
-								x = dmgCalc.oldHp - dmgCalc.maxHp * 5 / 100;
-								sprintf_s(strbuf, "%d - 21 = ", dmgCalc.oldHp);
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-							}
-							sprintf_s(strbuf, "%d", x);
-							yellowText(strbuf);
-							_zerohspacing
-							
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Attack Is Kill"));
-							AddTooltip(searchTooltip("This was observed to not happen immediately when landing an IK, but it does happen during the IK cinematic."
-								" When an attack is a kill, it always deals damage equal to the entire remaining health of the defender no matter what."));
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(data.kill ? "Yes" : "No");
-							
-							ImGui::TableNextColumn();
-							yellowText("Damage");
-							AddTooltip("Damage after change due to the condition above.");
-							ImGui::TableNextColumn();
-							if (data.kill) x = dmgCalc.oldHp;
-							sprintf_s(strbuf, "%d", x);
-							yellowText(strbuf);
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted("HP");
-							ImGui::TableNextColumn();
-							sprintf_s(strbuf, "%d - %d = %d", dmgCalc.oldHp, x, dmgCalc.oldHp - x);
-							ImGui::TextUnformatted(strbuf);
-							
-							ImGui::TableNextColumn();
-							searchFieldTitle("Base Stun");
-							tooltip = searchTooltip("The base stun value that the attack deals. Stun can only be dealt on hit, not on block or armor.");
-							zerohspacing
-							ImGui::TextUnformatted("Base ");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							textUnformattedColored(RED_COLOR, "Stun");
-							AddTooltip(tooltip);
-							_zerohspacing
-							ImGui::TableNextColumn();
-							
-							int defaultStun = damageAfterHpScaling;
-							if (data.throwLockExecute) defaultStun /= 2;
-							
-							if (data.baseStun != defaultStun) {
-								sprintf_s(strbuf, "%d", data.baseStun);
+								sprintf_s(strbuf, "%d", x);
 								textUnformattedColored(RED_COLOR, strbuf);
-								
-								const char* isLessGreater;
-								ImVec4* color;
-								if (data.baseStun < defaultStun) {
-									isLessGreater = "less";
-									color = &LIGHT_BLUE_COLOR;
-								} else {
-									isLessGreater = "greater";
-									color = &RED_COLOR;
-								}
-								ImGui::SameLine();
-								textUnformattedColored(*color, "(!)");
-								if (ImGui::BeginItemTooltip()) {
-									ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-									char* buf = strbuf;
-									size_t bufSize = sizeof strbuf;
-									int result = sprintf_s(strbuf, "This attack's base stun value (%d) is %s than the default value (= damage%s (%d)",
-										data.baseStun,
-										isLessGreater,
-										dmgCalc.scaleDamageWithHp ? " after HP Damage Scale" : "",
-										damageAfterHpScaling);
-									advanceBuf
-									if (data.throwLockExecute) {
-										sprintf_s(buf, bufSize, "%s", " * 50% (due to throw animation) ).");
-									} else {
-										sprintf_s(buf, bufSize, " ).");
-									}
-									ImGui::TextUnformatted(strbuf);
-									ImGui::PopTextWrapPos();
-									ImGui::EndTooltip();
-								}
-							} else {
-								zerohspacing
-								sprintf_s(strbuf, "%d", data.baseStun);
-								textUnformattedColored(RED_COLOR, strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, " = Base Damage%s%s",
-									dmgCalc.scaleDamageWithHp ? " After HP Scale" : "",
-									data.throwLockExecute ? " * 50%" : "");
-								ImGui::TextUnformatted(strbuf);
 								_zerohspacing
-								AddTooltip("The 50% modifier is applied probably due to it being part of a throw animation.");
-							}
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Combo Count"));
-							AddTooltip(searchTooltip("The current number of hits in a combo, including this very hit."));
-							ImGui::TableNextColumn();
-							sprintf_s(strbuf, "%d", data.comboCount);
-							ImGui::TextUnformatted(strbuf);
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Combo Stun Multiplier"));
-							AddTooltip(searchTooltip("This multiplier is only applied when combo count is > 1. The limit for combo count is 12.\n"
-								"X = (combo count + 2) * base stun;\n"
-								"new stun = base stun - X / 16, round down."));
-							
-							ImGui::TableNextColumn();
-							int comboCountLimited = data.comboCount;
-							int somePercentage;
-							if (data.comboCount <= 1) {
-								ImGui::TextUnformatted("100%");
-								somePercentage = 100;
-							} else {
-								if (data.comboCount > 12) comboCountLimited = 12;
-								somePercentage = 100 - (comboCountLimited + 2) * 100 / 16;
-								sprintf_s(strbuf, "%d%c", somePercentage, '%');
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								searchFieldTitle("Attack Stun - 5");
+								tooltip = searchTooltip("Attack's stun is unconditionally (always) reduced by 5 on this step of the calculation.");
+								ImGui::TextUnformatted("Attack ");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								textUnformattedColored(RED_COLOR, "Stun");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" - 5");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								oldX = x;
+								x -= 5;
+								if (x < 0) x = 0;
+								zerohspacing
+								sprintf_s(strbuf, "%d - 5 = ", oldX);
 								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(RED_COLOR, strbuf);
+								_zerohspacing
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("IK Active"));
+								AddTooltip(searchTooltip("When IK is active, attack's stun is reduced by half."));
+								ImGui::TableNextColumn();
+								oldX = x;
+								if (data.tensionMode == TENSION_MODE_RED_IK_ACTIVE || data.tensionMode == TENSION_MODE_GOLD_IK_ACTIVE) {
+									x /= 2;
+									ImGui::TextUnformatted("Yes (50%)");
+									somePercentage = 50;
+								} else {
+									ImGui::TextUnformatted("No (100%)");
+									somePercentage = 100;
+								}
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								searchFieldTitle("Attack Stun");
+								tooltip = searchTooltip("Attack's stun after multiplication by IK modifier.");
+								ImGui::TextUnformatted("Attack ");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								textUnformattedColored(RED_COLOR, "Stun");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								sprintf_s(strbuf, "%d * %d%c = ", oldX, somePercentage, '%');
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(RED_COLOR, strbuf);
+								_zerohspacing
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								searchFieldTitle("Attack Stun * 17.25");
+								tooltip = searchTooltip("This multiplier is fixed and is always applied. Attack's stun must be within [0; 15000].");
+								ImGui::TextUnformatted("Attack ");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								textUnformattedColored(RED_COLOR, "Stun");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * 17.25");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								oldX = x;
+								x = x * 1500 / 100 * 115 / 100;
+								zerohspacing
+								sprintf_s(strbuf, "%d * 17.25 = ", oldX);
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								if (x < 0) x = 0;
+								if (x > 15000) x = 15000;
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(RED_COLOR, strbuf);
+								_zerohspacing
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Stun"));
+								AddTooltip("The defender's new stun value is equal to old stun value + attack's final stun. If it reached the maximum stun,"
+									" defender is dizzied and next maximum stun is increased by 25% up to a maximum of 12000.");
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d + %d = %d out of %d", data.oldStun, x, data.oldStun + x, data.stunMax * 100);
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::EndTable();
 							}
-							
-							ImGui::TableNextColumn();
-							zerohspacing
-							searchFieldTitle("Attack Stun");
-							tooltip = searchTooltip("Attack's stun after multiplication by the combo stun multiplier.");
-							ImGui::TextUnformatted("Attack ");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							textUnformattedColored(RED_COLOR, "Stun");
-							AddTooltip(tooltip);
-							_zerohspacing
-							ImGui::TableNextColumn();
-							x = data.baseStun;
-							if (data.comboCount > 1) {
-								x -= (comboCountLimited + 2) * x / 16;
-							}
-							zerohspacing
-							sprintf_s(strbuf, "%d * %d%c = ", data.baseStun, somePercentage, '%');
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(RED_COLOR, strbuf);
-							_zerohspacing
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("OTG"));
-							AddTooltip(searchTooltip("OTG (off the ground) hits reduce attack's stun to 25% of its value."));
-							ImGui::TableNextColumn();
-							if (dmgCalc.isOtg) {
-								ImGui::TextUnformatted("Yes (25%)");
-								somePercentage = 25;
-							} else {
-								ImGui::TextUnformatted("No (100%)");
-								somePercentage = 100;
-							}
-							
-							ImGui::TableNextColumn();
-							zerohspacing
-							searchFieldTitle("Attack Stun");
-							tooltip = searchTooltip("Attack's stun after multiplication by the OTG modifier.");
-							ImGui::TextUnformatted("Attack ");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							textUnformattedColored(RED_COLOR, "Stun");
-							AddTooltip(tooltip);
-							_zerohspacing
-							ImGui::TableNextColumn();
-							oldX = x;
-							if (dmgCalc.isOtg) {
-								x >>= 2;
-							}
-							sprintf_s(strbuf, "%d * %d%c = ", oldX, somePercentage, '%');
-							zerohspacing
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(RED_COLOR, strbuf);
-							_zerohspacing
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Attack Can't Counter Hit"));
-							AddTooltip(searchTooltip("Some attacks cannot be counter hits even when the 'Counter Hit' training setting is set to 'Forced' or 'Forced Mortal Counter'."));
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(
-								data.attackCounterHitType == COUNTERHIT_TYPE_NO_COUNTER
-									? "Yes"
-									: "No"
-							);
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Counter Hit"));
-							AddTooltip(searchTooltip("Counter hits cause twice the stun."));
-							ImGui::TableNextColumn();
-							if (data.counterHit != COUNTER_HIT_ENTITY_VALUE_NO_COUNTERHIT) {
-								ImGui::TextUnformatted("Yes (200%)");
-								somePercentage = 200;
-							} else {
-								ImGui::TextUnformatted("No (100%)");
-								somePercentage = 100;
-							}
-							
-							ImGui::TableNextColumn();
-							zerohspacing
-							searchFieldTitle("Attack Stun");
-							tooltip = searchTooltip("Attack's stun after multiplication by the counter hit modifier.");
-							ImGui::TextUnformatted("Attack ");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							textUnformattedColored(RED_COLOR, "Stun");
-							AddTooltip(tooltip);
-							_zerohspacing
-							ImGui::TableNextColumn();
-							oldX = x;
-							if (data.counterHit != COUNTER_HIT_ENTITY_VALUE_NO_COUNTERHIT) {
-								x *= 2;
-							}
-							sprintf_s(strbuf, "%d * %d%c = ", oldX, somePercentage, '%');
-							zerohspacing
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(RED_COLOR, strbuf);
-							_zerohspacing
-							
-							ImGui::TableNextColumn();
-							zerohspacing
-							searchFieldTitle("Attack Stun - 5");
-							tooltip = searchTooltip("Attack's stun is unconditionally (always) reduced by 5 on this step of the calculation.");
-							ImGui::TextUnformatted("Attack ");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							textUnformattedColored(RED_COLOR, "Stun");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							ImGui::TextUnformatted(" - 5");
-							AddTooltip(tooltip);
-							_zerohspacing
-							ImGui::TableNextColumn();
-							oldX = x;
-							x -= 5;
-							if (x < 0) x = 0;
-							zerohspacing
-							sprintf_s(strbuf, "%d - 5 = ", oldX);
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(RED_COLOR, strbuf);
-							_zerohspacing
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("IK Active"));
-							AddTooltip(searchTooltip("When IK is active, attack's stun is reduced by half."));
-							ImGui::TableNextColumn();
-							oldX = x;
-							if (data.tensionMode == TENSION_MODE_RED_IK_ACTIVE || data.tensionMode == TENSION_MODE_GOLD_IK_ACTIVE) {
-								x /= 2;
-								ImGui::TextUnformatted("Yes (50%)");
-								somePercentage = 50;
-							} else {
-								ImGui::TextUnformatted("No (100%)");
-								somePercentage = 100;
-							}
-							
-							ImGui::TableNextColumn();
-							zerohspacing
-							searchFieldTitle("Attack Stun");
-							tooltip = searchTooltip("Attack's stun after multiplication by IK modifier.");
-							ImGui::TextUnformatted("Attack ");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							textUnformattedColored(RED_COLOR, "Stun");
-							AddTooltip(tooltip);
-							_zerohspacing
-							ImGui::TableNextColumn();
-							zerohspacing
-							sprintf_s(strbuf, "%d * %d%c = ", oldX, somePercentage, '%');
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(RED_COLOR, strbuf);
-							_zerohspacing
-							
-							ImGui::TableNextColumn();
-							zerohspacing
-							searchFieldTitle("Attack Stun * 17.25");
-							tooltip = searchTooltip("This multiplier is fixed and is always applied. Attack's stun must be within [0; 15000].");
-							ImGui::TextUnformatted("Attack ");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							textUnformattedColored(RED_COLOR, "Stun");
-							AddTooltip(tooltip);
-							ImGui::SameLine();
-							ImGui::TextUnformatted(" * 17.25");
-							AddTooltip(tooltip);
-							_zerohspacing
-							ImGui::TableNextColumn();
-							oldX = x;
-							x = x * 1500 / 100 * 115 / 100;
-							zerohspacing
-							sprintf_s(strbuf, "%d * 17.25 = ", oldX);
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							if (x < 0) x = 0;
-							if (x > 15000) x = 15000;
-							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(RED_COLOR, strbuf);
-							_zerohspacing
-							
-							ImGui::TableNextColumn();
-							ImGui::TextUnformatted(searchFieldTitle("Stun"));
-							AddTooltip("The defender's new stun value is equal to old stun value + attack's final stun. If it reached the maximum stun,"
-								" defender is dizzied and next maximum stun is increased by 25% up to a maximum of 12000.");
-							ImGui::TableNextColumn();
-							sprintf_s(strbuf, "%d + %d = %d out of %d", data.oldStun, x, data.oldStun + x, data.stunMax * 100);
-							ImGui::TextUnformatted(strbuf);
-							
-							ImGui::EndTable();
 						}
+						
+						if (it == dmgCalcsUse.begin()) break;
+						--it;
 					}
 					
-					if (it == dmgCalcsUse.begin()) break;
-					--it;
+					if (searching ? 0 : player.dmgCalcsSkippedHits) {
+						ImGui::Separator();
+						sprintf_s(strbuf, "Skipped %d hit%s...", player.dmgCalcsSkippedHits, player.dmgCalcsSkippedHits == 1 ? "" : "s");
+						ImGui::TextUnformatted(strbuf);
+					}
+					
+				} else {
+					
+					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+					yellowText("Last hit result: ");
+					ImGui::SameLine();
+					ImGui::TextUnformatted(formatHitResult(HIT_RESULT_NONE));
+					ImGui::PopStyleVar();
+					
 				}
 				
-				if (searching ? 0 : player.dmgCalcsSkippedHits) {
-					ImGui::Separator();
-					sprintf_s(strbuf, "Skipped %d hit%s...", player.dmgCalcsSkippedHits, player.dmgCalcsSkippedHits == 1 ? "" : "s");
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-			} else {
-				
-				ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-				yellowText("Last hit result: ");
-				ImGui::SameLine();
-				ImGui::TextUnformatted(formatHitResult(HIT_RESULT_NONE));
-				ImGui::PopStyleVar();
-				
+				const GGIcon* scaledIcon = get_tipsIconScaled14();
+				drawGGIcon(*scaledIcon);
+				AddTooltip("Hover your mouse over individual field titles or field values (depends on each field or even sometimes current"
+					" field value) to see their tooltips.");
 			}
-			
-			const GGIcon* scaledIcon = get_tipsIconScaled14();
-			drawGGIcon(*scaledIcon);
-			AddTooltip("Hover your mouse over individual field titles or field values (depends on each field or even sometimes current"
-				" field value) to see their tooltips.");
 			
 			customEnd();
 			ImGui::PopID();
@@ -8285,196 +8394,198 @@ void UI::drawSearchableWindows() {
 			customBeginPair(PinnedWindowEnum_StunMash, i);
 			drawPlayerIconInWindowTitle(i);
 			
-			const PlayerInfo& player = endScene.currentState->players[i];
-			
-			if (player.pawn) {
-				bool kizetsu = player.pawn.dizzyMashAmountLeft() > 0 || player.cmnActIndex == CmnActKizetsu;
-				if (!player.pawn) {
-					ImGui::TextUnformatted("A match isn't currently running");
-				} else if (player.cmnActIndex != CmnActJitabataLoop && !kizetsu) {
-					ImGui::TextUnformatted(searchFieldTitle("Not in stagger/stun"));
-				} else if (kizetsu) {
-					zerohspacing
-					yellowText(searchFieldTitle("In hitstop: "));
-					ImGui::SameLine();
-					ImGui::TextUnformatted(player.hitstop ? "Yes (1/3 multiplier)" : "No");
-					
-					yellowText(searchFieldTitle("Stunmash Remaining: "));
-					AddTooltip(searchTooltip("For every left/right direction press you get a 15 point reduction."
-						" For every frame, if on that frame you pressed any of PKSHD buttons, you get a 15 point reduction."
-						" Pressing a direction AND a button on the same frame combines these reductions."
-						" Pressing more than one of PKSHD on the same frame is still a 15 point reduction (no increase from multiple buttons)."
-						" If you're in hitstop, in both cases you get a 5 reduction instead of 15, and"
-						" you can still combine both direction and a button press to get 5+5=10 reduction on that frame."
-						" When not in hitstop, the stunmash remaining automatically decreases by 10 each frame and this can be combined"
-						" with your own input of direction and button presses for a maximum of 40 reduction per frame."
-						" The direction and button presses cannot be buffered. Starting a mash before faint begins"
-						" does not translate to having a headstart on the mash progress."));
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%d/%d", player.pawn.dizzyMashAmountLeft(), player.pawn.dizzyMashAmountMax());
-					ImGui::TextUnformatted(strbuf);
-					
-					BYTE* funcStart = player.pawn.bbscrCurrentFunc();
-					if (funcStart && strcmp(asInstr(funcStart, beginState)->name, "CmnActKizetsu") == 0) {
-						BYTE* markerPos = moves.findSetMarker(funcStart, "_End");
-						if (markerPos) {
-							BYTE* currentInst = player.pawn.bbscrCurrentInstr();
-							int currentDuration = 0;
-							int totalDuration = 0;
-							int lastDuration = 0;
-							BYTE* instIt = moves.skipInstr(markerPos);
-							while (moves.instrType(instIt) != instr_endState) {
-								lastDuration = asInstr(instIt, sprite)->duration;
-								totalDuration += lastDuration;
-								if (instIt < currentInst) {
-									currentDuration += lastDuration;
+			if (!isMostModDisabledPlusMsg()) {
+				const PlayerInfo& player = endScene.currentState->players[i];
+				
+				if (player.pawn) {
+					bool kizetsu = player.pawn.dizzyMashAmountLeft() > 0 || player.cmnActIndex == CmnActKizetsu;
+					if (!player.pawn) {
+						ImGui::TextUnformatted("A match isn't currently running");
+					} else if (player.cmnActIndex != CmnActJitabataLoop && !kizetsu) {
+						ImGui::TextUnformatted(searchFieldTitle("Not in stagger/stun"));
+					} else if (kizetsu) {
+						zerohspacing
+						yellowText(searchFieldTitle("In hitstop: "));
+						ImGui::SameLine();
+						ImGui::TextUnformatted(player.hitstop ? "Yes (1/3 multiplier)" : "No");
+						
+						yellowText(searchFieldTitle("Stunmash Remaining: "));
+						AddTooltip(searchTooltip("For every left/right direction press you get a 15 point reduction."
+							" For every frame, if on that frame you pressed any of PKSHD buttons, you get a 15 point reduction."
+							" Pressing a direction AND a button on the same frame combines these reductions."
+							" Pressing more than one of PKSHD on the same frame is still a 15 point reduction (no increase from multiple buttons)."
+							" If you're in hitstop, in both cases you get a 5 reduction instead of 15, and"
+							" you can still combine both direction and a button press to get 5+5=10 reduction on that frame."
+							" When not in hitstop, the stunmash remaining automatically decreases by 10 each frame and this can be combined"
+							" with your own input of direction and button presses for a maximum of 40 reduction per frame."
+							" The direction and button presses cannot be buffered. Starting a mash before faint begins"
+							" does not translate to having a headstart on the mash progress."));
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d/%d", player.pawn.dizzyMashAmountLeft(), player.pawn.dizzyMashAmountMax());
+						ImGui::TextUnformatted(strbuf);
+						
+						BYTE* funcStart = player.pawn.bbscrCurrentFunc();
+						if (funcStart && strcmp(asInstr(funcStart, beginState)->name, "CmnActKizetsu") == 0) {
+							BYTE* markerPos = moves.findSetMarker(funcStart, "_End");
+							if (markerPos) {
+								BYTE* currentInst = player.pawn.bbscrCurrentInstr();
+								int currentDuration = 0;
+								int totalDuration = 0;
+								int lastDuration = 0;
+								BYTE* instIt = moves.skipInstr(markerPos);
+								while (moves.instrType(instIt) != instr_endState) {
+									lastDuration = asInstr(instIt, sprite)->duration;
+									totalDuration += lastDuration;
+									if (instIt < currentInst) {
+										currentDuration += lastDuration;
+									}
+									instIt = moves.skipInstr(instIt);
 								}
-								instIt = moves.skipInstr(instIt);
+								
+								yellowText(searchFieldTitle("Recovery Animation: "));
+								ImGui::SameLine();
+								int recoveryElapsed = 0;
+								if (currentInst > markerPos) {
+									recoveryElapsed = currentDuration - lastDuration + player.sprite.frame + 1;
+								}
+								sprintf_s(strbuf, "%d/%d", recoveryElapsed, totalDuration > 6 ? 6 : totalDuration);
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" (Fully actionable)");
+								AddTooltip(searchTooltip("Recovery from faint is always fully actionable."));
 							}
-							
-							yellowText(searchFieldTitle("Recovery Animation: "));
-							ImGui::SameLine();
-							int recoveryElapsed = 0;
-							if (currentInst > markerPos) {
-								recoveryElapsed = currentDuration - lastDuration + player.sprite.frame + 1;
-							}
-							sprintf_s(strbuf, "%d/%d", recoveryElapsed, totalDuration > 6 ? 6 : totalDuration);
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							ImGui::TextUnformatted(" (Fully actionable)");
-							AddTooltip(searchTooltip("Recovery from faint is always fully actionable."));
 						}
+						_zerohspacing
+						
+					} else {
+						zerohspacing
+						int mashMax = player.pawn.receivedAttack()->staggerDuration;
+						int mashedAmount = mashMax - player.pawn.bbscrvar5() / 10;
+						int mashedAmountPrev = mashMax - player.prevBbscrvar5 / 10;
+						
+						yellowText(searchFieldTitle("Stagger Duration: "));
+						AddTooltip(searchTooltip("The original amount of stagger inflicted by the attack."));
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d", mashMax);
+						ImGui::TextUnformatted(strbuf);
+						
+						yellowText(searchFieldTitle("Mashed: "));
+						AddTooltip(searchTooltip("How much you've mashed vs how much you can possibly mash. Mashing above the limit achieves no extra stagger reduction."));
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d/%d", mashedAmount, player.pawn.bbscrvar3());
+						ImGui::TextUnformatted(strbuf);
+						
+						yellowText(searchFieldTitle("Animation Duration: "));
+						AddTooltip(searchTooltip("The current stagger animation's duration. Does not advance during hitstop."
+							" Something of note is that it always starts on 1. So when you leave hitstop, it's already on 2."
+							" That means you get one free frame of stagger progress, which means that stagger will always last"
+							" 1 frame less than what is formally declared in the attack, even if you don't mash."
+							" And if you entered stagger without hitstop, like on Bacchus Sigh-buffed Mist Finer blocked hit,"
+							" the game forcibly deducts 1 frame anyway. So it's always 1 frame less than declared, with"
+							" or without hitstop."));
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d%s", player.animFrame, player.hitstop ? " (is in hitstop)" : "");
+						ImGui::TextUnformatted(strbuf);
+						
+						float cursorY = ImGui::GetCursorPosY();
+						ImGuiStyle& style = ImGui::GetStyle();
+						ImGui::SetCursorPosY(cursorY + style.FramePadding.y);
+						yellowText(searchFieldTitle("Progress Previous: "));
+						AddTooltip(searchTooltip("The progress 'previous' includes both the current duration of the stagger animation, as it is on THIS frame,"
+							" and a snapshot or a saved value of how much you've mashed so far, as it was on the PREVIOUS frame.\n"
+							" The value that the game checks for whether to decide if you should enter the stagger recovery animation or not,"
+							" is the value of 'Progress Previous'.\n"
+							" Note that stagger animation does not progress during hitstop, so it is possible to start mashing before the stagger animation"
+							" goes past its first frame."));
+						ImGui::SameLine();
+						int progress;
+						int progressMax;
+						if (useAlternativeStaggerMashProgressDisplayUse) {
+							progress = player.pawn.currentAnimDuration();
+							progressMax = mashMax - 4
+										+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop()
+										- mashedAmountPrev;
+						} else {
+							progress = mashedAmountPrev + player.pawn.currentAnimDuration();
+							progressMax = mashMax - 4
+										+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
+						}
+						sprintf_s(strbuf, "%d/%d", progress > progressMax ? progressMax : progress, progressMax);
+						ImGui::TextUnformatted(strbuf);
+						
+						_zerohspacing
+						ImGui::SameLine();
+						
+						static std::string stunmashSetting;
+						if (stunmashSetting.empty()) {
+							stunmashSetting += settings.getOtherUIName(&settings.useAlternativeStaggerMashProgressDisplay);
+							stunmashSetting += '\n';
+							stunmashSetting += settings.getOtherUIDescription(&settings.useAlternativeStaggerMashProgressDisplay);
+						}
+						
+						searchFieldTitle(settings.getOtherUINameWithLength(&settings.useAlternativeStaggerMashProgressDisplay));
+						searchTooltip(settings.getOtherUIDescriptionWithLength(&settings.useAlternativeStaggerMashProgressDisplay));
+						
+						ImGui::SetCursorPosY(cursorY);
+						bool useAlternativeStaggerMashProgressDisplay = settings.useAlternativeStaggerMashProgressDisplay;
+						if (ImGui::Checkbox("##useAlternativeStaggerMashProgressDisplay", &useAlternativeStaggerMashProgressDisplay)) {
+							settings.useAlternativeStaggerMashProgressDisplay = useAlternativeStaggerMashProgressDisplay;
+							needWriteSettings = true;
+						}
+						AddTooltip(stunmashSetting.c_str());
+						zerohspacing
+						
+						yellowText(searchFieldTitle("Progress Now: "));
+						AddTooltip(searchTooltip("The progress 'now' includes both the current duration of the stagger animation, as it is on THIS frame,"
+							" and how much you've mashed so far, including THIS frame's delta-progress.\n"
+							" The value that the game checks for whether to decide if you should enter the stagger recovery animation or not,"
+							" is the value of 'Progress Previous'.\n"
+							" Note that stagger animation does not progress during hitstop, so it is possible to start mashing before the stagger animation"
+							" goes past its first frame."));
+						ImGui::SameLine();
+						if (useAlternativeStaggerMashProgressDisplayUse) {
+							progress = player.pawn.currentAnimDuration();
+							progressMax = mashMax - 4
+										+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop()
+										- mashedAmount;
+						} else {
+							progress = mashedAmount + player.pawn.currentAnimDuration();
+							progressMax = mashMax - 4
+										+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
+						}
+						sprintf_s(strbuf, "%d/%d", progress > progressMax ? progressMax : progress, progressMax);
+						ImGui::TextUnformatted(strbuf);
+						
+						yellowText(searchFieldTitle("Started Recovery: "));
+						AddTooltip(searchTooltip("Has the 4f stagger recovery animation started?"));
+						ImGui::SameLine();
+						ImGui::TextUnformatted(player.pawn.bbscrvar() ? "Yes" : "No");
+						
+						yellowText(searchFieldTitle("Recovery Animation: "));
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d/4", !player.pawn.bbscrvar() ? 0 : player.pawn.bbscrvar2() - 1);
+						ImGui::TextUnformatted(strbuf);
+						
+						drawGGIcon(*get_tipsIconScaled14());
+						AddTooltip(searchTooltip("Every frame that a PKSHD button is pressed, Progress and Mashed increase by 3."
+							" Progress also increases by an extra 1 each non-hitstop/superfreeze/RC-slow-eaten frame,"
+							" and that means, if the attack applied hitstop to you, it is possible to start mashing before the stagger"
+							" animation goes past its first frame. After hitstop is over, progress will increase by 4 on every frame you"
+							" pressed a button, and by 1 on every frame you didn't."
+							" You can't increase Mashed by more than half the original stagger duration."
+							" That means there's a minimum amount of stagger animation you have to play,"
+							" and that amount can be almost doubled by RC slowdown."
+							" Progress goes up to Stagger Duration - 4 - 1 (the - 1 is applied only if stagger was entered into without hitstop)."
+							" When it reaches that, you enter a 4f stagger recovery that cannot be sped up by mash and has fixed length.\n"
+							"The mash cannot be buffered. Starting to mash before stagger begins does not start it at a reduced value."
+							" Pressing multiple buttons on the same frame does not yield any extra bonuses than pressing one"
+							" button on that frame."));
+						
+						_zerohspacing
 					}
-					_zerohspacing
-					
 				} else {
-					zerohspacing
-					int mashMax = player.pawn.receivedAttack()->staggerDuration;
-					int mashedAmount = mashMax - player.pawn.bbscrvar5() / 10;
-					int mashedAmountPrev = mashMax - player.prevBbscrvar5 / 10;
-					
-					yellowText(searchFieldTitle("Stagger Duration: "));
-					AddTooltip(searchTooltip("The original amount of stagger inflicted by the attack."));
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%d", mashMax);
-					ImGui::TextUnformatted(strbuf);
-					
-					yellowText(searchFieldTitle("Mashed: "));
-					AddTooltip(searchTooltip("How much you've mashed vs how much you can possibly mash. Mashing above the limit achieves no extra stagger reduction."));
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%d/%d", mashedAmount, player.pawn.bbscrvar3());
-					ImGui::TextUnformatted(strbuf);
-					
-					yellowText(searchFieldTitle("Animation Duration: "));
-					AddTooltip(searchTooltip("The current stagger animation's duration. Does not advance during hitstop."
-						" Something of note is that it always starts on 1. So when you leave hitstop, it's already on 2."
-						" That means you get one free frame of stagger progress, which means that stagger will always last"
-						" 1 frame less than what is formally declared in the attack, even if you don't mash."
-						" And if you entered stagger without hitstop, like on Bacchus Sigh-buffed Mist Finer blocked hit,"
-						" the game forcibly deducts 1 frame anyway. So it's always 1 frame less than declared, with"
-						" or without hitstop."));
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%d%s", player.animFrame, player.hitstop ? " (is in hitstop)" : "");
-					ImGui::TextUnformatted(strbuf);
-					
-					float cursorY = ImGui::GetCursorPosY();
-					ImGuiStyle& style = ImGui::GetStyle();
-					ImGui::SetCursorPosY(cursorY + style.FramePadding.y);
-					yellowText(searchFieldTitle("Progress Previous: "));
-					AddTooltip(searchTooltip("The progress 'previous' includes both the current duration of the stagger animation, as it is on THIS frame,"
-						" and a snapshot or a saved value of how much you've mashed so far, as it was on the PREVIOUS frame.\n"
-						" The value that the game checks for whether to decide if you should enter the stagger recovery animation or not,"
-						" is the value of 'Progress Previous'.\n"
-						" Note that stagger animation does not progress during hitstop, so it is possible to start mashing before the stagger animation"
-						" goes past its first frame."));
-					ImGui::SameLine();
-					int progress;
-					int progressMax;
-					if (useAlternativeStaggerMashProgressDisplayUse) {
-						progress = player.pawn.currentAnimDuration();
-						progressMax = mashMax - 4
-									+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop()
-									- mashedAmountPrev;
-					} else {
-						progress = mashedAmountPrev + player.pawn.currentAnimDuration();
-						progressMax = mashMax - 4
-									+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
-					}
-					sprintf_s(strbuf, "%d/%d", progress > progressMax ? progressMax : progress, progressMax);
-					ImGui::TextUnformatted(strbuf);
-					
-					_zerohspacing
-					ImGui::SameLine();
-					
-					static std::string stunmashSetting;
-					if (stunmashSetting.empty()) {
-						stunmashSetting += settings.getOtherUIName(&settings.useAlternativeStaggerMashProgressDisplay);
-						stunmashSetting += '\n';
-						stunmashSetting += settings.getOtherUIDescription(&settings.useAlternativeStaggerMashProgressDisplay);
-					}
-					
-					searchFieldTitle(settings.getOtherUINameWithLength(&settings.useAlternativeStaggerMashProgressDisplay));
-					searchTooltip(settings.getOtherUIDescriptionWithLength(&settings.useAlternativeStaggerMashProgressDisplay));
-					
-					ImGui::SetCursorPosY(cursorY);
-					bool useAlternativeStaggerMashProgressDisplay = settings.useAlternativeStaggerMashProgressDisplay;
-					if (ImGui::Checkbox("##useAlternativeStaggerMashProgressDisplay", &useAlternativeStaggerMashProgressDisplay)) {
-						settings.useAlternativeStaggerMashProgressDisplay = useAlternativeStaggerMashProgressDisplay;
-						needWriteSettings = true;
-					}
-					AddTooltip(stunmashSetting.c_str());
-					zerohspacing
-					
-					yellowText(searchFieldTitle("Progress Now: "));
-					AddTooltip(searchTooltip("The progress 'now' includes both the current duration of the stagger animation, as it is on THIS frame,"
-						" and how much you've mashed so far, including THIS frame's delta-progress.\n"
-						" The value that the game checks for whether to decide if you should enter the stagger recovery animation or not,"
-						" is the value of 'Progress Previous'.\n"
-						" Note that stagger animation does not progress during hitstop, so it is possible to start mashing before the stagger animation"
-						" goes past its first frame."));
-					ImGui::SameLine();
-					if (useAlternativeStaggerMashProgressDisplayUse) {
-						progress = player.pawn.currentAnimDuration();
-						progressMax = mashMax - 4
-									+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop()
-									- mashedAmount;
-					} else {
-						progress = mashedAmount + player.pawn.currentAnimDuration();
-						progressMax = mashMax - 4
-									+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
-					}
-					sprintf_s(strbuf, "%d/%d", progress > progressMax ? progressMax : progress, progressMax);
-					ImGui::TextUnformatted(strbuf);
-					
-					yellowText(searchFieldTitle("Started Recovery: "));
-					AddTooltip(searchTooltip("Has the 4f stagger recovery animation started?"));
-					ImGui::SameLine();
-					ImGui::TextUnformatted(player.pawn.bbscrvar() ? "Yes" : "No");
-					
-					yellowText(searchFieldTitle("Recovery Animation: "));
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%d/4", !player.pawn.bbscrvar() ? 0 : player.pawn.bbscrvar2() - 1);
-					ImGui::TextUnformatted(strbuf);
-					
-					drawGGIcon(*get_tipsIconScaled14());
-					AddTooltip(searchTooltip("Every frame that a PKSHD button is pressed, Progress and Mashed increase by 3."
-						" Progress also increases by an extra 1 each non-hitstop/superfreeze/RC-slow-eaten frame,"
-						" and that means, if the attack applied hitstop to you, it is possible to start mashing before the stagger"
-						" animation goes past its first frame. After hitstop is over, progress will increase by 4 on every frame you"
-						" pressed a button, and by 1 on every frame you didn't."
-						" You can't increase Mashed by more than half the original stagger duration."
-						" That means there's a minimum amount of stagger animation you have to play,"
-						" and that amount can be almost doubled by RC slowdown."
-						" Progress goes up to Stagger Duration - 4 - 1 (the - 1 is applied only if stagger was entered into without hitstop)."
-						" When it reaches that, you enter a 4f stagger recovery that cannot be sped up by mash and has fixed length.\n"
-						"The mash cannot be buffered. Starting to mash before stagger begins does not start it at a reduced value."
-						" Pressing multiple buttons on the same frame does not yield any extra bonuses than pressing one"
-						" button on that frame."));
-					
-					_zerohspacing
+					ImGui::TextUnformatted("Match isn't running.");
 				}
-			} else {
-				ImGui::TextUnformatted("Match isn't running.");
 			}
 			
 			customEnd();
@@ -8492,243 +8603,245 @@ void UI::drawSearchableWindows() {
 			
 			drawPlayerIconInWindowTitle(i);
 			
-			const bool transparentBackground = settings.comboRecipe_transparentBackground;
-			for (
-					CogwheelButtonContext cogwheel(
-						"##ComboRecipeCogwheel",
-						showComboRecipeSettings +i,
-						transparentBackground,
-						"Settings for the Combo Recipe panel.\n"
-							"The settings are shared between P1 and P2.\n"
-							"\n"
-							"Extra Info: The '>' symbol at the end of a move means that the next move is being cancelled from that move.\n"
-							"The ',' symbol at the end of a move means that the next move is being linked or done after some idle time after that move."
-					);
-					cogwheel.needShowSettings(); ) {
-				settingsPresetsUseOutlinedText = transparentBackground;
-				booleanSettingPreset(settings.comboRecipe_showDelaysBetweenCancels);
-				booleanSettingPreset(settings.comboRecipe_showIdleTimeBetweenMoves);
-				booleanSettingPreset(settings.comboRecipe_showDashes);
-				booleanSettingPreset(settings.comboRecipe_showWalks);
-				booleanSettingPreset(settings.comboRecipe_showSuperJumpInstalls);
-				booleanSettingPreset(settings.comboRecipe_showNumberOfHits);
-				booleanSettingPreset(settings.comboRecipe_showCharge);
-				booleanSettingPreset(settings.comboRecipe_clearOnPositionReset);
-				booleanSettingPreset(settings.comboRecipe_transparentBackground);
-				settingsPresetsUseOutlinedText = false;
-			}
-			
-			if (ImGui::BeginTable("##ComboRecipe", 1, tableFlags)) {
-				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, 1.F);
-				
-				int rowCount = 1;
-				size_t nextJ = 0;
-				size_t comboRecipeSize = player.comboRecipe.size();
-				
-				enum IsLinkEnum {
-					IS_LINK_UNKNOWN,
-					IS_LINK_NO,
-					IS_LINK_YES
-				} isLink = IS_LINK_UNKNOWN;
-				
-				bool lastElemIsDelayed = false;
-				
-				if (transparentBackground) {
-					pushOutlinedText(true);
+			if (!isMostModDisabledPlusMsg()) {
+				const bool transparentBackground = settings.comboRecipe_transparentBackground;
+				for (
+						CogwheelButtonContext cogwheel(
+							"##ComboRecipeCogwheel",
+							showComboRecipeSettings +i,
+							transparentBackground,
+							"Settings for the Combo Recipe panel.\n"
+								"The settings are shared between P1 and P2.\n"
+								"\n"
+								"Extra Info: The '>' symbol at the end of a move means that the next move is being cancelled from that move.\n"
+								"The ',' symbol at the end of a move means that the next move is being linked or done after some idle time after that move."
+						);
+						cogwheel.needShowSettings(); ) {
+					settingsPresetsUseOutlinedText = transparentBackground;
+					booleanSettingPreset(settings.comboRecipe_showDelaysBetweenCancels);
+					booleanSettingPreset(settings.comboRecipe_showIdleTimeBetweenMoves);
+					booleanSettingPreset(settings.comboRecipe_showDashes);
+					booleanSettingPreset(settings.comboRecipe_showWalks);
+					booleanSettingPreset(settings.comboRecipe_showSuperJumpInstalls);
+					booleanSettingPreset(settings.comboRecipe_showNumberOfHits);
+					booleanSettingPreset(settings.comboRecipe_showCharge);
+					booleanSettingPreset(settings.comboRecipe_clearOnPositionReset);
+					booleanSettingPreset(settings.comboRecipe_transparentBackground);
+					settingsPresetsUseOutlinedText = false;
 				}
 				
-				int idleTimeAdd = 0;
-				
-				for (size_t j = 0; j < comboRecipeSize; ++j) {
-					const ComboRecipeElement& elem = player.comboRecipe[j];
+				if (ImGui::BeginTable("##ComboRecipe", 1, tableFlags)) {
+					ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, 1.F);
 					
-					if (j == nextJ) {
-						isLink = IS_LINK_UNKNOWN;
-						for (++nextJ; nextJ != comboRecipeSize; ++nextJ) {
-							const ComboRecipeElement& nextElem = player.comboRecipe[nextJ];
-							if (!nextElem.isProjectile && (!nextElem.artificial || nextElem.isJump)) {
-								isLink = nextElem.doneAfterIdle ? IS_LINK_YES : IS_LINK_NO;
-								break;
-							}
-						}
+					int rowCount = 1;
+					size_t nextJ = 0;
+					size_t comboRecipeSize = player.comboRecipe.size();
+					
+					enum IsLinkEnum {
+						IS_LINK_UNKNOWN,
+						IS_LINK_NO,
+						IS_LINK_YES
+					} isLink = IS_LINK_UNKNOWN;
+					
+					bool lastElemIsDelayed = false;
+					
+					if (transparentBackground) {
+						pushOutlinedText(true);
 					}
 					
-					if (!elem.doneAfterIdle) {
-						idleTimeAdd = 0;
-					}
-					int delayModif = elem.cancelDelayedBy + idleTimeAdd;
+					int idleTimeAdd = 0;
 					
-					bool goingToShowTheElement;
-					if (elem.dashDuration) {
-						if (elem.isWalkForward || elem.isWalkBackward) {
-							goingToShowTheElement = settings.comboRecipe_showWalks;
-						} else {
-							goingToShowTheElement = settings.comboRecipe_showDashes;
-						}
-					} else if (elem.isSuperJumpInstall) {
-						goingToShowTheElement = settings.comboRecipe_showSuperJumpInstalls;
-					} else {
-						goingToShowTheElement = true;
-					}
-					
-					if (delayModif
-							&& (
-								elem.doneAfterIdle
-									? settings.comboRecipe_showIdleTimeBetweenMoves
-									: settings.comboRecipe_showDelaysBetweenCancels
-							)) {
+					for (size_t j = 0; j < comboRecipeSize; ++j) {
+						const ComboRecipeElement& elem = player.comboRecipe[j];
 						
-						int correctedCancelDelayedBy = delayModif;
-						if (lastElemIsDelayed) {
-							const ComboRecipeElement& lastElem = player.comboRecipe[j - 1];
-							int timeDifference = (int)elem.timestamp - (int)lastElem.timestamp;
-							if (elem.cancelDelayedBy + 1 > timeDifference) {
-								correctedCancelDelayedBy = timeDifference - 1 + idleTimeAdd;
-							}
-						}
-						
-						lastElemIsDelayed = correctedCancelDelayedBy > 0;
-						
-						if (lastElemIsDelayed) {
-							
-							if (goingToShowTheElement) {
-								
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%u)", rowCount++);
-								yellowText(strbuf);
-								ImGui::SameLine();
-								
-								ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-								if (elem.doneAfterIdle) {
-									if (elem.shotgunMaxCharge && elem.shotgunChargeSkippedFrames != 255) {
-										if (!elem.shotgunChargeSkippedFrames) {
-											// the displayed max charge doesn't account for RC slowdown, while the displayed current charge does
-											// this doesn't matter because the one performing the combo can't be slowed down by RC
-											sprintf_s(strbuf, "(Idle %d/%df)", correctedCancelDelayedBy, elem.shotgunMaxCharge);
-										} else {
-											sprintf_s(strbuf, "(Idle %df) (Shotgun Charge: %d/%df)", correctedCancelDelayedBy,
-												(int)correctedCancelDelayedBy + (int)elem.shotgunChargeSkippedFrames,
-												elem.shotgunMaxCharge);
-										}
-									} else {
-										sprintf_s(strbuf, "(Idle %df)", correctedCancelDelayedBy);
-									}
-									idleTimeAdd = 0;
-								} else {
-									sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
+						if (j == nextJ) {
+							isLink = IS_LINK_UNKNOWN;
+							for (++nextJ; nextJ != comboRecipeSize; ++nextJ) {
+								const ComboRecipeElement& nextElem = player.comboRecipe[nextJ];
+								if (!nextElem.isProjectile && (!nextElem.artificial || nextElem.isJump)) {
+									isLink = nextElem.doneAfterIdle ? IS_LINK_YES : IS_LINK_NO;
+									break;
 								}
-								ImGui::TextUnformatted(strbuf);
-								ImGui::PopStyleColor();
-							} else if (elem.doneAfterIdle) {
-								idleTimeAdd += elem.cancelDelayedBy;
+							}
+						}
+						
+						if (!elem.doneAfterIdle) {
+							idleTimeAdd = 0;
+						}
+						int delayModif = elem.cancelDelayedBy + idleTimeAdd;
+						
+						bool goingToShowTheElement;
+						if (elem.dashDuration) {
+							if (elem.isWalkForward || elem.isWalkBackward) {
+								goingToShowTheElement = settings.comboRecipe_showWalks;
+							} else {
+								goingToShowTheElement = settings.comboRecipe_showDashes;
+							}
+						} else if (elem.isSuperJumpInstall) {
+							goingToShowTheElement = settings.comboRecipe_showSuperJumpInstalls;
+						} else {
+							goingToShowTheElement = true;
+						}
+						
+						if (delayModif
+								&& (
+									elem.doneAfterIdle
+										? settings.comboRecipe_showIdleTimeBetweenMoves
+										: settings.comboRecipe_showDelaysBetweenCancels
+								)) {
+							
+							int correctedCancelDelayedBy = delayModif;
+							if (lastElemIsDelayed) {
+								const ComboRecipeElement& lastElem = player.comboRecipe[j - 1];
+								int timeDifference = (int)elem.timestamp - (int)lastElem.timestamp;
+								if (elem.cancelDelayedBy + 1 > timeDifference) {
+									correctedCancelDelayedBy = timeDifference - 1 + idleTimeAdd;
+								}
 							}
 							
-						}
-					} else {
-						lastElemIsDelayed = false;
-					}
-					
-					if (!goingToShowTheElement) {
-						if (elem.dashDuration) {
-							idleTimeAdd += elem.dashDuration;
-						}
-						continue;
-					}
-					
-					const char* chosenName;
-					if (elem.name) {
-						if (settings.useSlangNames && elem.name->slang) {
-							chosenName = elem.name->slang;
-						} else {
-							chosenName = elem.name->name;
-						}
-					} else {
-						chosenName = nullptr;
-					}
-					
-					idleTimeAdd = 0;
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%u)", rowCount++);
-					yellowText(strbuf);
-					ImGui::SameLine();
-					
-					const char* linkText = "";
-					if (!elem.isProjectile && (!elem.artificial || elem.isJump) && isLink != IS_LINK_UNKNOWN) {
-						if (isLink == IS_LINK_YES) {
-							linkText = ",";
-						} else {
-							linkText = " >";
-						}
-					}
-					
-					if (!elem.dashDuration) {
-						const char* lastSuffix = "";
-						if (elem.whiffed && elem.isMeleeAttack) {
-							lastSuffix = " (Whiff)";
-						} else if (elem.otg) {
-							lastSuffix = " (OTG)";
-						} else if (elem.counterhit) {
-							lastSuffix = " (Counterhit)";
-						}
-						char* buf = strbuf;
-						size_t bufSize = sizeof strbuf;
-						int result = sprintf_s(strbuf, "%s", chosenName);
-						advanceBuf
-						if (elem.hitCount > 1 && settings.comboRecipe_showNumberOfHits) {
-							result = sprintf_s(buf, bufSize, "(%d)", elem.hitCount);
-							advanceBuf
-						}
-						if ((elem.charge || elem.maxCharge) && settings.comboRecipe_showCharge) {
-							if (elem.maxCharge) {
-								result = sprintf_s(buf, bufSize, " (Held: %d/%df)", elem.charge, elem.maxCharge);
-							} else {
-								result = sprintf_s(buf, bufSize, " (Held: %df)", elem.charge);
+							lastElemIsDelayed = correctedCancelDelayedBy > 0;
+							
+							if (lastElemIsDelayed) {
+								
+								if (goingToShowTheElement) {
+									
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%u)", rowCount++);
+									yellowText(strbuf);
+									ImGui::SameLine();
+									
+									ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+									if (elem.doneAfterIdle) {
+										if (elem.shotgunMaxCharge && elem.shotgunChargeSkippedFrames != 255) {
+											if (!elem.shotgunChargeSkippedFrames) {
+												// the displayed max charge doesn't account for RC slowdown, while the displayed current charge does
+												// this doesn't matter because the one performing the combo can't be slowed down by RC
+												sprintf_s(strbuf, "(Idle %d/%df)", correctedCancelDelayedBy, elem.shotgunMaxCharge);
+											} else {
+												sprintf_s(strbuf, "(Idle %df) (Shotgun Charge: %d/%df)", correctedCancelDelayedBy,
+													(int)correctedCancelDelayedBy + (int)elem.shotgunChargeSkippedFrames,
+													elem.shotgunMaxCharge);
+											}
+										} else {
+											sprintf_s(strbuf, "(Idle %df)", correctedCancelDelayedBy);
+										}
+										idleTimeAdd = 0;
+									} else {
+										sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
+									}
+									ImGui::TextUnformatted(strbuf);
+									ImGui::PopStyleColor();
+								} else if (elem.doneAfterIdle) {
+									idleTimeAdd += elem.cancelDelayedBy;
+								}
+								
 							}
-							advanceBuf
+						} else {
+							lastElemIsDelayed = false;
 						}
-						sprintf_s(buf, bufSize, "%s%s%s",
-							elem.isProjectile ? " (Hit)" : "",
-							lastSuffix,
-							linkText);
-					} else if (elem.isWalkForward) {
-						sprintf_s(strbuf, "%df %s%s",
-							elem.dashDuration,
-							elem.dashDuration >= 10 ? "Walk" : "Microwalk",
-							linkText);
-					} else if (elem.isWalkBackward) {
-						sprintf_s(strbuf, "%df %s%s",
-							elem.dashDuration,
-							elem.dashDuration >= 10 ? "Walk Back" : "Microwalk Back",
-							linkText);
-					} else {
-						sprintf_s(strbuf, "%df %s%s",
-							elem.dashDuration,
-							elem.dashDuration >= 10 ? "Dash" : "Microdash",
-							linkText);
+						
+						if (!goingToShowTheElement) {
+							if (elem.dashDuration) {
+								idleTimeAdd += elem.dashDuration;
+							}
+							continue;
+						}
+						
+						const char* chosenName;
+						if (elem.name) {
+							if (settings.useSlangNames && elem.name->slang) {
+								chosenName = elem.name->slang;
+							} else {
+								chosenName = elem.name->name;
+							}
+						} else {
+							chosenName = nullptr;
+						}
+						
+						idleTimeAdd = 0;
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "%u)", rowCount++);
+						yellowText(strbuf);
+						ImGui::SameLine();
+						
+						const char* linkText = "";
+						if (!elem.isProjectile && (!elem.artificial || elem.isJump) && isLink != IS_LINK_UNKNOWN) {
+							if (isLink == IS_LINK_YES) {
+								linkText = ",";
+							} else {
+								linkText = " >";
+							}
+						}
+						
+						if (!elem.dashDuration) {
+							const char* lastSuffix = "";
+							if (elem.whiffed && elem.isMeleeAttack) {
+								lastSuffix = " (Whiff)";
+							} else if (elem.otg) {
+								lastSuffix = " (OTG)";
+							} else if (elem.counterhit) {
+								lastSuffix = " (Counterhit)";
+							}
+							char* buf = strbuf;
+							size_t bufSize = sizeof strbuf;
+							int result = sprintf_s(strbuf, "%s", chosenName);
+							advanceBuf
+							if (elem.hitCount > 1 && settings.comboRecipe_showNumberOfHits) {
+								result = sprintf_s(buf, bufSize, "(%d)", elem.hitCount);
+								advanceBuf
+							}
+							if ((elem.charge || elem.maxCharge) && settings.comboRecipe_showCharge) {
+								if (elem.maxCharge) {
+									result = sprintf_s(buf, bufSize, " (Held: %d/%df)", elem.charge, elem.maxCharge);
+								} else {
+									result = sprintf_s(buf, bufSize, " (Held: %df)", elem.charge);
+								}
+								advanceBuf
+							}
+							sprintf_s(buf, bufSize, "%s%s%s",
+								elem.isProjectile ? " (Hit)" : "",
+								lastSuffix,
+								linkText);
+						} else if (elem.isWalkForward) {
+							sprintf_s(strbuf, "%df %s%s",
+								elem.dashDuration,
+								elem.dashDuration >= 10 ? "Walk" : "Microwalk",
+								linkText);
+						} else if (elem.isWalkBackward) {
+							sprintf_s(strbuf, "%df %s%s",
+								elem.dashDuration,
+								elem.dashDuration >= 10 ? "Walk Back" : "Microwalk Back",
+								linkText);
+						} else {
+							sprintf_s(strbuf, "%df %s%s",
+								elem.dashDuration,
+								elem.dashDuration >= 10 ? "Dash" : "Microdash",
+								linkText);
+						}
+						
+						if (elem.isProjectile) {
+							textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+						} else {
+							ImGui::TextUnformatted(strbuf);
+						}
 					}
 					
-					if (elem.isProjectile) {
-						textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-					} else {
-						ImGui::TextUnformatted(strbuf);
+					if (transparentBackground) {
+						popOutlinedText();
 					}
+					ImGui::EndTable();
 				}
 				
-				if (transparentBackground) {
-					popOutlinedText();
-				}
-				ImGui::EndTable();
-			}
-			
-			float totalViewableArea = ImGui::GetWindowHeight() - ImGui::GetStyle().FramePadding.y * 2 - ImGui::GetFontSize();
-			float totalContentSize = ImGui::GetCursorPosY();
-			if (comboRecipeUpdatedOnThisFrame[i]) {
-				comboRecipeUpdatedOnThisFrame[i] = false;
-				// simply calling ImGui::SetScrollY(ImGui::GetScrollMaxY()) made it scroll to the penultimate line
-				// probably because ImGui::GetScrollMaxY() returns the value from the ImGui::Begin call so it can be compared to ImGui::GetScrollY(),
-				// also from that call
-				if (totalContentSize > totalViewableArea) {
-					ImGui::SetScrollY(totalContentSize - totalViewableArea);
+				float totalViewableArea = ImGui::GetWindowHeight() - ImGui::GetStyle().FramePadding.y * 2 - ImGui::GetFontSize();
+				float totalContentSize = ImGui::GetCursorPosY();
+				if (comboRecipeUpdatedOnThisFrame[i]) {
+					comboRecipeUpdatedOnThisFrame[i] = false;
+					// simply calling ImGui::SetScrollY(ImGui::GetScrollMaxY()) made it scroll to the penultimate line
+					// probably because ImGui::GetScrollMaxY() returns the value from the ImGui::Begin call so it can be compared to ImGui::GetScrollY(),
+					// also from that call
+					if (totalContentSize > totalViewableArea) {
+						ImGui::SetScrollY(totalContentSize - totalViewableArea);
+					}
 				}
 			}
 			
@@ -8741,180 +8854,182 @@ void UI::drawSearchableWindows() {
 	if (needDraw(PinnedWindowEnum_HighlightedCancels) || searching) {
 		ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
 		customBegin(PinnedWindowEnum_HighlightedCancels);
-		if (sortedMovesRedoPending || sortedMovesRedoPendingWhenAswEngingExists && *aswEngine) {
-			sortedMovesRedoPending = false;
-			if (*aswEngine) sortedMovesRedoPendingWhenAswEngingExists = false;
-			for (std::vector<SortedMovesEntry>& vec : sortedMoves) {
-				vec.clear();
-			}
-			MoveInfo moveInfo;
-			if (*aswEngine) {
-				entityList.populate();
-				for (int playerInd = 0; playerInd < 2; ++playerInd) {
-					if (playerInd == 1 && entityList.slots[0].characterType() == entityList.slots[1].characterType()) break;
-					Entity pawn = entityList.slots[playerInd];
-					CharacterType charType = pawn.characterType();
-					std::vector<SortedMovesEntry>& vec = sortedMoves[charType];
-					const int movesCount = pawn.movesCount();
-					const AddedMoveData* addedMove = pawn.movesBase();
-					for (int moveInd = 0; moveInd < movesCount; ++moveInd) {
-						bool isStylish = false;
-						for (int inputInd = 0; inputInd < _countof(addedMove->inputs); ++inputInd) {
-							if (addedMove->inputs[inputInd] == INPUT_PRESS_SPECIAL) {
-								isStylish = true;
-								break;
+		if (!isMostModDisabledPlusMsg()) {
+			if (sortedMovesRedoPending || sortedMovesRedoPendingWhenAswEngingExists && *aswEngine) {
+				sortedMovesRedoPending = false;
+				if (*aswEngine) sortedMovesRedoPendingWhenAswEngingExists = false;
+				for (std::vector<SortedMovesEntry>& vec : sortedMoves) {
+					vec.clear();
+				}
+				MoveInfo moveInfo;
+				if (*aswEngine) {
+					entityList.populate();
+					for (int playerInd = 0; playerInd < 2; ++playerInd) {
+						if (playerInd == 1 && entityList.slots[0].characterType() == entityList.slots[1].characterType()) break;
+						Entity pawn = entityList.slots[playerInd];
+						CharacterType charType = pawn.characterType();
+						std::vector<SortedMovesEntry>& vec = sortedMoves[charType];
+						const int movesCount = pawn.movesCount();
+						const AddedMoveData* addedMove = pawn.movesBase();
+						for (int moveInd = 0; moveInd < movesCount; ++moveInd) {
+							bool isStylish = false;
+							for (int inputInd = 0; inputInd < _countof(addedMove->inputs); ++inputInd) {
+								if (addedMove->inputs[inputInd] == INPUT_PRESS_SPECIAL) {
+									isStylish = true;
+									break;
+								}
 							}
-						}
-						if (!isStylish) {
-							const char* name = nullptr;
-							void const* sortValue = nullptr;
-							if (moves.getInfoWithName(moveInfo, charType, addedMove->name, addedMove->stateName, false, &name, &sortValue)
-									&& moveInfo.isMove) {
-								vec.emplace_back(name, moveInfo.displayName, -1, sortValue);
+							if (!isStylish) {
+								const char* name = nullptr;
+								void const* sortValue = nullptr;
+								if (moves.getInfoWithName(moveInfo, charType, addedMove->name, addedMove->stateName, false, &name, &sortValue)
+										&& moveInfo.isMove) {
+									vec.emplace_back(name, moveInfo.displayName, -1, sortValue);
+								}
 							}
+							++addedMove;
 						}
-						++addedMove;
 					}
+				}
+				int index = 0;
+				for (const MoveListPointer& ptr : settings.highlightWhenCancelsIntoMovesAvailable.pointers) {
+					bool alreadyIncluded = false;
+					std::vector<SortedMovesEntry>& vec = sortedMoves[ptr.charType];
+					for (SortedMovesEntry& iter : vec) {
+						if (iter.name == ptr.name) {
+							iter.index = index;
+							alreadyIncluded = true;
+							break;
+						}
+					}
+					if (!alreadyIncluded) {
+						const NamePair* displayName = nullptr;
+						const char* name = nullptr;
+						void const* sortValue = nullptr;
+						if (moves.getInfoWithName(moveInfo, ptr.charType, ptr.name, false, &name, &sortValue)) {
+							displayName = moveInfo.displayName;
+						}
+						vec.emplace_back(ptr.name, displayName, index, sortValue);
+					}
+					++index;
+				}
+				for (std::vector<SortedMovesEntry>& vec : sortedMoves) {
+					if (vec.empty()) continue;
+					qsort(vec.data(), vec.size(), sizeof SortedMovesEntry, CompareMoveInfo);
 				}
 			}
-			int index = 0;
-			for (const MoveListPointer& ptr : settings.highlightWhenCancelsIntoMovesAvailable.pointers) {
-				bool alreadyIncluded = false;
-				std::vector<SortedMovesEntry>& vec = sortedMoves[ptr.charType];
-				for (SortedMovesEntry& iter : vec) {
-					if (iter.name == ptr.name) {
-						iter.index = index;
-						alreadyIncluded = true;
-						break;
-					}
-				}
-				if (!alreadyIncluded) {
-					const NamePair* displayName = nullptr;
-					const char* name = nullptr;
-					void const* sortValue = nullptr;
-					if (moves.getInfoWithName(moveInfo, ptr.charType, ptr.name, false, &name, &sortValue)) {
-						displayName = moveInfo.displayName;
-					}
-					vec.emplace_back(ptr.name, displayName, index, sortValue);
-				}
-				++index;
+			
+			if (!*aswEngine) {
+				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+				ImGui::TextUnformatted("Load a match to see more moves.");
+				ImGui::PopStyleColor();
 			}
-			for (std::vector<SortedMovesEntry>& vec : sortedMoves) {
+			
+			std::vector<MoveListPointer>& jesusFuckingChrist = settings.highlightWhenCancelsIntoMovesAvailable.pointers;
+			const bool slang = settings.useSlangNames;
+			for (int charIter = CHARACTER_TYPE_SOL; charIter <= CHARACTER_TYPE_ANSWER; ++charIter) {
+				std::vector<SortedMovesEntry>& vec = sortedMoves[charIter];
 				if (vec.empty()) continue;
-				qsort(vec.data(), vec.size(), sizeof SortedMovesEntry, CompareMoveInfo);
-			}
-		}
-		
-		if (!*aswEngine) {
-			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-			ImGui::TextUnformatted("Load a match to see more moves.");
-			ImGui::PopStyleColor();
-		}
-		
-		std::vector<MoveListPointer>& jesusFuckingChrist = settings.highlightWhenCancelsIntoMovesAvailable.pointers;
-		const bool slang = settings.useSlangNames;
-		for (int charIter = CHARACTER_TYPE_SOL; charIter <= CHARACTER_TYPE_ANSWER; ++charIter) {
-			std::vector<SortedMovesEntry>& vec = sortedMoves[charIter];
-			if (vec.empty()) continue;
-			ImGui::SeparatorText(characterNames[charIter]);
-			sprintf_s(strbuf, "##HighlightedMoves%d", charIter);
-			if (ImGui::BeginTable(strbuf, 4, tableFlags)) {
-				ImGui::TableSetupColumn("Move", ImGuiTableColumnFlags_WidthStretch, 1.F);
-				ImGui::TableSetupColumn("Red", ImGuiTableColumnFlags_WidthStretch, 0.11F);
-				ImGui::TableSetupColumn("Green", ImGuiTableColumnFlags_WidthStretch, 0.11F);
-				ImGui::TableSetupColumn("Blue", ImGuiTableColumnFlags_WidthStretch, 0.11F);
-				ImGui::TableHeadersRow();
-				int row = -1;
-				for (SortedMovesEntry& iter : vec) {
-					++row;
-					ImGui::TableNextColumn();
-					if (iter.displayName) {
-						ImGui::TextUnformatted(slang && iter.displayName->slang ? iter.displayName->slang : iter.displayName->name);
-						if (slang && iter.displayName->slang) {
-							AddTooltip(iter.displayName->name);
+				ImGui::SeparatorText(characterNames[charIter]);
+				sprintf_s(strbuf, "##HighlightedMoves%d", charIter);
+				if (ImGui::BeginTable(strbuf, 4, tableFlags)) {
+					ImGui::TableSetupColumn("Move", ImGuiTableColumnFlags_WidthStretch, 1.F);
+					ImGui::TableSetupColumn("Red", ImGuiTableColumnFlags_WidthStretch, 0.11F);
+					ImGui::TableSetupColumn("Green", ImGuiTableColumnFlags_WidthStretch, 0.11F);
+					ImGui::TableSetupColumn("Blue", ImGuiTableColumnFlags_WidthStretch, 0.11F);
+					ImGui::TableHeadersRow();
+					int row = -1;
+					for (SortedMovesEntry& iter : vec) {
+						++row;
+						ImGui::TableNextColumn();
+						if (iter.displayName) {
+							ImGui::TextUnformatted(slang && iter.displayName->slang ? iter.displayName->slang : iter.displayName->name);
+							if (slang && iter.displayName->slang) {
+								AddTooltip(iter.displayName->name);
+							}
 						}
-					}
-					
-					bool red = false;
-					bool green = false;
-					bool blue = false;
-					if (iter.index != -1) {
-						const MoveListPointer& ptr = jesusFuckingChrist[iter.index];
-						red = ptr.red;
-						green = ptr.green;
-						blue = ptr.blue;
-					}
-					bool changedColor = false;
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "##HighlightedMovesRed%d_%d", charIter, row);
-					if (ImGui::Checkbox(strbuf, &red)) {
-						changedColor = true;
-					}
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "##HighlightedMovesGreen%d_%d", charIter, row);
-					if (ImGui::Checkbox(strbuf, &green)) {
-						changedColor = true;
-					}
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "##HighlightedMovesBlue%d_%d", charIter, row);
-					if (ImGui::Checkbox(strbuf, &blue)) {
-						changedColor = true;
-					}
-					if (changedColor) {
+						
+						bool red = false;
+						bool green = false;
+						bool blue = false;
 						if (iter.index != -1) {
-							if (iter.index >= 0 && iter.index < (int)jesusFuckingChrist.size()) {
-								jesusFuckingChrist.erase(jesusFuckingChrist.begin() + iter.index);
-								for (SortedMovesEntry& iterModif : vec) {
-									if (iterModif.index > iter.index) {
-										--iterModif.index;
+							const MoveListPointer& ptr = jesusFuckingChrist[iter.index];
+							red = ptr.red;
+							green = ptr.green;
+							blue = ptr.blue;
+						}
+						bool changedColor = false;
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "##HighlightedMovesRed%d_%d", charIter, row);
+						if (ImGui::Checkbox(strbuf, &red)) {
+							changedColor = true;
+						}
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "##HighlightedMovesGreen%d_%d", charIter, row);
+						if (ImGui::Checkbox(strbuf, &green)) {
+							changedColor = true;
+						}
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "##HighlightedMovesBlue%d_%d", charIter, row);
+						if (ImGui::Checkbox(strbuf, &blue)) {
+							changedColor = true;
+						}
+						if (changedColor) {
+							if (iter.index != -1) {
+								if (iter.index >= 0 && iter.index < (int)jesusFuckingChrist.size()) {
+									jesusFuckingChrist.erase(jesusFuckingChrist.begin() + iter.index);
+									for (SortedMovesEntry& iterModif : vec) {
+										if (iterModif.index > iter.index) {
+											--iterModif.index;
+										}
 									}
 								}
+								iter.index = -1;
 							}
-							iter.index = -1;
-						}
-						if (red || green || blue) {
-							int satisfactionLevel = 0;
-							int foundIndex = 0;
-							for (int listInd = 0; listInd < (int)jesusFuckingChrist.size(); ++listInd) {
-								MoveListPointer& ptr = jesusFuckingChrist[listInd];
-								int currentSatisfaction = 0;
-								if (ptr.charType == charIter) currentSatisfaction += 10;
-								if (ptr.red == red && ptr.green == green && ptr.blue == blue) ++currentSatisfaction;
-								if (currentSatisfaction > satisfactionLevel) {
-									foundIndex = listInd;
-									satisfactionLevel = currentSatisfaction;
-									if (satisfactionLevel == 11) break;
-								}
-							}
-							if (jesusFuckingChrist.empty()) {
-								jesusFuckingChrist.emplace_back((CharacterType)charIter, iter.name, red, green, blue);
-								iter.index = 0;
-							} else {
-								for (SortedMovesEntry& iterModif : vec) {
-									if (iterModif.index > foundIndex) {
-										++iterModif.index;
+							if (red || green || blue) {
+								int satisfactionLevel = 0;
+								int foundIndex = 0;
+								for (int listInd = 0; listInd < (int)jesusFuckingChrist.size(); ++listInd) {
+									MoveListPointer& ptr = jesusFuckingChrist[listInd];
+									int currentSatisfaction = 0;
+									if (ptr.charType == charIter) currentSatisfaction += 10;
+									if (ptr.red == red && ptr.green == green && ptr.blue == blue) ++currentSatisfaction;
+									if (currentSatisfaction > satisfactionLevel) {
+										foundIndex = listInd;
+										satisfactionLevel = currentSatisfaction;
+										if (satisfactionLevel == 11) break;
 									}
 								}
-								jesusFuckingChrist.insert(jesusFuckingChrist.begin() + foundIndex + 1, {
-									(CharacterType)charIter, iter.name, red, green, blue
-								});
-								iter.index = foundIndex + 1;
+								if (jesusFuckingChrist.empty()) {
+									jesusFuckingChrist.emplace_back((CharacterType)charIter, iter.name, red, green, blue);
+									iter.index = 0;
+								} else {
+									for (SortedMovesEntry& iterModif : vec) {
+										if (iterModif.index > foundIndex) {
+											++iterModif.index;
+										}
+									}
+									jesusFuckingChrist.insert(jesusFuckingChrist.begin() + foundIndex + 1, {
+										(CharacterType)charIter, iter.name, red, green, blue
+									});
+									iter.index = foundIndex + 1;
+								}
 							}
+							SYSTEMTIME time;
+							GetSystemTime(&time);
+							settings.highlightWhenCancelsIntoMovesAvailable.year = time.wYear;
+							settings.highlightWhenCancelsIntoMovesAvailable.month = time.wMonth;
+							settings.highlightWhenCancelsIntoMovesAvailable.day = time.wDay;
+							settings.highlightWhenCancelsIntoMovesAvailable.hour = time.wHour;
+							settings.highlightWhenCancelsIntoMovesAvailable.minute = time.wMinute;
+							settings.highlightWhenCancelsIntoMovesAvailable.second = time.wSecond;
+							needWriteSettings = true;
+							endScene.highlightGreenWhenBecomingIdleChanged();
+							endScene.highlightSettingsChanged();
 						}
-						SYSTEMTIME time;
-						GetSystemTime(&time);
-						settings.highlightWhenCancelsIntoMovesAvailable.year = time.wYear;
-						settings.highlightWhenCancelsIntoMovesAvailable.month = time.wMonth;
-						settings.highlightWhenCancelsIntoMovesAvailable.day = time.wDay;
-						settings.highlightWhenCancelsIntoMovesAvailable.hour = time.wHour;
-						settings.highlightWhenCancelsIntoMovesAvailable.minute = time.wMinute;
-						settings.highlightWhenCancelsIntoMovesAvailable.second = time.wSecond;
-						needWriteSettings = true;
-						endScene.highlightGreenWhenBecomingIdleChanged();
-						endScene.highlightSettingsChanged();
 					}
+					ImGui::EndTable();
 				}
-				ImGui::EndTable();
 			}
 		}
 		customEnd();
@@ -10279,6 +10394,37 @@ DWORD VecToRGB(const ImVec4& vec) {
 	return color;
 }
 
+DWORD VecToARGB(const ImVec4& vec) {
+	
+	DWORD color = 0;
+	
+	// ALPHA
+	int val = (int)std::roundf(vec.w * 255.F);
+	if (val < 0) val = 0;
+	if (val > 255) val = 255;
+	color |= val << 24;
+	
+	// RED
+	val = (int)std::roundf(vec.x * 255.F);
+	if (val < 0) val = 0;
+	if (val > 255) val = 255;
+	color |= val << 16;
+	
+	// GREEN
+	val = (int)std::roundf(vec.y * 255.F);
+	if (val < 0) val = 0;
+	if (val > 255) val = 255;
+	color |= val << 8;
+	
+	// BLUE
+	val = (int)std::roundf(vec.z * 255.F);
+	if (val < 0) val = 0;
+	if (val > 255) val = 255;
+	color |= val;
+	
+	return color;
+}
+
 // runs on the main thread
 const char* formatBoolean(bool value) {
 	static const char* trueStr = "true";
@@ -10592,7 +10738,8 @@ bool UI::needShowFramebar() const {
 	if (settings.showFramebar
 			&& (!settings.closingModWindowAlsoHidesFramebar || windowShowMode != WindowShowMode_None)
 			&& !(drawingPostponed && pauseMenuOpen)
-			&& !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
+			&& !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn
+			&& !gifMode.mostModDisabled) {
 		GameMode mode = game.getGameMode();
 		if (mode == GAME_MODE_TRAINING) {
 			return settings.showFramebarInTrainingMode;
@@ -15122,6 +15269,61 @@ bool UI::intSettingPreset(int& settingsPtr, int minValue, int step, int stepFast
 	ImGui::SameLine();
 	HelpMarker(searchTooltip(settings.getOtherUIDescriptionWithLength(&settingsPtr)));
 	return isChange;
+}
+
+bool UI::colorSettingPreset(DWORD& settingsRef, bool withAlpha) {
+	static float comparisonColor[4] { 0.F, 0.F, 0.F, 0.F };
+	ImVec4 colorVec = ARGBToVec(settingsRef);
+	
+	const StringWithLength swl = settings.getOtherUINameWithLength(&settingsRef);
+	ImGui::TextUnformatted(searchFieldTitle(swl));
+	ImGui::SameLine();
+	
+	if (ImGui::ColorButton(swl.txt, colorVec)) {
+		memcpy(&comparisonColor, &colorVec, sizeof(float) << 2);
+		ImGui::OpenPopup(swl.txt);
+	}
+	
+	bool returnResult = false;
+	if (withAlpha) {
+		ImGui::SameLine();
+		ImGui::TextUnformatted(" Alpha:");
+		ImGui::SameLine();
+		sprintf_s(strbuf, "##%sAlpha", swl.txt);
+		int currentAlpha = (int)std::roundf(colorVec.w * 255.F);
+		ImGui::SetNextItemWidth(80.F);
+		if (ImGui::InputInt(strbuf, &currentAlpha, 1, 10)) {
+			if (currentAlpha < 0) {
+				currentAlpha = 0;
+			}
+			if (currentAlpha > 255) {
+				currentAlpha = 255;
+			}
+			settingsRef = settingsRef & 0x00FFFFFF | currentAlpha << 24;
+			needWriteSettings = true;
+			returnResult = true;
+		}
+		imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+	}
+	ImGui::SameLine();
+	HelpMarker(searchTooltip(settings.getOtherUIDescriptionWithLength(&settingsRef)));
+	
+    if (ImGui::BeginPopup(swl.txt))
+    {
+    	float square_sz = ImGui::GetFrameHeight();
+        ImGuiColorEditFlags picker_flags = ImGuiColorEditFlags_DisplayMask_ | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaPreviewHalf
+        	| (withAlpha ? 0 : ImGuiColorEditFlags_NoAlpha);
+        ImGui::SetNextItemWidth(square_sz * 12.0f);
+        if (ImGui::ColorPicker4("##picker", (float*)&colorVec, picker_flags, comparisonColor)) {
+        	settingsRef = VecToARGB(colorVec);
+        	needWriteSettings = true;
+        	returnResult = true;
+        }
+		imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+        ImGui::EndPopup();
+    }
+	
+	return returnResult;
 }
 
 // runs on the main thread
@@ -25390,4 +25592,22 @@ void drawWindowOutline(ImDrawList* drawList, const ImVec2& windowPos, float wind
 			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
 			1.F);
 	}
+}
+
+const char* UI::getMostModDisabledMsg() {
+	static std::string msg;
+	if (msg.empty()) {
+		msg = settings.convertToUiDescription("Disabled by \"disableMostOfTheModInOnline\" for the duration of the online match.");
+	}
+	return msg.c_str();
+}
+
+bool UI::isMostModDisabledPlusMsg() {
+	if (gifMode.mostModDisabled) {
+		ImGui::PushTextWrapPos(0.F);
+		ImGui::TextUnformatted(getMostModDisabledMsg());
+		ImGui::PopTextWrapPos();
+		return true;
+	}
+	return false;
 }

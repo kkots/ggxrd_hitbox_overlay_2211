@@ -4,5 +4,5 @@
 GifMode gifMode;
 
 void GifMode::updateFPS() {
-	fpsApplied = fpsSetting * fpsSpeedUpReplay / 60.F;
+	fpsApplied = modDisabled ? 60.F : fpsSetting * fpsSpeedUpReplay / 60.F;
 }

@@ -27,6 +27,7 @@ public:
 	float fpsApplied { 60.F };
 	bool speedUpReplay { false };
 	void updateFPS();
+	bool mostModDisabled { false };
 };
 
 extern GifMode gifMode;

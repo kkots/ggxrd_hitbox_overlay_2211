@@ -4,6 +4,8 @@
 #include <dinput.h>
 #include "Entity.h"
 
+extern "C" BOOL needIgnoreKeyboardBattleInputs;
+
 enum KeyboardOwner {
 	KEYBOARD_OWNER_NONE,
 	KEYBOARD_OWNER_IMGUI
@@ -159,6 +161,8 @@ public:
 	DIJOYSTATE2 joy;
 	bool captureJoyInput = false;
 	KeyboardOwner owner = KEYBOARD_OWNER_NONE;
+	uintptr_t FWindowsViewport_as_FViewport = 0;
+	void onDisconnectKeyboardSettingChanged();
 private:
 	struct KeyStatus {
 		int code = 0;
@@ -176,13 +180,14 @@ private:
 	KeyStatus* getStatus(int code);
 	TArray<FJoystickInfo>* UWindowsClient_Joysticks = nullptr;
 	bool UWindowsClient_Joysticks_HookAttempted = false;
-	void getJoyState(DIJOYSTATE2* state);
 	std::vector<int> codeToStatus;
 	std::vector<MultiplicationWhat> codeToMovable;
 	bool initialized = false;
 	
 	int wheelDelta = 0;
 	void findJoysticks();
+	void hookSetInputs();
+	bool attemptedHookSetInputs = false;
 };
 
 extern Keyboard keyboard;

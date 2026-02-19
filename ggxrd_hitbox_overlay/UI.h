@@ -326,6 +326,7 @@ private:
 	}
 	bool float4SettingPreset(float& settingsPtr, float minValue = FLT_MIN, float maxValue = FLT_MAX, float step = 1.F, float stepFast = 10.F, float width = 120.F);
 	bool intSettingPreset(int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F, int maxValue = INT_MAX, bool isDisabled = false);
+	bool colorSettingPreset(DWORD& settingsRef, bool withAlpha);
 	void drawSearchableWindows();
 	bool searching = false;
 	char searchString[101] { '\0' };
@@ -778,6 +779,9 @@ private:
 	bool drawQuickCharSelectControllerFriendly();
 	uintptr_t getSelectedCharaLocation();
 	void quickCharSelect_save(CharacterType newCharType);
+	const char* getMostModDisabledMsg();
+	// calls ImGui::TextUnformatted(...) if most of the mod is disabled
+	bool isMostModDisabledPlusMsg();
 };
 
 extern UI ui;

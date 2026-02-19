@@ -168,6 +168,7 @@ public:
 	std::mutex screenshotPathMutex;
 	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
 	typedef std::string ScreenshotPath;
+	typedef DWORD color;
 	#define settingsKeyCombo(name, displayName, defaultValue, description) 
 	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) type name = defaultValue;
 	#include "SettingsDefinitions.h"
@@ -287,11 +288,13 @@ private:
 	static bool parseMoveList(const char* keyName, const std::string& keyValue, MoveList& listValue);
 	static bool parseHitboxList(const char* keyName, const std::string& keyValue, HitboxList& listValue);
 	static bool parsePinnedWindowList(const char* keyName, const std::string& keyValue, PinnedWindowList& listValue);
+	static bool parseColor(const char* keyName, const std::string& keyValue, DWORD& color);
 	static void formatFloat(float f, std::string& result);
 	static void formatInteger(int f, std::string& result);
 	static void formatMoveList(const MoveList& moveList, std::string& result);
 	static void formatHitboxList(const HitboxList& hitboxList, std::string& result);
 	static void formatPinnedWindowList(const PinnedWindowList& moveList, std::string& result);
+	static void formatColor(DWORD clr, std::string& result);
 	void registerListenerForChanges();
 	std::wstring settingsPathFolder;
 	std::wstring settingsPath;

@@ -97,7 +97,7 @@ void HitDetector::clearAllBoxes() {
 
 HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, DWORD* hitFlags, int* hpPtr) {
 	HitResult result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, hitFlags, hpPtr);
-	if (gifMode.modDisabled) return result;
+	if (gifMode.modDisabled || gifMode.mostModDisabled) return result;
 	Entity thisEntity{ (char*)this };
 	Entity otherEntity{ (char*)defender };
 	
@@ -287,13 +287,19 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 
 void HitDetector::HookHelp::copyDealtAtkToReceivedAtkHook(void* attacker) {
 	hitDetector.orig_copyDealtAtkToReceivedAtk((void*)this, attacker);
-	endScene.onAfterAttackCopy(Entity{(char*)this}, Entity{attacker});
+	if (!gifMode.modDisabled && !gifMode.mostModDisabled) {
+		endScene.onAfterAttackCopy(Entity{(char*)this}, Entity{attacker});
+	}
 }
 
 void HitDetector::HookHelp::dealHitHook(void* attacker, BOOL isInHitstun) {
-	endScene.onDealHit(Entity{(char*)this}, Entity{attacker});
+	if (!gifMode.modDisabled && !gifMode.mostModDisabled) {
+		endScene.onDealHit(Entity{(char*)this}, Entity{attacker});
+	}
 	hitDetector.orig_dealHit((void*)this, attacker, isInHitstun);
-	endScene.onAfterDealHit(Entity{(char*)this}, Entity{attacker});
+	if (!gifMode.modDisabled && !gifMode.mostModDisabled) {
+		endScene.onAfterDealHit(Entity{(char*)this}, Entity{attacker});
+	}
 }
 
 HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox) {

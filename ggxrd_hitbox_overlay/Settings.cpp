@@ -344,6 +344,13 @@ void Settings::readSettings(bool isFirstEverRead) {
 									} \
 									break;
 										
+								#define colorPreset(name) \
+									case offsetof(Settings, name): \
+									if (!name##Parsed) { \
+										name##Parsed = parseColor(#name, keyValue, name); \
+									} \
+									break;
+										
 								#define hitboxListPreset(name) \
 									case offsetof(Settings, name): \
 									if (!name##Parsed) { \
@@ -363,6 +370,7 @@ void Settings::readSettings(bool isFirstEverRead) {
 								#define ScreenshotPath screenshotPathPreset
 								#define float floatPreset
 								#define MoveList moveListPreset
+								#define color colorPreset
 								#define HitboxList hitboxListPreset
 								#define PinnedWindowList pinnedWindowListPreset
 								#define settingsKeyCombo(name, displayName, defaultValue, description)
@@ -380,6 +388,8 @@ void Settings::readSettings(bool isFirstEverRead) {
 								#undef booleanPreset
 								#undef MoveList
 								#undef moveListPreset
+								#undef color
+								#undef colorPreset
 								#undef HitboxList
 								#undef hitboxListPreset
 								#undef PinnedWindowList
@@ -643,7 +653,7 @@ bool Settings::parseFloat(const char* keyName, const std::string& keyValue, floa
 	if (isError) {
 		return false;
 	}
-	logwrap(fprintf(logfile, "Parsed float for %s: %d\n", keyName, floatValue));
+	logwrap(fprintf(logfile, "Parsed float for %s: %f\n", keyName, floatValue));
 	return true;
 }
 
@@ -892,6 +902,7 @@ void Settings::writeSettingsMain() {
 		FieldType_ScreenshotPath,
 		FieldType_Float,
 		FieldType_MoveList,
+		FieldType_Color,
 		FieldType_HitboxList,
 		FieldType_PinnedWindowList
 	};
@@ -909,6 +920,7 @@ void Settings::writeSettingsMain() {
 		#define ScreenshotPath FieldType_ScreenshotPath
 		#define float FieldType_Float
 		#define MoveList FieldType_MoveList
+		#define color FieldType_Color
 		#define HitboxList FieldType_HitboxList
 		#define PinnedWindowList FieldType_PinnedWindowList
 		#define settingsKeyCombo(name, displayName, defaultValue, description) 
@@ -926,6 +938,7 @@ void Settings::writeSettingsMain() {
 		#undef int
 		#undef bool
 		#undef MoveList
+		#undef color
 		#undef HitboxList
 		#undef PinnedWindowList
 	}
@@ -1140,6 +1153,7 @@ void Settings::writeSettingsMain() {
 								case FieldType_Float: formatFloat(*(float*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
 								case FieldType_PinnedWindowList: formatPinnedWindowList(*(PinnedWindowList*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
 								case FieldType_HitboxList: formatHitboxList(*(HitboxList*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
+								case FieldType_Color: formatColor(*(DWORD*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
 							}
 							if (fieldValuePtr) {
 								li.compareAndUpdateValue(*fieldValuePtr);
@@ -1282,6 +1296,14 @@ void Settings::writeSettingsMain() {
 			nl.iniDescription = getOtherINIDescription(&fieldName); \
 			nl.outputToFile(); \
 		}
+	#define colorPreset(fieldName, fieldInlineComment) \
+		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
+			nl.name = StringWithLength { #fieldName }; \
+			formatColor(fieldName, fieldValue); \
+			nl.newValuePtr = fieldValue; \
+			nl.iniDescription = getOtherINIDescription(&fieldName); \
+			nl.outputToFile(); \
+		}
 		
 	#define hitboxListPreset(fieldName, fieldInlineComment) \
 		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
@@ -1304,6 +1326,7 @@ void Settings::writeSettingsMain() {
 	#define ScreenshotPath screenshotPathPreset
 	#define bool booleanPreset
 	#define MoveList moveListPreset
+	#define color colorPreset
 	#define HitboxList hitboxListPreset
 	#define PinnedWindowList pinnedWindowListPreset
 	#define settingsKeyCombo(name, displayName, defaultValue, description) keyComboPreset(name)
@@ -1317,6 +1340,8 @@ void Settings::writeSettingsMain() {
 	#undef int
 	#undef MoveList
 	#undef moveListPreset
+	#undef color
+	#undef colorPreset
 	#undef HitboxList
 	#undef hitboxListPreset
 	#undef floatPreset
@@ -1702,7 +1727,7 @@ bool Settings::parseMoveList(const char* keyName, const std::string& keyValue, M
 				unsigned int second = 0;
 				int sscanfReturnValue = sscanf(stringArena.c_str(), "%u.%u.%uT%u:%u:%u", &year, &month, &day, &hour, &minute, &second);
 				if (sscanfReturnValue != 6) {
-					logwrap(fprintf(logfile, "Move list for %s: could not parse hash: %s\n", stringArena.c_str()));
+					logwrap(fprintf(logfile, "Move list for %s: could not parse hash: %s\n", keyName, stringArena.c_str()));
 					return false;
 				}
 				if (year == listValue.year
@@ -1767,10 +1792,10 @@ bool Settings::parseMoveList(const char* keyName, const std::string& keyValue, M
 					green = newGreen;
 					blue = newBlue;
 				} else if (!moves.getInfoWithName(moveInfo, parsedCharacter, stringArena.c_str(), false, &name)) {
-					logwrap(fprintf(logfile, "Move list for %s has a move name that is not found: %s\n", stringArena.c_str()));
+					logwrap(fprintf(logfile, "Move list for %s has a move name that is not found: %s\n", keyName, stringArena.c_str()));
 					return false;
 				} else if (!moveInfo.isMove) {
-					logwrap(fprintf(logfile, "Move list for %s has a move name that is not a move: %s\n", stringArena.c_str()));
+					logwrap(fprintf(logfile, "Move list for %s has a move name that is not a move: %s\n", keyName, stringArena.c_str()));
 					return false;
 				} else {
 					listValue.pointers.emplace_back(parsedCharacter, name, red, green, blue);
@@ -1788,7 +1813,7 @@ bool Settings::parseMoveList(const char* keyName, const std::string& keyValue, M
 		listValue.second = 0;
 		listValue.pointers.clear();
 	}
-	logwrap(fprintf(logfile, "Parsed move list for %s: %u items\n", keyName, listValue.size()));
+	logwrap(fprintf(logfile, "Parsed move list for %s: %u items\n", keyName, listValue.pointers.size()));
 	return true;
 }
 
@@ -1830,6 +1855,23 @@ bool Settings::parsePinnedWindowList(const char* keyName, const std::string& key
 		}
 	}
 	logwrap(fprintf(logfile, "Parsed pinned window list for %s: %u items\n", keyName, parsedElements));
+	return true;
+}
+
+bool Settings::parseColor(const char* keyName, const std::string& keyValue, DWORD& color) {
+	color = 0;
+	for (auto it = keyValue.begin(); it != keyValue.end(); ++it) {
+		if (*it >= '0' && *it <= '9') {
+			color = color * 16 + *it - '0';
+		} else if (*it >= 'a' && *it <= 'f') {
+			color = color * 16 + *it - 'a' + 10;
+		} else if (*it >= 'A' && *it <= 'F') {
+			color = color * 16 + *it - 'A' + 10;
+		} else {
+			return false;
+		}
+	}
+	logwrap(fprintf(logfile, "Parsed integer for %s: %d\n", keyName, color));
 	return true;
 }
 
@@ -2097,6 +2139,12 @@ void Settings::formatPinnedWindowList(const PinnedWindowList& list, std::string&
 		- 1  // remove last space
 		- 1  // remove terminating null
 	);
+}
+
+void Settings::formatColor(DWORD d, std::string& result) {
+	char buf[9];
+	sprintf(buf, "%.8x", d);
+	result = buf;
 }
 
 HitboxList::HitboxList(const char* str) {

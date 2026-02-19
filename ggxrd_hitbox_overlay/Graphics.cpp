@@ -1175,7 +1175,7 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 	logColor(params.outlineColor);
 	logOnce(fprintf(logfile, "\nposX: %d\nposY: %d\nflip: %hhd\nscaleX: %d\nscaleY: %d\nangle: %d\nhitboxOffsetX: %d\nhitboxOffsetY: %d\n",
 		params.params.posX, params.params.posY, params.params.flip, params.params.scaleX, params.params.scaleY,
-		params.params.angle, params.params.hitboxOffsetX, params.params.hitboxOffsetY));
+		params.params.angle, params.params.transformCenterX, params.params.transformCenterY));
 	bool drawOutlines = screenshotStage != SCREENSHOT_STAGE_BASE_COLOR;
 	if (drawOutlines) {
 		rectCombinerInputBoxes.reserve(params.data.size());

@@ -44,7 +44,7 @@ static int __cdecl LifeTimeCounterCompare(void const* p1Ptr, void const* p2Ptr) 
 
 // this function can't run while the pause menu is open in single player modes
 void EndScene::logicInside() {
-	if (!gifMode.modDisabled) {
+	if (!gifMode.modDisabled && !gifMode.mostModDisabled) {
 		bool isPauseMenu, needToClearHitDetection;
 		bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu) || isPauseMenu;
 		
@@ -131,35 +131,33 @@ void EndScene::logicInside() {
 				player.ramlethalForpeliMarteliDisabled = false;
 			}
 		}
-		if (!gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
-			for (int i = 0; i < 2; ++i) {
-				std::vector<EndSceneStoredState::PunishMessageTimer>& vec = currentState->punishMessageTimers[i];
-				for (auto it = vec.begin(); it != vec.end(); ) {
-					EndSceneStoredState::PunishMessageTimer& timer = *it;
-					if (timer.animFrame >= 0 && timer.animFrame < (int)_countof(punishAnim)) {
-						const int swipeDur = 16;
-						const float swipeDistY = 30.F;
-						const float swipeDistX = 10.F;
-						if (timer.animFrame < swipeDur) {
-							for (auto itNext = vec.begin(); itNext != it; ++itNext) {
-								EndSceneStoredState::PunishMessageTimer& timerNext = *itNext;
-								timerNext.yOff -= swipeDistY / (float)swipeDur;
-								timerNext.xOff -= swipeDistX / (float)swipeDur;
-							}
+		for (int i = 0; i < 2; ++i) {
+			std::vector<EndSceneStoredState::PunishMessageTimer>& vec = currentState->punishMessageTimers[i];
+			for (auto it = vec.begin(); it != vec.end(); ) {
+				EndSceneStoredState::PunishMessageTimer& timer = *it;
+				if (timer.animFrame >= 0 && timer.animFrame < (int)_countof(punishAnim)) {
+					const int swipeDur = 16;
+					const float swipeDistY = 30.F;
+					const float swipeDistX = 10.F;
+					if (timer.animFrame < swipeDur) {
+						for (auto itNext = vec.begin(); itNext != it; ++itNext) {
+							EndSceneStoredState::PunishMessageTimer& timerNext = *itNext;
+							timerNext.yOff -= swipeDistY / (float)swipeDur;
+							timerNext.xOff -= swipeDistX / (float)swipeDur;
 						}
-						timer.currentAnimFrame = timer.animFrame;
-						if (timer.animFrameRepeatCount > 0) {
-							--timer.animFrameRepeatCount;
-						} else {
-							++timer.animFrame;
-							if (timer.animFrame < (int)_countof(punishAnim)) {
-								timer.animFrameRepeatCount = punishAnim[timer.animFrame].repeatCount;
-							}
-						}
-						++it;
-					} else {
-						it = vec.erase(it);
 					}
+					timer.currentAnimFrame = timer.animFrame;
+					if (timer.animFrameRepeatCount > 0) {
+						--timer.animFrameRepeatCount;
+					} else {
+						++timer.animFrame;
+						if (timer.animFrame < (int)_countof(punishAnim)) {
+							timer.animFrameRepeatCount = punishAnim[timer.animFrame].repeatCount;
+						}
+					}
+					++it;
+				} else {
+					it = vec.erase(it);
 				}
 			}
 		}
@@ -169,6 +167,7 @@ void EndScene::logicInside() {
 	}
 }
 
+// !gifMode.modDisabled && !gifMode.mostModDisabled is assumed prior to this function
 void EndScene::prepareDrawDataInside() {
 	logOnce(fputs("prepareDrawData called\n", logfile));
 	EndSceneStoredState* cs = currentState;
@@ -4121,6 +4120,7 @@ void EndScene::prepareDrawDataInside() {
 						&& !projectile.startedUp
 						&& superflashInstigator
 					)) {
+				currentFrame.aswEngineTick = aswEngineTickCount;
 				currentFrame.type = defaultIdleFrame;
 				currentFrame.marker = isHouseInvul
 						|| player.charType == CHARACTER_TYPE_DIZZY
@@ -4276,15 +4276,40 @@ void EndScene::prepareDrawDataInside() {
 			for (ThreadUnsafeSharedPtr<ProjectileFramebar>& entityFramebar : projectileFramebars) {
 				if (entityFramebar->foundOnThisFrame) continue;
 				
-				++entityFramebar->idleHitstop.stateHead->idleTime;
-				if (framebarAdvancedIdle) {
-					++entityFramebar->idle.stateHead->idleTime;
-				}
-				if (framebarAdvancedHitstop) {
-					++entityFramebar->hitstop.stateHead->idleTime;
-				}
-				if (framebarAdvanced) {
-					++entityFramebar->main.stateHead->idleTime;
+				if (entityFramebar->isEddie) {
+					
+					// our mod's eddie code relies on aswEngineTick member of struct Frame.
+					// If eddie frames end and it instead starts recording idleTime,
+					// then it's impossible to reconstruct aswEngineTick values.
+					// Idle time was meant to not spam 229 frame long buffers in online matches for each DI Ground Viper projectile or
+					// Chipp Ryuu Yanagi kunai. It's ok to make an exception for Zato's Eddie because there's going to be only one per player.
+					FramebarTitle prevTitle;
+					Framebar& framebar = entityFramebar->idleHitstop;
+					framebar.getLastTitle(EntityFramebar::posMinusOne(framebarPos), &prevTitle);
+					
+					framebar.advance(framebarPos, cs->framebarTotalFramesHitstopUnlimited + cs->framebarIdleHitstopFor);
+					Frame& currentFrame = framebar.makeSureFrameExists(framebarPos);
+					memset(&currentFrame, 0, sizeof Frame);
+					currentFrame.title = prevTitle;
+					currentFrame.aswEngineTick = aswEngineTickCount;
+					
+					copyIdleHitstopFrameToTheRestOfSubframebars(*entityFramebar,
+						framebarAdvanced,
+						framebarAdvancedIdle,
+						framebarAdvancedHitstop,
+						framebarAdvancedIdleHitstop);
+					
+				} else {
+					++entityFramebar->idleHitstop.stateHead->idleTime;
+					if (framebarAdvancedIdle) {
+						++entityFramebar->idle.stateHead->idleTime;
+					}
+					if (framebarAdvancedHitstop) {
+						++entityFramebar->hitstop.stateHead->idleTime;
+					}
+					if (framebarAdvanced) {
+						++entityFramebar->main.stateHead->idleTime;
+					}
 				}
 			}
 		}

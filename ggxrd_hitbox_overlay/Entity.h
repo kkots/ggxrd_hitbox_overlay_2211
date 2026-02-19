@@ -1659,6 +1659,58 @@ struct TSparseArray {
 	TBitArray AllocationFlags;
 	int FirstFreeIndex;
 	int NumFreeIndices;
+	struct TSparseArrayIterator {
+		TSparseArray* momma;
+		int index;
+		void increment() {
+			if (index < momma->AllocationFlags.NumBits) {
+				++index;
+				DWORD* bitData = momma->AllocationFlags.Data ? momma->AllocationFlags.Data : momma->AllocationFlags.InlineData;
+				while (
+					index < momma->AllocationFlags.NumBits
+					&& (
+						bitData[index / 32] & (1 << (
+							index % 32
+						))
+					) == 0
+				) {
+					++index;
+				}
+			}
+		}
+		// prefix ++
+		TSparseArrayIterator operator++() {
+			TSparseArrayIterator copy = *this;
+			increment();
+			return copy;
+		}
+		// postfix ++
+		TSparseArrayIterator operator++(int) {
+			increment();
+			return *this;
+		}
+		T& operator*() {
+			return momma->Data.Data[index];
+		}
+		bool operator==(const TSparseArrayIterator& other) {
+			return index == other.index;
+		}
+		bool operator!=(const TSparseArrayIterator& other) {
+			return index != other.index;
+		}
+	};
+	TSparseArrayIterator begin() {
+		TSparseArrayIterator result;
+		result.momma = this;
+		result.index = 0;
+		return result;
+	}
+	TSparseArrayIterator end() {
+		TSparseArrayIterator result;
+		result.momma = this;
+		result.index = AllocationFlags.NumBits;
+		return result;
+	}
 };
 
 template<typename T>
@@ -1673,14 +1725,18 @@ struct TSet {
 	int HashSize;
 };
 
+inline DWORD hash(const FName& val) {
+	return (DWORD)val.low;
+}
+
 template<typename Key, typename Value>
 struct TMap {
 	struct FPair {
-		Key key;
-		Value value;
+		Key Key;
+		Value Value;
 	};
 	TSet<TMap<Key,Value>::FPair> Pairs;
-	int find(Key* key) const;
+	int find(const Key& key) const;
 };
 
 struct UAnimSequence : public UObject {
@@ -2097,6 +2153,9 @@ public:
 	inline bool destroyOnPlayerStateChange() const { return (*(DWORD*)(ent + 0x240) & 0x1000000) != 0; }
 	inline int destroyOnBlockOrArmor() const { return *(int*)(ent + 0x2548); }
 	inline int destroyOnHitProjectile() const { return *(int*)(ent + 0x254c); }
+	inline int destroyOnClash() const { return *(int*)(ent + 0x2550); }
+	inline int destroyOnDamageCollision() const { return *(int*)(ent + 0x2554); }
+	inline int destroyOnDamageOnly() const { return *(int*)(ent + 0x255c); }
 	inline int destroyOnHitPlayer() const { return *(int*)(ent + 0x2544); }
 	inline int guardBalanceDefence() const { return *(int*)(ent + 0x98a4); }
 	inline int blockCount() const { return *(int*)(ent + 0x9fe0); }
