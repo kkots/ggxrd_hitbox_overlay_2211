@@ -743,6 +743,7 @@ private:
 	int onlineStepCountDecisionHook();
 	void performBattleChat();
 	bool canSendText();
+	bool sigscanIsIMEFormOpen();
 	void sendText(const wchar_t* text);
 	bool lastTickPerformedBattleChatRoutine = false;
 	bool currentTickPerformedBattleChatRoutine = false;

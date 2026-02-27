@@ -13,6 +13,7 @@ extern "C" BOOL needIgnoreKeyboardBattleInputs = FALSE;
 
 extern "C" void setInputsHookAsm();  // define in asmhooks.asm
 
+// also gets called from main.cpp
 BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 	DWORD windsProcId = 0;
 	DWORD windsThreadId = GetWindowThreadProcessId(hwnd, &windsProcId);
@@ -23,6 +24,7 @@ BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 		if (strcmp(className, "LaunchUnrealUWindowsClient") == 0) {
 			keyboard.thisProcessWindow = hwnd;
 			keyboard.windowThreadId = windsThreadId;
+			return FALSE;
 		}
 	}
 	return TRUE;

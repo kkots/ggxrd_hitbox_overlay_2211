@@ -55,7 +55,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH: {
-#ifdef LOG_PATH
+	#ifdef LOG_PATH
 		{
 			HANDLE fileHandle = CreateFileW(
 				LOG_PATH,
@@ -72,7 +72,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			fputs("DllMain called with fdwReason DLL_PROCESS_ATTACH\n", logfile);
 			fflush(logfile);
 		}
-#endif
+	#endif
 		#define terminate { \
 			detouring.cancelTransaction(); \
 			closeLog(); \
@@ -126,7 +126,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		game.shutdown = true;
 		endScene.onDllDetach();
 		
-		if (endScene.logicThreadId != GetCurrentThreadId()) {
+		if (endScene.logicThreadId && endScene.logicThreadId != GetCurrentThreadId()) {
 			// thanks to Worse Than You for finding this
 			// the tick is 8 bytes, but it takes 28 months for it to overflow into the high dword
 			unsigned int startingTick = getUE3EngineTick();

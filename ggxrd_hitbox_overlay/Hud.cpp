@@ -24,7 +24,7 @@ bool Hud::onDllMain() {
 			(PVOID&)REDHUDBattleUpdateAllHookPtr,
 			"REDHUDBattleUpdateAll");
 	}
-
+	
 	return !error;
 }
 

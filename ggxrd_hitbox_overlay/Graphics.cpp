@@ -241,8 +241,6 @@ bool Graphics::onDllMain() {
 	
 	// textures won't be drawn on screenshot
 	
-	orig_present = (Present_t)direct3DVTable.deviceVtable[17];
-	orig_beginScene = (BeginScene_t)direct3DVTable.deviceVtable[41];
 	responseToImInDanger = CreateEventW(NULL, FALSE, FALSE, NULL);
 	if (!checkAndHookBeginSceneAndPresent(true)) error = true;
 	
@@ -271,6 +269,13 @@ bool Graphics::checkCanHookEndSceneAndPresent() {
 	if (!obsDll || obsDll == INVALID_HANDLE_VALUE) return false;
 	uintptr_t start, end, wholeModuleBegin;
 	if (!getModuleBoundsHandle(obsDll, &start, &end, &wholeModuleBegin)) return false;
+	if (!orig_present) {
+		orig_present = direct3DVTable.getPresent();
+		orig_beginScene = direct3DVTable.getBeginScene();
+	}
+	if (!orig_present) {
+		return false;
+	}
 	const BYTE* ptr = (const BYTE*)orig_present;
 	if (*ptr != 0xe9) return false;
 	uintptr_t destination = followRelativeCallNoLogs((uintptr_t)ptr);

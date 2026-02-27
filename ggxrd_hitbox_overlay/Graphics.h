@@ -20,12 +20,11 @@
 #include "PngResource.h"
 #include <d3dcommon.h>
 #include <unordered_map>
+#include "Direct3DVTable.h"
 
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
 using FSuspendRenderingThreadDestructor_t = void(__thiscall*)(char* thisArg);
-using BeginScene_t = HRESULT(__stdcall*)(IDirect3DDevice9* device);
-using Present_t = HRESULT(__stdcall*)(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
 
 class Graphics
 {

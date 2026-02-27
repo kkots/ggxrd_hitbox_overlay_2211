@@ -8,7 +8,7 @@
 #include <map>
 
 struct SortedSprite {
-	char* name;
+	char* name;  // the char* points to the corresponding lookup entry in UE3-owned memory
 	bool deleted = false;
 	bool added = false;
 	char newName[32] { 0 };

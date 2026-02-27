@@ -79,8 +79,10 @@ There are two ways to make the game always start with the mod:
 Find the BootGGXrd.bat file in the game's directory. Edit it using Notepad and add the following line to the end:
 
 ```bash
-ggxrd_hitbox_injector -force
+start /MIN ggxrd_hitbox_injector -force
 ```
+
+The `start /MIN` is needed to prevent the injector window from stealing focus from Xrd if Xrd launches directly into fullscreen.
 
 Save the file. Then, copy the `ggxrd_hitbox_injector.exe` and the `ggxrd_hitbox_overlay.dll` to the game's `Binaries\Win32` folder.
 
@@ -2208,3 +2210,6 @@ This won't affect existing users who update the mod (if they ever changed any se
 7) Fixed incorrect information in projectile framebars in rollback-affected matches, when projectile framebars would show randomly scattered single non-idle frames amidst huge spans of idle frames that are already far in the past yet still in view.
 8) Added Quick Battle Chat, two flavors: one works by simply letting you configure a hotkey to open the chat prompt, the other works by letting you just type directly on the keyboard and sending what you typed after a while without pressing Enter. You can also optionally disable keyboard controls for battles.
 9) Fixed Position Reset being limited by camera bounds when the stage resets not due to a button press, but due to the training dummy dying.
+- 2026 February 27: Version 7.25:
+1) Made Quick Char Select not open via hotkey press if that hotkey got pressed when typing text into an IME form.
+2) Fixed a very likely crash when automatically injecting the mod into Xrd as soon as it starts by editing the BootGGXrd.bat and adding the following line into it: `start /MIN another.bat`. The other .bat contains: `start /MIN ggxrd_hitbox_injector -force`. Xrd launches directly into fullscreen mode. This would cause Xrd to freeze. The error was caused by the mod's DLL reading the FD3D9DynamicRHI pointer at game's 01ac818c, but it having a null Direct3DDevice at offset 0x24. The mod would then return FALSE from DLL_PROCESS_ATTACH, but infinitely hang inside DLL_PROCESS_DETACH due to null endScene.logicThreadId and the UE3 logic tick not advancing for unknown reason, presumably because this happens during the rendering thread creation and those require a DLL lock.

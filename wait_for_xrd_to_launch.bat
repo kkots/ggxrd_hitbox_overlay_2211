@@ -1,0 +1,14 @@
+@echo off
+
+rem This .bat doesn't work on Proton 8.0, because its tasklist and findstr are stubs.
+rem On Proton 8.0 use a custom exe program compiled from GGXrdLaunchWaiter.cpp instead.
+
+SET "CHECK_XRD=(tasklist /FI "IMAGENAME eq GuiltyGearXrd.exe" /FI "WINDOWTITLE eq Guilty Gear Xrd -REVELATOR-" | findstr GuiltyGearXrd.exe > NUL)"
+
+%CHECK_XRD% && goto :finish
+echo Waiting for Xrd to launch...
+FOR /L %%I IN (1,1,30) DO (
+  %CHECK_XRD% && goto :finish || (timeout /t 1 > NUL)
+)
+:finish
+%CHECK_XRD% && echo "Xrd is running! (Do whatever you wanted to do.)" || echo Xrd didn't launch...

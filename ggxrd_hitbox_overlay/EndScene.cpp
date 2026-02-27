@@ -932,18 +932,12 @@ void EndScene::HookHelp::drawTrainingHudHook() {
 */
 
 #define addr(x) (x - 0x400000 + xrdBase)
-bool EndScene::canSendText() {
-	// to find this code and the code in sendText, use signature 83 be 78 01 00 00 00 74 ?? e8 ?? ?? ?? ?? b8 01 00 00 00 5e c2 04 00.
-	// the e8 ?? ?? ?? ?? is a FightingChatMenu::sendTextProbably() call.
-	// The function does the following:
-	// Construct GamepadTextInputManager if it doesn't exist yet;
-	// Then it has an if branch, one of the branches has way more code than the other. You need the one with the most code.
-	// The first function in the big branch is a REDGfxMoviePlayer_ChatWindow::DecideInput(gameDataPtr->ChatWindow,&inputText) call.
-	// Then it has a branch that you need to skip.
-	// Then it checks if text pointer isn't null, copies that text to a local wchar_t[0x80] buffer,
-	// checks if the first character of the buffer is not L'\0', and if yes, the code that sends the text begins.
+bool EndScene::sigscanIsIMEFormOpen() {
+	static bool attemptedSigscan = false;
 	static uintptr_t xrdBase = 0;
 	static bool versionMismatch = false;
+	if (attemptedSigscan) return !versionMismatch;
+	attemptedSigscan = true;
 	if (!xrdBase) {
 		xrdBase = (uintptr_t)GetModuleHandleA("GuiltyGearXrd.exe");
 		std::vector<char> sig;
@@ -958,6 +952,24 @@ bool EndScene::canSendText() {
 	aMenuIsOpen = (aMenuIsOpen_t)addr(0x00fd8cf0);
 	openBattleChatWithoutMenu = (openBattleChatWithoutMenu_t)addr(0x00e2b5c0);
 	IsIMEFormOpen = (IsIMEFormOpen_t)addr(0x00e6a870);
+	return true;
+}
+
+bool EndScene::canSendText() {
+	// to find this code and the code in sendText, use signature 83 be 78 01 00 00 00 74 ?? e8 ?? ?? ?? ?? b8 01 00 00 00 5e c2 04 00.
+	// the e8 ?? ?? ?? ?? is a FightingChatMenu::sendTextProbably() call.
+	// The function does the following:
+	// Construct GamepadTextInputManager if it doesn't exist yet;
+	// Then it has an if branch, one of the branches has way more code than the other. You need the one with the most code.
+	// The first function in the big branch is a REDGfxMoviePlayer_ChatWindow::DecideInput(gameDataPtr->ChatWindow,&inputText) call.
+	// Then it has a branch that you need to skip.
+	// Then it checks if text pointer isn't null, copies that text to a local wchar_t[0x80] buffer,
+	// checks if the first character of the buffer is not L'\0', and if yes, the code that sends the text begins.
+	static uintptr_t xrdBase = 0;
+	if (!xrdBase) {
+		xrdBase = (uintptr_t)GetModuleHandleA("GuiltyGearXrd.exe");
+	}
+	if (!sigscanIsIMEFormOpen()) return false;
 	
 	if (
 		// these if conditions are from a function called by REDGameInfo_Battle::UpdateBattle when in network mode.
@@ -1962,7 +1974,8 @@ void EndScene::processKeyStrokes() {
 	}
 	gifMode.speedUpReplay = !gifMode.modDisabled && keyboard.isHeld(settings.fastForwardReplay);
 	onSpeedUpReplayChanged();
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.openQuickCharSelect)) {
+	sigscanIsIMEFormOpen();
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.openQuickCharSelect) && !(IsIMEFormOpen && IsIMEFormOpen())) {
 		ui.activateQuickCharSelect();
 	}
 	if (needWriteSettings && keyboard.thisProcessWindow) {
@@ -3544,7 +3557,7 @@ void enqueueRenderCommand() {
 
 // Runs on the graphics thread
 IDirect3DDevice9* EndScene::getDevice() {
-	return *(IDirect3DDevice9**)(*direct3DVTable.d3dManager + 0x24);
+	return direct3DVTable.getDevice();
 }
 
 // Runs on the graphics thread
@@ -3857,7 +3870,7 @@ const wchar_t* HeartbeatRenderCommand::DescribeCommand() noexcept {
 
 // Runs on the graphics thread
 void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
-	if (endScene.shutdown || graphics.shutdown) return;
+	if (endScene.shutdown || graphics.shutdown || !getDevice()) return;
 	graphics.drawDataUse.clear();
 	command->drawData.copyTo(&graphics.drawDataUse);
 	command->cameraValues.copyTo(camera.valuesUse);
@@ -3881,7 +3894,7 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 
 // Runs on the graphics thread
 void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderCommand* command) {
-	if (endScene.shutdown || graphics.shutdown) return;
+	if (endScene.shutdown || graphics.shutdown || !getDevice()) return;
 	
 	command->uiOrFramebarDrawData.applyFramebarTexture();
 	
@@ -3919,7 +3932,7 @@ void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderComman
 
 // Runs on the graphics thread
 void EndScene::executeDrawInputHistoryRenderCommand(DrawInputHistoryRenderCommand* command) {
-	if (endScene.shutdown || graphics.shutdown) return;
+	if (endScene.shutdown || graphics.shutdown || !getDevice()) return;
 	
 	graphics.onlyDrawInputHistory = true;
 	graphics.drawAllFromOutside(getDevice());
@@ -4000,7 +4013,7 @@ BYTE* EndScene::getIconsUTexture2D() {
 
 // Runs on the graphics thread
 void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
-	if (shutdown || graphics.shutdown) return;
+	if (shutdown || graphics.shutdown || !getDevice()) return;
 	
 	command->uiOrFramebarDrawData.applyFramebarTexture();
 	
@@ -4037,7 +4050,7 @@ void EndScene::executeShutdownRenderCommand() {
 
 // Runs on the graphics thread
 void EndScene::executeHeartbeatRenderCommand() {
-	if (graphics.shutdown) return;
+	if (graphics.shutdown || !getDevice()) return;
 	graphics.heartbeat(getDevice());
 }
 

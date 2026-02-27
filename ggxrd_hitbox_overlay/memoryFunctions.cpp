@@ -214,13 +214,13 @@ void loadSigscanCache() {
 		#define funcForSetSig(unused, start, end) newEntry.parseSigFromHex(start, end);
 		
 		#define parseElement(elementName, func) \
-			if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("%s", "Missing line (" elementName ").") \
+			if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("%s", "Missing line (" #elementName ").") \
 			shrinkWhitespace \
-			if (lineEnd <= lineStart) fileParsingErr("%s", "The line that was supposed to define " elementName " is empty.") \
+			if (lineEnd <= lineStart) fileParsingErr("%s", "The line that was supposed to define " #elementName " is empty.") \
 			static const char elementName##Str[] = #elementName; \
 			assertStr(elementName##Str) \
 			shrinkWhitespaceLeft \
-			if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("%s", "The line that define the element " elementName " doesn't contain '='.") \
+			if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("%s", "The line that define the element " #elementName " doesn't contain '='.") \
 			++lineStart; \
 			shrinkWhitespaceLeft \
 			if (lineStart < lineEnd) { \
