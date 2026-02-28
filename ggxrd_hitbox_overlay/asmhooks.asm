@@ -154,7 +154,7 @@ _replayPauseControlTickHookAsm endp
 
 _getJoyStateHookAsm proc
 	push ebx
-	push dword ptr[esp + 01ch]  ; the current FJoystickInfo* being iterated
+	push dword ptr[esp + 20h]  ; the current FJoystickInfo* being iterated
 	push eax
 	push 110h
 	push edi
