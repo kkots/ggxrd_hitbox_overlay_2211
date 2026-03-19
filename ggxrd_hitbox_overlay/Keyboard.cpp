@@ -35,14 +35,13 @@ extern "C" HRESULT __cdecl getJoyStateHook(
 			void* directInputDevice,
 			size_t size,
 			DIJOYSTATE2* joyState,
-			BYTE* FJoystickInfo,
+			FJoystickInfo* JoystickInfo,
 			uintptr_t FWindowsViewport_as_FViewport) {  // defined here
 	typedef HRESULT (__stdcall*GetDeviceState_t)(void*,size_t,void*);
 	HRESULT result = ((GetDeviceState_t)getDeviceStatePtr)(directInputDevice, size, joyState);
 	memcpy(&keyboard.joy, joyState, sizeof DIJOYSTATE2);
 	if (keyboard.captureJoyInput && !gifMode.modDisabled) {
-		DIJOYSTATE2* PreviousState = (DIJOYSTATE2*)(FJoystickInfo + 0xd0);
-		memcpy(joyState, PreviousState, sizeof DIJOYSTATE2);
+		memcpy(joyState, &JoystickInfo->PreviousState, sizeof DIJOYSTATE2);
 	}
 	keyboard.FWindowsViewport_as_FViewport = FWindowsViewport_as_FViewport;
 	return result;
@@ -101,9 +100,9 @@ void Keyboard::initialize() {
 		codeToStatus.resize(newSize);
 		codeToMovable.resize(newSize);
 		
-		#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable) \
+		#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable, isTypable) \
 			codeToMovable[virtualKeyCode] = movable;
-		#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode, movable) keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable);
+		#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode, movable, isTypable) keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable, isTypable);
 		#define keyEnumFunc_keyRange(str) \
 			for (const char* c = str; *c != '\0'; ++c) { \
 				codeToMovable[*c] = MULTIPLICATION_WHAT_KEYBOARD; \
@@ -756,4 +755,30 @@ void Keyboard::onDisconnectKeyboardSettingChanged() {
 	if (needIgnoreKeyboardBattleInputs && !attemptedHookSetInputs) {
 		hookSetInputs();
 	}
+}
+
+bool Keyboard::containsTypableCharacters(const std::vector<int>& keyCodes) {
+	std::unique_lock<std::mutex> guard;
+	std::unique_lock<std::mutex> guardSettings;
+	// reading from the main thread does not require locking, as the data won't be modified
+	if (!mutexLockedFromOutside && GetCurrentThreadId() != windowThreadId) {
+		guard = std::unique_lock<std::mutex>(mutex);
+		guardSettings = std::unique_lock<std::mutex>(settings.keyCombosMutex);
+	}
+	static std::vector<bool> typable;
+	if (typable.empty()) {
+		int maxCode = settings.getMaxKeyCode();
+		typable.resize(maxCode + 1, false);
+		#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable, isTypable) typable[virtualKeyCode] = isTypable;
+		#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode, movable, isTypable) typable[virtualKeyCode] = isTypable;
+		#define keyEnumFunc_keyRange(str) for (const char* c = str; *c != '\0'; ++c) { typable[*c] = true; }
+		keyEnum
+		#undef keyEnumFunc
+		#undef keyEnumFuncLast
+		#undef keyEnumFunc_keyRange
+	}
+	for (int code : keyCodes) {
+		if (typable[code]) return true;
+	}
+	return false;
 }

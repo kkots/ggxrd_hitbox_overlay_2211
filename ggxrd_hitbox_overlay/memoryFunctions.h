@@ -3,9 +3,9 @@
 
 extern const char* GUILTY_GEAR_XRD_EXE;
 
-// if namePtr is provided, it must point to an array that is at least 256 bytes in size!
-// if sectionPtr is provided, it must point to an array that is at least 16 bytes in size!
-bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end, uintptr_t* wholeModuleBegin, char* namePtr = nullptr, char* sectionPtr = nullptr);
+// namePtr must point to an array that is at least 256 bytes in size!
+// sectionPtr must point to an array that is at least 16 bytes in size!
+bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end, uintptr_t* wholeModuleBegin, char* namePtr, char* sectionPtr);
 bool getModuleBounds(const char* name, const char* sectionName, uintptr_t* start, uintptr_t* end, uintptr_t* wholeModuleBegin);
 bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end, uintptr_t* wholeModuleBegin);
 bool getModuleBoundsHandle(HMODULE hModule, const char* sectionName, uintptr_t* start, uintptr_t* end, uintptr_t* wholeModuleBegin);
@@ -125,6 +125,20 @@ uintptr_t sigscanForward(uintptr_t ptr, const char* sig, const char* mask, size_
 
 uintptr_t sigscanForward(uintptr_t ptr, const std::vector<char>& sig, const std::vector<char>& mask, size_t searchLimit = 1000);
 
+/// <summary>
+/// Finds the address which holds a pointer to a function with the given name imported from the given DLL.
+/// For example, searching USER32.DLL, GetKeyState would return a non-0 value on successful find, and
+/// if you cast that value to a short (__stdcall**)(int) and dereference it, you would get a pointer to
+/// GetKeyState that you can call. Or swap out for hooks.
+/// 
+/// This function is useless because the calls to imported functions are relative
+/// and even then they call thunk functions (a thunk function is a function consisting only
+/// of a jump instruction to some other function).
+/// </summary>
+/// <param name="module">Type "GuiltyGearXrd.exe" here.</param>
+/// <param name="dll">Include ".DLL" in the DLL's name here. Case-insensitive.</param>
+/// <param name="function">The name of the function. Case-sensitive.</param>
+/// <returns>The address which holds a pointer to a function. 0 if not found.</returns>
 uintptr_t findImportedFunction(const char* module, const char* dll, const char* function);
 
 void sigscanCaseInsensitivePrepare(const char* sig, size_t sigLength, size_t* step);

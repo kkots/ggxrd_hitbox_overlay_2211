@@ -241,7 +241,7 @@ bool Graphics::onDllMain() {
 	
 	// textures won't be drawn on screenshot
 	
-	responseToImInDanger = CreateEventW(NULL, FALSE, FALSE, NULL);
+	//responseToImInDanger = CreateEventW(NULL, FALSE, FALSE, NULL);
 	if (!checkAndHookBeginSceneAndPresent(true)) error = true;
 	
 	static const int sinArrayStart[] = { 0,1,3,5,6,8,10,12,13,15,17,19,20,22,24,26 };
@@ -436,7 +436,7 @@ void Graphics::resetHook() {
 void Graphics::dllDetachPiece() {
 	resetHook();
 	ui.onDllDetachGraphics();
-	receiveDanger();
+	//receiveDanger();
 }
 
 void Graphics::onDllDetach() {
@@ -466,7 +466,7 @@ void Graphics::onEndSceneStart(IDirect3DDevice9* device) {
 	if (shutdown) return;
 	this->device = device;
 	stencil.onEndSceneStart();
-	graphics.receiveDanger();
+	//graphics.receiveDanger();
 	checkAndHookBeginSceneAndPresent(false);
 }
 
@@ -482,7 +482,7 @@ void Graphics::onShutdown() {
 		detouring.detachOnlyTheseHooks(hooksToUndetour, _countof(hooksToUndetour));
 	}
 	SetEvent(shutdownFinishedEvent);
-	receiveDanger();
+	//receiveDanger();
 }
 
 bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect, bool ignoreFill, bool ignoreOutline) {
@@ -2933,7 +2933,7 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 void Graphics::heartbeat(IDirect3DDevice9* device) {
 	initViewport(device);
 	fillInScreenSize(device);
-	receiveDanger();
+	//receiveDanger();
 	afterDraw();
 	checkAndHookBeginSceneAndPresent(false);
 }
@@ -3107,12 +3107,12 @@ void Graphics::RenderStateHandler(TEXTURE)(RenderStateValue newValue) {
 	}
 }
 
-void Graphics::receiveDanger() {
-	if (imInDanger && !imInDangerReceived) {
-		imInDangerReceived = true;
-		SetEvent(responseToImInDanger);
-	}
-}
+//void Graphics::receiveDanger() {
+//	if (imInDanger && !imInDangerReceived) {
+//		imInDangerReceived = true;
+//		SetEvent(responseToImInDanger);
+//	}
+//}
 
 void Graphics::afterDraw() {
 	if (altRenderTarget && --altRenderTargetLifeRemaining < 0) {
@@ -3123,8 +3123,8 @@ void Graphics::afterDraw() {
 
 bool Graphics::canDrawOnThisFrame() const {
 	return !(
-		imInDangerReceived
-		&& settings.dodgeObsRecording
+		//imInDangerReceived &&
+		settings.dodgeObsRecording
 		&& (
 			!endSceneAndPresentHooked
 			|| obsStoppedCapturing != obsStoppedCapturingFromEndScenesPerspective

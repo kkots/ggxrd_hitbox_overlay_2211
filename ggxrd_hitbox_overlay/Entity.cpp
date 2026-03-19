@@ -956,14 +956,16 @@ int REDPawn::getMaxFrameOfAnimSequence(FName name) {
 			typedef float (__thiscall * GetAnimPlaybackLength_t) (UAnimNodeSequence* thisArg);
 			GetAnimPlaybackLength_t GetAnimPlaybackLength = *(GetAnimPlaybackLength_t*)(vtable + 0x1e4);
 			UAnimSequence* currentSeq = meshControl->AnimSeq->AnimSeq;
-			float playbackLength = GetAnimPlaybackLength(meshControl->AnimSeq);
-			playbackLength = playbackLength * currentSeq->RateScale() / currentSeq->SequenceLength()
-				* animSeq->SequenceLength() / animSeq->RateScale();
-			return -1 - (int)(
-				(
-					playbackLength * 60.F + 0.04166667F
-				) * -0.2F
-			);
+			if (currentSeq) {
+				float playbackLength = GetAnimPlaybackLength(meshControl->AnimSeq);
+				playbackLength = playbackLength * currentSeq->RateScale() / currentSeq->SequenceLength()
+					* animSeq->SequenceLength() / animSeq->RateScale();
+				return -1 - (int)(
+					(
+						playbackLength * 60.F + 0.04166667F
+					) * -0.2F
+				);
+			}
 		}
 		++meshControl;
 	}

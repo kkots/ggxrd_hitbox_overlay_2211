@@ -84,7 +84,7 @@ public:
 	bool obsStoppedCapturingFromEndScenesPerspective = false;
 	bool checkCanHookEndSceneAndPresent();
 	bool imInDanger = false;;
-	HandleWrapper responseToImInDanger = NULL;
+	//HandleWrapper responseToImInDanger = NULL;
 	bool canDrawOnThisFrame() const;
 	bool drawingPostponed() const;
 	std::vector<BYTE> uiFramebarDrawData;
@@ -418,8 +418,8 @@ private:
 	HRESULT static __stdcall presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
 	bool mayRunBeginSceneHook = false;
 	bool checkAndHookBeginSceneAndPresent(bool transactionActive);
-	bool imInDangerReceived = false;
-	void receiveDanger();
+	//bool imInDangerReceived = false;
+	//void receiveDanger();
 	void dllDetachPiece();
 	bool runningOwnBeginScene = false;
 	struct TextureBoxParams {

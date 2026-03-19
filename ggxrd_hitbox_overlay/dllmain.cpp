@@ -148,6 +148,12 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (!obsDll) {
 			obsDll = GetModuleHandleA("graphics-hook32.dll");
 			if (obsDll) {
+				// EDIT: THIS SOLUTION CAUSES FREEZES
+				// when the game is launching into fullscreen.
+				// Debugging shows that the main logic thread is stuck inside PeekMessage called from
+				// GameOverlayRenderer.dll (steam's DLL), called from one of the game's functions.
+				// Below is the original comment with the idea of what I was trying to do, for historical context.
+				
 				// We need to stall the thread that hooks Present
 				// This allows us to warn our own graphics thread that a hostile hook is coming in the near future
 				// So that our friendly code can present its last frame unhooked
@@ -164,9 +170,9 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 				// Unless we somehow warn the graphics thread
 				// But of course without stalling the thread that hooks Present this is all a race condition
 				graphics.imInDanger = true;
-				if (initialized) {
-					WaitForSingleObject(graphics.responseToImInDanger, INFINITE);
-				}
+				//if (initialized) {
+				//	WaitForSingleObject(graphics.responseToImInDanger, INFINITE);
+				//}
 			}
 		}
 		break;

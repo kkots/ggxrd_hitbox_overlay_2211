@@ -1193,6 +1193,7 @@ void UI::drawSearchableWindows() {
 					if (i == 0) {
 						ImGui::TableNextColumn();
 						CenterAlignedText(searchFieldTitle("RISC"));
+						AddTooltip("Goes from -128 to 128.");
 					}
 				}
 				for (int i = 0; i < 2; ++i) {
@@ -3464,15 +3465,18 @@ void UI::drawSearchableWindows() {
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Received Speed Y"));
 			AddTooltip(searchTooltip("This is updated only when a hit happens.\n"
-				"Format: Base speed Y * (Weight % * Combo Proration % = Resulting Modifier %) = Resulting speed Y. Base and Final speeds divided by 100 for viewability."
-				" On block, something more is going on, and it's not studied yet, so gained speed Y cannot be displayed."
+				"Format for not-air-block: Base speed Y * (Weight % * Combo Proration % = Resulting Modifier %) = Resulting speed Y."
+				" Base and Final speeds divided by 100 for viewability."
 				" Modifiers on received speed Y are weight and combo proration, displayed in that order.\n"
-				"The combo proration depends on the number of hits so far at the moment of getting hit, not including the ongoing hit:\n"
+				"Format for air block: see at the end.\n"
+				"\n"
+				"For not-air-block the combo proration depends on the number of hits so far at the moment of getting hit, not including the ongoing hit:\n"
 				"5 hits and below -> no proration,\n"
 				"6 hits so far -> 59/60 * 100% proration,\n"
 				"7 hits -> 58 / 60 * 100% and so on, up to 30 / 60 * 100%. The rounding of the final speed Y is up.\n"
 				"Some moves could theoretically ignore weight or combo proration, or both. When that happens, 100% will be displayed in place"
-				" of the ignored parameter.\n\n"
+				" of the ignored parameter.\n"
+				"\n"
 				"Base speed Y by default depends on the attack damage and air launch effect, however, some attacks override Base speed Y.\n"
 				"If the attack launched the opponent from a ground hit, Base speed Y is set"
 				" to a preset value, according to this table (all speeds provided in units that are not divided by 100):\n"
@@ -3484,12 +3488,32 @@ void UI::drawSearchableWindows() {
 				"For everything else: ((Base Damage + 240) * 875) / 10, rounded down.\n"
 				"Again, some attacks redefine their Base speed Y, these are merely the default values.\n"
 				"Hitting the opponent with a move that deals higher damage, but is slower, might not launch them higher"
-				" than a weaker, but fast move that hits them earlier, due to the opponent constantly descending down."));
+				" than a weaker, but fast move that hits them earlier, due to the opponent constantly descending down.\n"
+				"\n"
+				"Format on air block: Speed Y from damage + Speed Y residual = Resulting speed Y.\n"
+				"Speed Y from damage is calculated as (Base damage + 75) * 700 / 10 (this is before the number is divided by 100 for viewability).\n"
+				"Speed Y residual is your speed Y before blocking the hit * 25 / 100, capped to between -7000 and 7000 (the numbers are before being divided by 100 for viewability).\n"
+				"Speed Y residual is always hard set to 0 if air blocking a hit outside of blockstun. In other words,"
+				" Speed Y residual goes through the mentioned formula only for air blocking hits when already being in blockstun."));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
 				if (!player.receivedSpeedYValid) {
 					ImGui::TextUnformatted("???");
+				} else if (player.receivedSpeedYAirBlock) {
+					int speedYFromDamage = (player.receivedSpeedYDamage + 75) * 700 / 10;
+					int speedYResidual = player.receivedSpeedY - speedYFromDamage;
+					printDecimal(speedYFromDamage, 2, 0);
+					char* buf = strbuf;
+					int bufSize = sizeof strbuf;
+					int result = sprintf_s(buf, bufSize, "%s + ", printdecimalbuf);
+					advanceBuf
+					printDecimal(speedYResidual, 2, 0);
+					result = sprintf_s(buf, bufSize, "%s = ", printdecimalbuf);
+					advanceBuf
+					printDecimal(player.receivedSpeedY, 2, 0);
+					sprintf_s(buf, bufSize, "%s", printdecimalbuf);
+					ImGui::TextWrapped("%s", strbuf);
 				} else {
 					int mod = player.receivedSpeedYWeight * player.receivedSpeedYComboProration / 100;
 					if (mod == 0) {
@@ -24159,7 +24183,8 @@ bool UI::selectedHitboxesAlreadyAtTheTop(SortedSprite* sortedSprite) {
 }
 
 void UI::hitboxEditorButton() {
-	if (ImGui::Button(searchFieldTitle("Hitbox Editor"))) {
+	searchFieldTitle("Hitbox Editor");
+	if (ImGui::Button("Hitbox Editor##1")) {
 		toggleOpenManually(PinnedWindowEnum_HitboxEditor);
 	}
 	ImGui::SameLine();

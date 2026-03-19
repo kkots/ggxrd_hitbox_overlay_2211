@@ -13,11 +13,11 @@ Also contains input history mod (see [Input History Mod](#input-history-mod) sec
 Also it can hide the main Enter key or numpad Enter key presses from the game, or both (in General Settings).  
 Also it can hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod) section).
 Also it can hide rank icons (circle, arrow up/down, equal sign) next to players (enable in General Settings).  
-Also it can display a "PUNISH" message when landing a hit on an opponent either after blocking their hit or when they're in a recovery portion of a move.
-Also it can change the FPS in Training Mode.
-The mod can optionally hide its output from OBS recording (can be turned on in 'UI - Settings - General Settings - Dodge OBS Recording').
-Includes Hitbox Editor that can save/load edited hitboxes to/from .collision and .json files.
-Can speed up replay playback.
+Also it can display a "PUNISH" message when landing a hit on an opponent either after blocking their hit or when they're in a recovery portion of a move.  
+Also it can change the FPS in Training Mode.  
+The mod can optionally hide its output from OBS recording (can be turned on in 'UI - Settings - General Settings - Dodge OBS Recording').  
+Includes Hitbox Editor that can save/load edited hitboxes to/from .collision and .json files.  
+Can speed up replay playback.  
 Has Quick Character Select popup for 'Player Match' online mode (no default hotkey, need to assign one in 'Settings - Keyboard Shortcuts').
 
 ## Credits
@@ -2214,3 +2214,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 1) Made Quick Char Select not open via hotkey press if that hotkey got pressed when typing text into an IME form.
 2) Fixed a very likely crash when automatically injecting the mod into Xrd as soon as it starts by editing the BootGGXrd.bat and adding the following line into it: `start /MIN another.bat`. The other .bat contains: `start /MIN ggxrd_hitbox_injector -force`. Xrd launches directly into fullscreen mode. This would cause Xrd to freeze. The error was caused by the mod's DLL reading the FD3D9DynamicRHI pointer at game's 01ac818c, but it having a null Direct3DDevice at offset 0x24. The mod would then return FALSE from DLL_PROCESS_ATTACH, but infinitely hang inside DLL_PROCESS_DETACH due to null endScene.logicThreadId and the UE3 logic tick not advancing for unknown reason, presumably because this happens during the rendering thread creation and those require a DLL lock.
 - 2026 February 28: Version 7.26: Fixed a crash in Controller-Friendly Quick Character Select when using a DirectInput8-compatible controller device.
+- 2026 March 23: Version 7.27: Made the hotkey that is configured to open Quick Character Select only not work during an active in-game text input UI element if that hotkey is also capable of producing a typed character in the text (For example, if the hotkey is "-", if I'm currently typing a chat message, do not open quick character select upon that press). Fixed replay and observer mode fast-forward not working since the very moment that feature was introduced, in version 7.16. Added display of received speed Y from air blocking in 'Speed/Hitstun Proration' panel in the 'Received Speed Y' field. Described in the tooltip how the speed Y from air blocking gets calculated. Fixed crashes in Hitbox Editor when selecting some Animation Sequences. Updated license to NON-AI-MIT license. Fixed a freeze when injecting the mod through the injector while OBS is working and the game is launching into fullscreen, however this now means that if OBS starts game capture in the middle of drawing a frame, it may capture one frame of game + overlay, despite the 'Dodge OBS Recording' setting being true.

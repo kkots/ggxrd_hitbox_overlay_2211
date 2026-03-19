@@ -1975,7 +1975,10 @@ void EndScene::processKeyStrokes() {
 	gifMode.speedUpReplay = !gifMode.modDisabled && keyboard.isHeld(settings.fastForwardReplay);
 	onSpeedUpReplayChanged();
 	sigscanIsIMEFormOpen();
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.openQuickCharSelect) && !(IsIMEFormOpen && IsIMEFormOpen())) {
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.openQuickCharSelect) && !(
+		IsIMEFormOpen && IsIMEFormOpen()
+		&& keyboard.containsTypableCharacters(settings.openQuickCharSelect)
+	)) {
 		ui.activateQuickCharSelect();
 	}
 	if (needWriteSettings && keyboard.thisProcessWindow) {
@@ -3450,6 +3453,7 @@ void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) 
 		player.setHitstopMaxSuperArmor = false;
 		player.setHitstunMax = true;
 		player.receivedSpeedYValid = isAirHit;
+		player.receivedSpeedYAirBlock = false;
 		player.receivedSpeedY = pawn.received()->impulseY;
 		Entity attacker = pawn.attacker();
 		player.pushbackMax = pawn.pendingPushback();
@@ -4130,6 +4134,7 @@ void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
 			player.ibPushbackModifier = isAirHit ? 10 : 90;
 		}
 		player.receivedSpeedYValid = false;
+		player.receivedSpeedYAirBlock = false;
 		player.pushbackMax = pawn.pendingPushback();
 		entityManager.calculatePushback(
 			pawn.receivedAttack()->level,
@@ -5567,7 +5572,16 @@ void EndScene::onCmnActXGuardLoopHook(Entity pawn, BBScrEvent signal, int type, 
 	if (!gifMode.mostModDisabled && !gifMode.modDisabled) {
 		oldBlockstun = pawn.blockstun();
 	}
+	int oldSpeedY = pawn.speedY();
 	orig_onCmnActXGuardLoop((void*)pawn.ent, signal, type, thisIs0);
+	int newSpeedY = pawn.speedY();
+	if (type == 3 && !gifMode.mostModDisabled && !gifMode.modDisabled && newSpeedY != oldSpeedY) {
+		PlayerInfo& player = findPlayer(pawn);
+		player.receivedSpeedYValid = true;
+		player.receivedSpeedYAirBlock = true;
+		player.receivedSpeedY = newSpeedY;
+		player.receivedSpeedYDamage = pawn.receivedAttack()->damage;
+	}
 	if (!gifMode.mostModDisabled && !gifMode.modDisabled) {
 		newBlockstun = pawn.blockstun();
 	
@@ -8257,7 +8271,7 @@ bool EndScene::hookLogicTickStepCount() {
 		sig.data(), mask.data(), nullptr, "IsSpecialCameraAssignment", maskForCaching.data());
 	if (!stringMentionLocation) return true;
 	
-	stringMentionLocation += sig.size();
+	stringMentionLocation += sig.size() - 1;
 	uintptr_t IsSpecialCameraFName = *(uintptr_t*)stringMentionLocation;
 	
 	// 39 99 ?? ?? ?? ?? 74 ?? 8b b9 ?? ?? ?? ?? 8b 0d 88 f9 e3 01 8b 15 84 f9 e3 01

@@ -2,8 +2,8 @@
 #include "SettingsTopCommentDefinition.h"
 #include "KeyDefinitions.h"
 // this file gets parsed by regenerate_ini_and_update_readme.ps1. Do not change its structure
-#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable) identifier ", "
-#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode, movable) identifier
+#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable, isTypable) identifier ", "
+#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode, movable, isTypable) identifier
 #define keyEnumFunc_keyRange(str) str ", "
 const char* settingsTopComment = "; Place this file into the game folder containing 'GuiltyGearXrd.exe' so that it gets seen by the mod. Allowed key names: "
 		keyEnum

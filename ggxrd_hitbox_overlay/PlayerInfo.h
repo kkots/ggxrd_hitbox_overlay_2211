@@ -1920,6 +1920,7 @@ struct PlayerInfo {
 	int receivedSpeedY = 0;
 	int receivedSpeedYWeight = 100;
 	int receivedSpeedYComboProration = 100;
+	int receivedSpeedYDamage = 0;  // for when blocking in the air, see receivedSpeedYAirBlock
 	
 	int hitstunProration = 100;
 	
@@ -2278,6 +2279,7 @@ struct PlayerInfo {
 	bool displayHitstop:1;  // should hitstop be displayed in UI
 	bool oppoWasTouchingWallOnFD:1;  // used to calculate FD pushback modifier on the display
 	bool receivedSpeedYValid:1;  // should display received speed Y, instead of "???"
+	bool receivedSpeedYAirBlock:1;  // used for when blocking a hit in the air
 	bool hitstunProrationValid:1;  // should display hitstun proration, instead of "--"
 	bool hitSomething:1;  // during this logic tick, hit someone with own (non-projectile) active frames
 	bool changedAnimOnThisFrame:1;

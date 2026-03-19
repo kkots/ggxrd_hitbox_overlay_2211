@@ -1770,7 +1770,7 @@ struct UAnimNodeSequence {
 	char toolazytofillin[0x14];
 	UAnimSequence* AnimSeq;
 	char rest[0x40];  // exact, verified. I know what's here, I'm just not filling it in because
-	inline UAnimSequence* find(FName name) const { return SkelComponent->find(name); }
+	inline UAnimSequence* find(FName name) const { return SkelComponent ? SkelComponent->find(name) : nullptr; }
 };
 
 struct REDAnimNodeSequence : public UAnimNodeSequence {
@@ -1791,7 +1791,7 @@ struct MeshControl {
 	char iknowwhatisherebutwontbother[0x58];
 	REDAnimNodeSequence* AnimSeq;
 	char rest[0x14];
-	inline UAnimSequence* find(FName name) const { return AnimSeq->find(name); }
+	inline UAnimSequence* find(FName name) const { return AnimSeq ? AnimSeq->find(name) : nullptr; }
 };
 
 class REDPawn {

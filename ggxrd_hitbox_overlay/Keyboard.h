@@ -163,6 +163,7 @@ public:
 	KeyboardOwner owner = KEYBOARD_OWNER_NONE;
 	uintptr_t FWindowsViewport_as_FViewport = 0;
 	void onDisconnectKeyboardSettingChanged();
+	bool containsTypableCharacters(const std::vector<int>& keyCodes);
 private:
 	struct KeyStatus {
 		int code = 0;
