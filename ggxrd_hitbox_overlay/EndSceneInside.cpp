@@ -4064,13 +4064,21 @@ void EndScene::prepareDrawDataInside() {
 				isMistKuttsuku = false;
 			}
 			
+			bool isFlowerStartup;
+			if (player.charType == CHARACTER_TYPE_MILLIA) {
+				isFlowerStartup = strcmp(projectile.animName, "RoseObj") == 0 && projectile.ptr && projectile.ptr.currentHitNum() == 0;
+			} else {
+				isFlowerStartup = false;
+			}
+			
 			ProjectileFramebar& entityFramebar = findProjectileFramebar(projectile,
 				projectile.markActive
 				|| projectile.gotHitOnThisFrame
 				|| projectileCanBeHit
 				|| isMist
 				|| isMistKuttsuku
-				|| isHouseInvul);
+				|| isHouseInvul
+				|| isFlowerStartup);
 			entityFramebar.foundOnThisFrame = true;
 			Framebar& framebar = entityFramebar.idleHitstop;
 			
@@ -4110,6 +4118,8 @@ void EndScene::prepareDrawDataInside() {
 				defaultIdleFrame = FT_IDLE_NO_DISPOSE;
 			} else if (isMist || isMistKuttsuku) {
 				defaultIdleFrame = FT_BACCHUS_SIGH;
+			} else if (isFlowerStartup) {
+				defaultIdleFrame = FT_STARTUP_PROJECTILE_UNHITTABLE;
 			} else {
 				defaultIdleFrame = projectileCanBeHit ? FT_IDLE_PROJECTILE_HITTABLE : FT_IDLE_PROJECTILE;
 			}

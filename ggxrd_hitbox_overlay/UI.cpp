@@ -4480,6 +4480,40 @@ void UI::drawSearchableWindows() {
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
 				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
 			
+				if (*aswEngine && player.pawn) {
+					bool printedTitle = false;
+					int team = player.pawn.team();
+					int roseIndex = 1;
+					int playerX = player.pawn.x();
+					int playerY = player.pawn.y() + player.pawn.getCenterOffsetY();
+					for (int entIndex = 2; entIndex < entityList.count; ++entIndex) {
+						Entity ent = entityList.list[entIndex];
+						if (ent.team() == team && strcmp(ent.animationName(), "RoseObj") == 0) {
+							if (!printedTitle) {
+								yellowText("Distance to each rose:");
+								AddTooltip("If the distance is <= 50000 on frame 6 of the Rose object that was spawned by running, the rose disappears without becoming active."
+									" Flowers may also disappear due to proximity during roll, the proximity check is also performed on frame 6.");
+								printedTitle = true;
+							}
+							sprintf_s(strbuf, "%d: %d", roseIndex++, dist(
+								playerX,
+								playerY,
+								ent.x(),
+								ent.y()));
+							ImGui::TextUnformatted(strbuf);
+							if (ImGui::BeginItemTooltip()) {
+								ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+								sprintf_s(strbuf, "Player center: %d; %d", playerX, playerY);
+								ImGui::TextUnformatted(strbuf);
+								sprintf_s(strbuf, "Rose center: %d; %d", ent.x(), ent.y());
+								ImGui::TextUnformatted(strbuf);
+								ImGui::PopTextWrapPos();
+								ImGui::EndTooltip();
+							}
+						}
+					}
+				}
+				
 			} else if (player.charType == CHARACTER_TYPE_ZATO) {
 				Entity eddie = nullptr;
 				bool isSummoned = player.pawn.playerVal(0);
@@ -12936,7 +12970,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (frame.cantBackdash) {
 			ImGui::TextUnformatted("Backdash disabled.");
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-			ImGui::TextUnformatted("Can't backdash again for 4f after previous backdash is over.");
+			ImGui::TextUnformatted("Can't backdash again for 4f (5 for Answer, Bedman, Jack O', Sin and Slayer) after previous backdash is over.");
 			ImGui::PopStyleColor();
 		}
 		if (frame.cantAirdash) {
@@ -18334,6 +18368,12 @@ void UI::prepareSecondaryFrameArts(UITextureType type) {
 		*ptr = arrays[i][FT_IDLE_ELPHELT_RIFLE];
 		ptr->description = "Startup: can program Secret Garden."
 			" Can't block or FD or perform normal attacks.";
+		
+		ptr = &theArray[FT_STARTUP_PROJECTILE_UNHITTABLE];
+		*ptr = arrays[i][FT_STARTUP];
+		ptr->description = "Startup: the Rose is invulnerable and will soon go active"
+			" (flowers spawned by running that, at a certain point in startup, are too close to Millia's center, will get deleted."
+			" Possibly, there're other cases where flowers get deleted due to too close proximity to Millia's center).";
 		
 		ptr = &theArray[FT_STARTUP_STANCE];
 		*ptr = arrays[i][FT_IDLE_ELPHELT_RIFLE];
