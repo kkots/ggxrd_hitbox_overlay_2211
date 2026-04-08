@@ -9,6 +9,10 @@
 *.user
 *.userosscache
 *.sln.docstates
+.clangd
+
+# Copies of Windows CRT and SDK
+xwin/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
