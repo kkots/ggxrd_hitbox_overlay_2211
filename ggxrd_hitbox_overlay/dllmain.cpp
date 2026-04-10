@@ -94,7 +94,10 @@ DWORD WINAPI selfUnload(LPVOID lpThreadParameter) {
 // runs on the main thread
 BOOL initializeTheMod() {
 	threadIdThatCalledInitializeTheMod = GetCurrentThreadId();
-	if (!detouring.beginTransaction(false)) goto fail;
+	if (!detouring.beginTransaction(false)) {
+		detouring.undoPatches();  // in case if detouring.beganTransaction is false, detouring.cancelTransaction() won't actually undo the patches. Make sure they're undone
+		goto fail;
+	}
 	if (!game.onDllMain()) goto fail;
 	if (!camera.onDllMain()) goto fail;
 	if (!entityManager.onDllMain()) goto fail;

@@ -14,6 +14,7 @@ public:
 	bool attach(PVOID* ppPointer, PVOID pDetour, const char* name = nullptr);  // See ThingToBeUndetouredAtTheEnd for explanation of arguments
 	bool endTransaction();
 	bool cancelTransaction();
+	void undoPatches();
 	void detachAll(bool freezeAll);
 	void detachAllButThese(bool freezeAll, const std::vector<PVOID>& dontDetachThese = std::vector<PVOID>{});
 	void detachOnlyThisHook(const char* name);
@@ -62,7 +63,6 @@ private:
 	bool enumerateNotYetEnumeratedThreads(suspendThreadCallback_t callback);
 	void enumerateThreadsRecursively(suspendThreadCallback_t callback);
 	void closeAllThreadHandles();
-	void undoPatches();
 	void addInstructionToReplaceWhenUnhooking(uintptr_t addr, const std::vector<char>& origBytes);
 	bool beganTransaction = false;
 	std::vector<DWORD> suspendedThreads;
