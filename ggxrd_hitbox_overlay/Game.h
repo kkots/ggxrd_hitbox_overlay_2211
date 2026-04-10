@@ -186,10 +186,9 @@ public:
 	bool isOnlineTrainingMode_Part() const;
 	uintptr_t findSelectedCharaLocation();
 	saveCharaFunc_t findSaveCharaFunc();
-private:
-	getPlayerPadID_t getPlayerPadIDPtr = nullptr;
+	UWorld_Tick_t orig_UWorld_Tick = nullptr;
 	class HookHelp {
-		friend class Game;
+	public:
 		void updateBattleOfflineVerHook(int param1);
 		void UWorld_TickHook(ELevelTick TickType, float DeltaSeconds);
 		void drawExGaugeHUDHook(int param_1);
@@ -198,6 +197,8 @@ private:
 		float getRiscForUI_ForegroundHook();
 		void roundInitHook();
 	};
+private:
+	getPlayerPadID_t getPlayerPadIDPtr = nullptr;
 	bool sigscanFrameByFraming();
 	void hookFrameByFraming();
 	void static __cdecl TickActorComponentsHookStatic(int param1, int param2, int param3, int param4);
@@ -219,7 +220,6 @@ private:
 	bool ignoreAllCallsButEvenEarlier = false;
 	uintptr_t burstOffset = 0;
 	destroyAswEngine_t orig_destroyAswEngine = nullptr;
-	UWorld_Tick_t orig_UWorld_Tick = nullptr;
 	void UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds);
 	int float_max_bytes = 0x4f800000;
 	float float_max = (float&)float_max_bytes;

@@ -645,12 +645,6 @@ bool Moves::onDllMain() {
 		it.second.startPtr = allProperties.data() + it.second.startInd;
 	}
 	
-	bool error = false;
-	bbscrInstructionSizes = (unsigned short*)sigscanOffset(
-		"GuiltyGearXrd.exe:.rdata",
-		"24 00 04 00 28 00 04 00 0C 00 04 00 18 00 0C 00",
-		&error, "bbscrInstructionSizes");
-	
 	#ifdef _DEBUG
 	if (!repeatingMoves.empty()) {
 		int totalLen = 0;
@@ -707,7 +701,16 @@ bool Moves::onDllMain() {
 	}
 	#endif
 	
-	return !error;
+	return true;
+}
+
+bool Moves::performSigscans() {
+	bbscrInstructionSizes = (unsigned short*)sigscanOffset(
+		"GuiltyGearXrd.exe:.rdata",
+		"24 00 04 00 28 00 04 00 0C 00 04 00 18 00 0C 00",
+		nullptr, "bbscrInstructionSizes");
+	
+	return bbscrInstructionSizes != nullptr;
 }
 
 #define rememberFramebarId(name) const int name = __COUNTER__

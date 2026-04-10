@@ -291,6 +291,7 @@ struct MoveInfo {
 class Moves {
 public:
 	bool onDllMain();
+	bool performSigscans();
 	bool getInfo(MoveInfo& returnValue, CharacterType charType, const char* moveName, const char* stateName, bool isEffect);
 	bool getInfo(MoveInfo& returnValue, CharacterType charType, const char* name, bool isEffect);
 	bool getInfoWithName(MoveInfo& returnValue, CharacterType charType, const char* name,  const char* stateName, bool isEffect, const char** outNamePtr, void const** sortValue = nullptr);

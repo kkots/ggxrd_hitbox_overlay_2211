@@ -44,26 +44,12 @@ bool Game::onDllMain() {
 		{16, 0},
 		NULL, "netplayStruct");
 
-	uintptr_t UWorld_TickCallPlace = sigscanOffset(
-		GUILTY_GEAR_XRD_EXE,
-		"89 9e f4 04 00 00 8b 0d ?? ?? ?? ?? f3 0f 11 04 24 6a 02 e8 ?? ?? ?? ?? 33 ff 39 9e d8 04 00 00 7e 37",
-		{ 19 },
-		&error, "UWorld_TickCallPlace");
-	if (UWorld_TickCallPlace) {
-		orig_UWorld_Tick = (UWorld_Tick_t)followRelativeCall(UWorld_TickCallPlace);
-	}
-	
 	if (orig_UWorld_Tick) {
 		
 		uintptr_t IsPausedCallPlace = sigscanForward((uintptr_t)orig_UWorld_Tick, "e8 ?? ?? ?? ?? 85 c0");
 		if (IsPausedCallPlace) {
 			orig_UWorld_IsPaused = (UWorld_IsPaused_t)followRelativeCall(IsPausedCallPlace);
 		}
-		
-		auto UWorld_TickHookPtr = &HookHelp::UWorld_TickHook;
-		detouring.attach(&(PVOID&)(orig_UWorld_Tick),
-			(PVOID&)UWorld_TickHookPtr,
-			"UWorld_Tick");
 	}
 	
 	if (orig_UWorld_IsPaused) {
@@ -645,7 +631,26 @@ void Game::destroyAswEngineHook() {
 	game.orig_destroyAswEngine();
 }
 
+// this function is the only one that gets hooked by DllMain directly and is responsible for calling the rest of the
+// initialization code.
 void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds) {
+	
+	static bool modInitialized = false;
+	if (!modInitialized) {
+		modInitialized = true;
+		extern BOOL initializeTheMod();
+		extern bool UWorld_Tick_doingNestedCall;
+		UWorld_Tick_doingNestedCall = true;
+		if (!initializeTheMod()) {
+			// if initializeTheMod() fails, UWorld_Tick gets unhooked and mod's self-destruct thread gets spawned
+			// (it just unloads the mod if this function isn't running anymore, which we signal with
+			// the UWorld_Tick_doingNestedCall variable and by checking whether main thread's Eip is inside our DLL)
+			game.orig_UWorld_Tick(thisArg, TickType, DeltaSeconds);
+			UWorld_Tick_doingNestedCall = false;
+			return;
+		}
+		UWorld_Tick_doingNestedCall = false;
+	}
 	
 	gifMode.mostModDisabled = settings.disableMostOfTheModInOnline
 		&& game.getGameMode() == GAME_MODE_NETWORK

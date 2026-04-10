@@ -40,6 +40,9 @@ static const StringWithLength pinnableWindowNames[] {
 };
 
 bool Settings::onDllMain() {
+	
+	setupSettingsPathFolder();
+	
 	#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable, isTypable) addKey(identifier, userFriendlyName, virtualKeyCode);
 	#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode, movable, isTypable) addKey(identifier, userFriendlyName, virtualKeyCode);
 	#define keyEnumFunc_keyRange(str) addKeyRange(str);

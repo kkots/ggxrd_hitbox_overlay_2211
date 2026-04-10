@@ -204,8 +204,8 @@ public:
 	}
 	// includes trailing slash
 	const std::wstring& getSettingsPath() const { return settingsPathFolder; }
-	void setupSettingsPathFolder();
 private:
+	void setupSettingsPathFolder();
 	struct KeyComboToParse {
 		size_t keyLength = 0;
 		const char* name = nullptr;

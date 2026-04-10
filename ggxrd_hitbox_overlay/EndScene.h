@@ -234,7 +234,7 @@ class EndScene
 {
 public:
 	bool onDllMain();
-	bool onDllDetach();
+	void onDllDetach();
 	bool sigscanAfterHitDetector();
 	LRESULT WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void logic();

@@ -887,22 +887,26 @@ void EndScene::onDllDetachPiece() {
 	detouring.cancelTransaction();
 }
 
-bool EndScene::onDllDetach() {
+void EndScene::onDllDetach() {
 	logwrap(fputs("EndScene::onDllDetach() called\n", logfile));
 	shutdown = true;
-	if (!logicThreadId) return true;
+	if (!logicThreadId) return;
+	if (logicThreadId == GetCurrentThreadId()) {
+		onDllDetachPiece();
+		return;
+	}
 	HANDLE logicThreadHandle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, logicThreadId);
 	if (!logicThreadHandle) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "EndScene failed to open logic thread handle: %ls\n", winErr.getMessage()));
 		onDllDetachPiece();
-		return false;
+		return;
 	}
 	if (GetProcessIdOfThread(logicThreadHandle) != GetCurrentProcessId()) {
 		CloseHandle(logicThreadHandle);
 		logwrap(fprintf(logfile, "EndScene freeing resources on DLL thread, because thread is no longer alive"));
 		onDllDetachPiece();
-		return true;
+		return;
 	}
 	DWORD exitCode;
 	bool stillActive = GetExitCodeThread(logicThreadHandle, &exitCode) && exitCode == STILL_ACTIVE;
@@ -911,17 +915,17 @@ bool EndScene::onDllDetach() {
 	if (!stillActive) {
 		logwrap(fprintf(logfile, "EndScene freeing resources on DLL thread, because thread is no longer alive (2)"));
 		onDllDetachPiece();
-		return true;
+		return;
 	}
 	
 	logwrap(fputs("EndScene calling WaitForSingleObject\n", logfile));
 	if (WaitForSingleObject(shutdownFinishedEvent, 300) == WAIT_OBJECT_0) {
 		logwrap(fprintf(logfile, "EndScene freed resources successfully\n"));
-		return true;
+		return;
 	}
 	logwrap(fprintf(logfile, "EndScene freeing resources on DLL thread, because WaitForSingleObject did not return success"));
 	onDllDetachPiece();
-	return true;
+	return;
 }
 
 /*
@@ -2667,9 +2671,9 @@ void EndScene::onUWorld_Tick() {
 		}
 		hud.onDllDetach();
 		ui.onDllDetachNonGraphics();
-		SetEvent(shutdownFinishedEvent);
 		detouring.detachAll(false);
 		detouring.cancelTransaction();
+		SetEvent(shutdownFinishedEvent);
 	}
 }
 

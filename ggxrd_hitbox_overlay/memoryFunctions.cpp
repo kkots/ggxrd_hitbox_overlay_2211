@@ -220,7 +220,7 @@ void loadSigscanCache() {
 			static const char elementName##Str[] = #elementName; \
 			assertStr(elementName##Str) \
 			shrinkWhitespaceLeft \
-			if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("%s", "The line that define the element " #elementName " doesn't contain '='.") \
+			if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("%s", "The line that defines the element " #elementName " doesn't contain '='.") \
 			++lineStart; \
 			shrinkWhitespaceLeft \
 			if (lineStart < lineEnd) { \
