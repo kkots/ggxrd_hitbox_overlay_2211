@@ -242,7 +242,7 @@ bool Graphics::onDllMain() {
 	// textures won't be drawn on screenshot
 	
 	//responseToImInDanger = CreateEventW(NULL, FALSE, FALSE, NULL);
-	if (!checkAndHookBeginSceneAndPresent(true)) error = true;
+	//if (!checkAndHookBeginSceneAndPresent(true)) error = true;
 	
 	static const int sinArrayStart[] = { 0,1,3,5,6,8,10,12,13,15,17,19,20,22,24,26 };
 	sinTable = (const int*)sigscan("GuiltyGearXrd.exe:.rdata", (const char*)sinArrayStart, sizeof sinArrayStart, "sineTable", nullptr);
@@ -998,7 +998,7 @@ void Graphics::drawAllPrepared() {
 
 void Graphics::drawAll() {
 	
-	if (!canDrawOnThisFrame()) return;
+	//if (!canDrawOnThisFrame()) return;
 	
 	initializeVertexBuffers();
 	resetVertexBuffer();
@@ -2322,7 +2322,7 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 		takeScreenshotSimple(device);
 		return;
 	}
-	if (!canDrawOnThisFrame()) return;  // let's not trigger the hook attempt more than once per frame
+	//if (!canDrawOnThisFrame()) return;  // let's not trigger the hook attempt more than once per frame
 	CComPtr<IDirect3DStateBlock9> oldState = nullptr;
 	device->CreateStateBlock(D3DSBT_ALL, &oldState);
 	CComPtr<IDirect3DSurface9> whateverOldRenderTarget;
@@ -3108,8 +3108,8 @@ void Graphics::RenderStateHandler(TEXTURE)(RenderStateValue newValue) {
 }
 
 //void Graphics::receiveDanger() {
-//	if (imInDanger && !imInDangerReceived) {
-//		imInDangerReceived = true;
+//	if (imInDanger && !obsModuleSpotted) {
+//		obsModuleSpotted = true;
 //		SetEvent(responseToImInDanger);
 //	}
 //}
@@ -3123,8 +3123,8 @@ void Graphics::afterDraw() {
 
 bool Graphics::canDrawOnThisFrame() const {
 	return !(
-		//imInDangerReceived &&
-		settings.dodgeObsRecording
+		obsModuleSpotted
+		&& settings.dodgeObsRecording
 		&& (
 			!endSceneAndPresentHooked
 			|| obsStoppedCapturing != obsStoppedCapturingFromEndScenesPerspective

@@ -4025,7 +4025,7 @@ void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
 	
 	command->uiOrFramebarDrawData.applyFramebarTexture();
 	
-	if (!graphics.canDrawOnThisFrame()) return;
+	//if (!graphics.canDrawOnThisFrame()) return;
 	
 	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->uiOrFramebarDrawData.iconsUTexture2D);
 	graphics.endSceneIsAwareOfDrawingPostponement = command->uiOrFramebarDrawData.drawingPostponed;

@@ -172,7 +172,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		}
 		
 		obsDll = GetModuleHandleA("graphics-hook32.dll");
-		if (obsDll) graphics.imInDanger = true;
+		//if (obsDll) graphics.imInDanger = true;
+		if (obsDll) graphics.obsModuleSpotted = true;
 		
 		// the list of moves is needed for the settings reader. moves.onDllMain() must not perform sigscan
 		if (!moves.onDllMain()) terminate
@@ -304,7 +305,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 				// And that means that whatever we drew on that frame may be visible to OBS
 				// Unless we somehow warn the graphics thread
 				// But of course without stalling the thread that hooks Present this is all a race condition
-				graphics.imInDanger = true;
+				//graphics.imInDanger = true;
+				graphics.obsModuleSpotted = true;
 				//if (initialized) {
 				//	WaitForSingleObject(graphics.responseToImInDanger, INFINITE);
 				//}

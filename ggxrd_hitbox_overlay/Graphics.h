@@ -83,7 +83,8 @@ public:
 	bool obsStoppedCapturing = false;
 	bool obsStoppedCapturingFromEndScenesPerspective = false;
 	bool checkCanHookEndSceneAndPresent();
-	bool imInDanger = false;;
+	//bool imInDanger = false;;
+	bool obsModuleSpotted = false;
 	//HandleWrapper responseToImInDanger = NULL;
 	bool canDrawOnThisFrame() const;
 	bool drawingPostponed() const;
