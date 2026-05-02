@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "Detouring.h"
 #include <detours.h>
-#include <TlHelp32.h>
+#include <tlhelp32.h>
 #include <algorithm>
 #include "memoryFunctions.h"
 #ifdef LOG_PATH

@@ -1729,14 +1729,14 @@ inline DWORD hash(const FName& val) {
 	return (DWORD)val.low;
 }
 
-template<typename Key, typename Value>
+template<typename KeyT, typename ValueT>
 struct TMap {
 	struct FPair {
-		Key Key;
-		Value Value;
+		KeyT Key;
+		ValueT Value;
 	};
-	TSet<TMap<Key,Value>::FPair> Pairs;
-	int find(const Key& key) const;
+	TSet<TMap<KeyT,ValueT>::FPair> Pairs;
+	int find(const KeyT& key) const;
 };
 
 struct UAnimSequence : public UObject {

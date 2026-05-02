@@ -15,9 +15,16 @@
 #include <vector>
 #include "KeyDefinitions.h"
 #include "SettingsTopCommentDefinition.h"
-#include <Psapi.h>
+#include <psapi.h>
 #if _DEBUG
 #include <stdexcept>
+#endif
+
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
 #endif
 
 Settings settings;
@@ -57,9 +64,12 @@ bool Settings::onDllMain() {
 	}
 	
 	#define settingsKeyCombo(name, displayName, defaultValue, description) insertKeyComboToParse(#name, displayName, &name, defaultValue, description);
-	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) \
+	#define settingsField(type, name, defaultValue, displayName, section, description) \
+		registerOtherDescription(&name, #name, displayName, section, description);
+	#define settingsFieldWithInlineComment(type, name, defaultValue, displayName, section, description, inlineComment) \
 		registerOtherDescription(&name, #name, displayName, section, description);
 	#include "SettingsDefinitions.h"
+	#undef settingsFieldWithInlineComment
 	#undef settingsField
 	#undef settingsKeyCombo
 	
@@ -234,8 +244,10 @@ void Settings::readSettings(bool isFirstEverRead) {
 	
 	
 	#define settingsKeyCombo(name, displayName, defaultValue, description)
-	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) bool name##Parsed = false;
+	#define settingsField(type, name, defaultValue, displayName, section, description) bool name##Parsed = false;
+	#define settingsFieldWithInlineComment(type, name, defaultValue, displayName, section, description, inlineComment) bool name##Parsed = false;
 	#include "SettingsDefinitions.h"
+	#undef settingsFieldWithInlineComment
 	#undef settingsField
 	#undef settingsKeyCombo
 	
@@ -377,8 +389,10 @@ void Settings::readSettings(bool isFirstEverRead) {
 								#define HitboxList hitboxListPreset
 								#define PinnedWindowList pinnedWindowListPreset
 								#define settingsKeyCombo(name, displayName, defaultValue, description)
-								#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) type(name)
+								#define settingsField(type, name, defaultValue, displayName, section, description) type(name)
+								#define settingsFieldWithInlineComment(type, name, defaultValue, displayName, section, description, inlineComment) type(name)
 								#include "SettingsDefinitions.h"
+								#undef settingsFieldWithInlineComment
 								#undef settingsField
 								#undef settingsKeyCombo
 								#undef float
@@ -408,11 +422,16 @@ void Settings::readSettings(bool isFirstEverRead) {
 	}
 	
 	#define settingsKeyCombo(name, displayName, defaultValue, description)
-	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) \
+	#define settingsField(type, name, defaultValue, displayName, section, description) \
+		if (!name##Parsed) { \
+			name = defaultValue; \
+		}
+	#define settingsFieldWithInlineComment(type, name, defaultValue, displayName, section, description, inlineComment) \
 		if (!name##Parsed) { \
 			name = defaultValue; \
 		}
 	#include "SettingsDefinitions.h"
+	#undef settingsFieldWithInlineComment
 	#undef settingsField
 	#undef settingsKeyCombo
 	
@@ -927,13 +946,20 @@ void Settings::writeSettingsMain() {
 		#define HitboxList FieldType_HitboxList
 		#define PinnedWindowList FieldType_PinnedWindowList
 		#define settingsKeyCombo(name, displayName, defaultValue, description) 
-		#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) \
+		#define settingsField(type, name, defaultValue, displayName, section, description) \
+			fieldNameToIsFound[#name] = { \
+				type, \
+				fieldFoundInFile + offsetof(Settings, name) - offsetof(Settings, settingsMembersStart), \
+				(void*)&name \
+			};
+		#define settingsFieldWithInlineComment(type, name, defaultValue, displayName, section, description, inlineComment) \
 			fieldNameToIsFound[#name] = { \
 				type, \
 				fieldFoundInFile + offsetof(Settings, name) - offsetof(Settings, settingsMembersStart), \
 				(void*)&name \
 			};
 		#include "SettingsDefinitions.h"
+		#undef settingsFieldWithInlineComment
 		#undef settingsField
 		#undef settingsKeyCombo
 		#undef float
@@ -1333,8 +1359,10 @@ void Settings::writeSettingsMain() {
 	#define HitboxList hitboxListPreset
 	#define PinnedWindowList pinnedWindowListPreset
 	#define settingsKeyCombo(name, displayName, defaultValue, description) keyComboPreset(name)
-	#define settingsField(type, fieldName, defaultValue, displayName, section, description, inlineComment) type(fieldName, inlineComment)
+	#define settingsField(type, fieldName, defaultValue, displayName, section, description) type(fieldName, )
+	#define settingsFieldWithInlineComment(type, fieldName, defaultValue, displayName, section, description, inlineComment) type(fieldName, inlineComment)
 	#include "SettingsDefinitions.h"
+	#undef settingsFieldWithInlineComment
 	#undef settingsField
 	#undef settingsKeyCombo
 	#undef bool
@@ -2206,7 +2234,7 @@ void Settings::setupSettingsPathFolder() {
 	ggModulePath[0] = L'\0';
 	HMODULE ggModule;
 	DWORD bytesNeeded;
-	if (EnumProcessModules(GetCurrentProcess(), &ggModule, sizeof HMODULE, &bytesNeeded)) {
+	if (EnumProcessModules(GetCurrentProcess(), &ggModule, sizeof (HMODULE), &bytesNeeded)) {
 		GetModuleFileNameW(ggModule, ggModulePath, MAX_PATH);
 	}
 	settingsPathFolder = ggModulePath;

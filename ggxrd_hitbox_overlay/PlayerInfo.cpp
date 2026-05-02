@@ -7,6 +7,14 @@
 #include "EntityList.h"
 #include "Settings.h"
 #include "NamePairManager.h"
+#include <stdexcept>
+
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
 
 #define advanceBuf if (result != -1) { buf += result; bufSize -= result; }
 
@@ -28,7 +36,7 @@ void ActiveDataArray::addActive(int hitNum, int n, bool forceNewHit) {
 				prevHitNum = hitNum;
 				elem.nonActives = 0;
 				if (count >= _countof(data)) {
-					memmove(data, data + 1, sizeof data - sizeof *data);
+					memmove(data, data + 1, sizeof (data) - sizeof (*data));
 					// the dumb version of ring buffer
 					--count;
 				}
@@ -45,7 +53,7 @@ void ActiveDataArray::addActive(int hitNum, int n, bool forceNewHit) {
 		} else if (elem.nonActives > 1) {
 			prevHitNum = hitNum;
 			if (count >= _countof(data)) {
-				memmove(data, data + 1, sizeof data - sizeof *data);
+				memmove(data, data + 1, sizeof (data) - sizeof (*data));
 				// the dumb version of ring buffer
 				--count;
 			}
@@ -62,7 +70,7 @@ void ActiveDataArray::addActive(int hitNum, int n, bool forceNewHit) {
 	}
 	if (data[count - 1].nonActives || forceNewHit || hitNum > prevHitNum) {
 		if (count >= _countof(data)) {
-			memmove(data, data + 1, sizeof data - sizeof *data);
+			memmove(data, data + 1, sizeof (data) - sizeof (*data));
 			--count;
 			// the dumb version of ring buffer
 		}
@@ -92,7 +100,7 @@ void ActiveDataArray::addSuperfreezeActive(int hitNum) {
 			++elem.actives;
 		} else {
 			if (count >= _countof(data)) {
-				memmove(data, data + 1, sizeof data - sizeof *data);
+				memmove(data, data + 1, sizeof (data) - sizeof (*data));
 				--count;
 				// the dumb version of ring buffer
 			}
@@ -104,7 +112,7 @@ void ActiveDataArray::addSuperfreezeActive(int hitNum) {
 	} else if (elem.nonActives > 1) {
 		--elem.nonActives;
 		if (count >= _countof(data)) {
-			memmove(data, data + 1, sizeof data - sizeof *data);
+			memmove(data, data + 1, sizeof (data) - sizeof (*data));
 			--count;
 			// the dumb version of ring buffer
 		}
@@ -117,7 +125,7 @@ void ActiveDataArray::addSuperfreezeActive(int hitNum) {
 	} else if (elem.actives > 1) {
 		--elem.actives;
 		if (count >= _countof(data)) {
-			memmove(data, data + 1, sizeof data - sizeof *data);
+			memmove(data, data + 1, sizeof (data) - sizeof (*data));
 			--count;
 			// the dumb version of ring buffer
 		}
@@ -452,8 +460,8 @@ int ActiveDataArray::print(char* buf, size_t bufSize) const {
 	if (count > 5 && buf - origBuf > 10) {
 		char ownbuf[512];
 		int ownbufSize = buf - origBuf;
-		if (ownbufSize > sizeof ownbuf - 1) {
-			ownbufSize = sizeof ownbuf - 1;
+		if (ownbufSize > sizeof (ownbuf) - 1) {
+			ownbufSize = sizeof (ownbuf) - 1;
 		}
 		memmove(ownbuf, origBuf, ownbufSize);
 		ownbuf[ownbufSize] = '\0';
@@ -713,7 +721,7 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 void PlayerInfo::addGap(int length) {
 	if (length == 0) return;
 	if (gapsCount >= _countof(gaps)) {
-		memmove(gaps, gaps + 1, sizeof gaps - sizeof *gaps);
+		memmove(gaps, gaps + 1, sizeof (gaps) - sizeof (*gaps));
 		gaps[gapsCount - 1] = length;
 		return;
 	}
@@ -777,7 +785,7 @@ void PlayerInfo::clear() {
 	offset += sizeof comboRecipe;
 	createdProjectiles.clear();
 	offset += sizeof createdProjectiles;
-	memset((BYTE*)this + offset, 0, sizeof PlayerInfo - offset);
+	memset((BYTE*)this + offset, 0, sizeof (PlayerInfo) - offset);
 	ikMoveIndex = -1;
 	counterGuardAirMoveIndex = -1;
 	counterGuardStandMoveIndex = -1;
@@ -787,7 +795,7 @@ void PlayerInfo::clear() {
 void PrevStartupsInfo::add(short n, bool partOfStance, const NamePair* name) {
 	if (count >= _countof(startups)) {
 		initialSkip += startups[0].startup;
-		memmove(startups, startups + 1, sizeof startups - sizeof *startups);
+		memmove(startups, startups + 1, sizeof (startups) - sizeof (*startups));
 		--count;
 		// the dumb version of ring buffer
 	}
@@ -1982,7 +1990,7 @@ void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
 			if (!prevSuperArmor.valid) {
 				prevSuperArmor = currentSuperArmor;
 			} else {
-				if (memcmp(&prevSuperArmor, &currentSuperArmor, sizeof SuperArmorProperties) == 0) {
+				if (memcmp(&prevSuperArmor, &currentSuperArmor, sizeof (SuperArmorProperties)) == 0) {
 					superArmorIsSame = true;
 				} else {
 					prevSuperArmor = currentSuperArmor;
@@ -2602,7 +2610,7 @@ void PlayerFrame::clear() {
 	DWORD pos = offsetof(PlayerFrame, cancels);
 	memset(this, 0, pos);
 	cancels = nullptr;
-	pos += sizeof cancels;
+	pos += sizeof (cancels);
 	if (multipleInputs) {
 		if (inputs.use_count() == 1) {
 			inputs->clear();
@@ -2610,7 +2618,7 @@ void PlayerFrame::clear() {
 			inputs = nullptr;
 		}
 	}
-	pos += sizeof inputs;
+	pos += sizeof (inputs);
 	if (createdProjectiles && !createdProjectiles->empty()) {
 		if (createdProjectiles.use_count() == 1) {
 			createdProjectiles->clear();
@@ -2618,8 +2626,8 @@ void PlayerFrame::clear() {
 			createdProjectiles = nullptr;
 		}
 	}
-	pos += sizeof createdProjectiles;
-	memset((BYTE*)this + pos, 0, sizeof *this - pos);
+	pos += sizeof (createdProjectiles);
+	memset((BYTE*)this + pos, 0, sizeof (*this) - pos);
 }
 
 // position points to past the source framebar's last idle or filled frame
@@ -3548,7 +3556,7 @@ void PlayerInfo::removeNonStancePrevStartups() {
 	if (countToRemove == prevStartups.count) {
 		prevStartups.clear();
 	} else {
-		memmove(prevStartups.startups, prevStartups.startups + countToRemove, sizeof PrevStartupsInfoElem * (prevStartups.count - countToRemove));
+		memmove(prevStartups.startups, prevStartups.startups + countToRemove, sizeof (PrevStartupsInfoElem) * (prevStartups.count - countToRemove));
 		prevStartups.count -= countToRemove;
 	}
 	countToRemove = 0;
@@ -3624,7 +3632,7 @@ void InvulData::removeFirstNFrames(int n) {
 		clear();
 		return;
 	}
-	memmove(frames.data, frames.data + i, sizeof ActiveData * (frames.count - i));
+	memmove(frames.data, frames.data + i, sizeof (ActiveData) * (frames.count - i));
 	frames.count -= i;
 }
 
@@ -3715,12 +3723,12 @@ bool PlayerFrame::shoveMoreInputsAtTheStart(Input& prevInput, bool destinationMu
 		if (destinationMultipleInputs) {
 			int framesToShove = 80 - (int)oldSize;
 			Input* destinationData = destination->data();
-			memmove(destinationData + framesToShove, destinationData, oldSize * sizeof Input);
-			memcpy(destinationData, source.data() + source.size() - framesToShove, framesToShove * sizeof Input);
+			memmove(destinationData + framesToShove, destinationData, oldSize * sizeof (Input));
+			memcpy(destinationData, source.data() + source.size() - framesToShove, framesToShove * sizeof (Input));
 			prevInput = source[source.size() - framesToShove - 1];
 		} else {
 			(*destination)[79] = destinationInput;
-			memcpy(destination->data(), source.data() + 1, 79 * sizeof Input);
+			memcpy(destination->data(), source.data() + 1, 79 * sizeof (Input));
 			prevInput = source.front();
 		}
 		return true;
@@ -3736,7 +3744,7 @@ bool PlayerFrame::shoveMoreInputsAtTheStart(Input& prevInput, bool destinationMu
 		} else {
 			destination->resize(totalSize);
 			destination->back() = destinationInput;
-			memcpy(destination->data(), source.data(), source.size() * sizeof Input);
+			memcpy(destination->data(), source.data(), source.size() * sizeof (Input));
 		}
 		prevInput = sourcePrevInput;
 		return true;
@@ -3754,9 +3762,9 @@ void PlayerFrame::shoveMoreInputs(Input& prevInput, std::vector<Input>& destinat
 		prevInput = destination[indexToTakeFrom];
 		if (indexToTakeFrom + 1 < oldSize) {
 			size_t elementsMoved = oldSize - indexToTakeFrom - 1;
-			memmove(destination.data(), destination.data() + indexToTakeFrom + 1, elementsMoved * sizeof Input);
+			memmove(destination.data(), destination.data() + indexToTakeFrom + 1, elementsMoved * sizeof (Input));
 			if (oldSize != 80U) destination.resize(80);
-			memcpy(destination.data() + elementsMoved, source.data(), source.size() * sizeof Input);
+			memcpy(destination.data() + elementsMoved, source.data(), source.size() * sizeof (Input));
 		} else {
 			destination = source;
 		}
@@ -3772,7 +3780,7 @@ void PlayerFrame::shoveMoreInputs(Input& prevInput, std::vector<Input>& destinat
 	if (oldSize == 80) {
 		if (overflow) *overflow = true;
 		prevInput = destination.front();
-		memmove(destination.data(), destination.data() + 1, 79 * sizeof Input);
+		memmove(destination.data(), destination.data() + 1, 79 * sizeof (Input));
 		destination[79] = sourceInput;
 	} else {
 		if (destination.empty()) prevInput = sourcePrevInput;
@@ -3848,7 +3856,7 @@ void PlayerInfo::getInputs(const InputRingBuffer* ringBuffer, bool isTheFirstFra
 	} else if (inputs.size() < 80) {
 		inputs.push_back(ringBuffer->inputs[ringBuffer->index]);
 	} else {
-		memmove(inputs.data(), inputs.data() + 1, 79 * sizeof Input);
+		memmove(inputs.data(), inputs.data() + 1, 79 * sizeof (Input));
 		inputs[79] = ringBuffer->inputs[ringBuffer->index];
 		inputsOverflow = true;
 	}
@@ -4073,7 +4081,7 @@ GatlingOrWhiffCancelInfo::GatlingOrWhiffCancelInfo()
 bool Frame::operator==(const Frame& other) const {
 	if (memcmp(this, &other, offsetof(Frame, next)) != 0) return false;
 	size_t startCmp = offsetof(Frame, title);
-	size_t endCmp = offsetof(Frame, type) + sizeof type;
+	size_t endCmp = offsetof(Frame, type) + sizeof (type);
 	if (memcmp((BYTE*)this + startCmp, (BYTE*)&other + startCmp, endCmp - startCmp) != 0) return false;
 	return activeDuringSuperfreeze == other.activeDuringSuperfreeze
 		&& powerup == other.powerup
@@ -4304,7 +4312,7 @@ void PlayerCancelInfo::copyCancelsFromAnotherArrayPart(std::vector<GatlingOrWhif
 	size_t elemsToCopy = src.size();
 	dest.clear();
 	dest.resize(elemsToCopy);
-	memcpy(dest.data(), src.data(), elemsToCopy * sizeof GatlingOrWhiffCancelInfo);
+	memcpy(dest.data(), src.data(), elemsToCopy * sizeof (GatlingOrWhiffCancelInfo));
 }
 
 void PlayerInfo::registerCreatedProjectile(ProjectileInfo& projectile) {
@@ -4672,7 +4680,7 @@ void Framebar::convertIdleTimeToFrames(int framebarPosition, int framesTotal, co
 		int pos = toRelative(EntityFramebar::confinePos(framebarPosition - idleTime - stateHead->framesCount));
 		for (int i = 0; i < actualFramesToEat; ++i) {
 			Frame& frame = frames[pos];
-			memset(&frame, 0, sizeof Frame);
+			memset(&frame, 0, sizeof (Frame));
 			frame.title = *title;
 			
 			pos = EntityFramebar::posPlusOne(pos);
@@ -4692,7 +4700,7 @@ void Framebar::convertIdleTimeToFrames(int framebarPosition, int framesTotal, co
 		posNext = EntityFramebar::posPlusOne(posNext);
 		
 		Frame& frame = frames[pos];
-		memset(&frame, 0, sizeof Frame);
+		memset(&frame, 0, sizeof (Frame));
 		frame.title = *title;
 	}
 }

@@ -711,7 +711,7 @@ void collectHitboxes(Entity ent,
 						if (count) {
 							DrawHitboxArrayCallParams dummyParams;
 							dummyParams.data.resize(1);
-							memcpy(dummyParams.data.data(), ent.hitboxes()->data[hitboxType], sizeof Hitbox);
+							memcpy(dummyParams.data.data(), ent.hitboxes()->data[hitboxType], sizeof (Hitbox));
 							dummyParams.params = params;
 							
 							RECT boxBounds = dummyParams.getWorldBounds(0);

@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d9.h>
 #include <d3dx9.h>
+#include "atlbase_mingw.h"
 #include "DrawHitboxArrayCallParams.h"
 #include "DrawOutlineCallParams.h"
 #include "DrawPointCallParams.h"
@@ -398,18 +399,21 @@ private:
 	#define RenderStateHandlerListProc(name) void RenderStateHandler(name)(RenderStateValue newValue);
 	RenderStateHandlerList
 	#undef RenderStateHandlerListProc
-	#define RenderStateHandlerListProc(name) void (Graphics::* RenderStateHandler(name)##_Ptr)(RenderStateValue newValue) = &Graphics::RenderStateHandler(name);
+	// used to be: RenderStateHandler(name) ## _Ptr
+	// MinGW GCC: error: pasting ")" and "_Ptr" does not give a valid preprocessing token
+	#define RenderStateHandlerListProc(name) void (Graphics::* RenderStateValueHandler_ ## name ## _Ptr)(RenderStateValue newValue) = &Graphics::RenderStateHandler(name);
 	RenderStateHandlerList
 	#undef RenderStateHandlerListProc
 	void(Graphics::* renderStateValueHandlers[RENDER_STATE_TYPE_LAST])(RenderStateValue) {
-		#define RenderStateHandlerListProc(name) RenderStateHandler(name)##_Ptr,
+		#define RenderStateHandlerListProc(name) RenderStateValueHandler_ ## name ## _Ptr,
 		RenderStateHandlerList
 		#undef RenderStateHandlerListProc
 	};
 	struct RenderStateValueArray {
 		RenderStateValue values[RENDER_STATE_TYPE_LAST];
-		inline RenderStateValueArray* operator=(const RenderStateValueArray* other) {
+		inline RenderStateValueArray& operator=(const RenderStateValueArray* other) {
 			memcpy(this, other, sizeof *this);
+			return *this;
 		}
 		inline RenderStateValue& operator[](int index) { return values[index]; }
 	};

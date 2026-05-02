@@ -1,4 +1,4 @@
-# ggxrd_hitbox_injector (Commandline version)
+# ggxrd_hitbox_injector (GUI version)
 
 ## Credits
 
@@ -19,7 +19,7 @@ After building, the `.exe` file appears in `Release` folder.
 Use the GNUmakefile by running:
 
 ```
-cd ggxrd_hitbox_injector_console
+cd ggxrd_hitbox_injector
 make CHOST=stuff
 ```
 
@@ -27,7 +27,7 @@ For example, if your installed MinGW GCC toolchain is i686-w64-mingw32-gcc, note
 
 ## Dependencies
 
-None
+Comctl32.lib for SetWindowSubclass, DefSubclassProc.
 
 ## Run instructions
 
@@ -36,7 +36,7 @@ On Windows, you should be opening both projects as a single solution in Visual S
 
 On Linux, build the DLL part using build.py residing in that project's folder. Keep in mind, that wherever the injector is, it will look for the DLL in the current working directory at the time of launching the injector, so if you launched the injector in some crooked way like:
 ```bash
-WINEPREFIX=stuff WINEFSYNC=1 subdir/ggxrd_hitbox_injector_console.exe
+WINEPREFIX=stuff WINEFSYNC=1 subdir/ggxrd_hitbox_injector.exe
 ```
 , the injector will look not in subdir, but in what the value of your pwd was when you launched it.  
 For an explanation of WINEPREFIX, see launch_ggxrd_hitbox_injector_linux.sh.

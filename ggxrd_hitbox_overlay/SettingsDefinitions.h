@@ -154,7 +154,7 @@ settingsKeyCombo(screenshotBtn, "Take Screenshot", "",
 	"; transparency anyway.\n"
 	"; In the UI, taking screenshots in possible using 'UI - Hitboxes - Take Screenshot' button.")
 	
-settingsField(ScreenshotPath, screenshotPath, "",
+settingsFieldWithInlineComment(ScreenshotPath, screenshotPath, "",
 	"Screenshots Path", SETTINGS_HITBOX_SETTINGS,
 	"; A path to a file or a directory.\n"
 	"; It specifies where screenshots will be saved.\n"

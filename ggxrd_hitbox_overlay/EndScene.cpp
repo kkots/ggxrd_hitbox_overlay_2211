@@ -35,6 +35,19 @@
 #include "pi.h"
 #include "ReadWholeFile.h"
 #include "EndSceneRepeatingStuff.h"
+#ifndef _ASSERTE
+#include <assert.h>
+#endif
+
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
+#ifndef _ASSERTE
+#define _ASSERTE assert
+#endif
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
@@ -663,7 +676,7 @@ bool EndScene::onDllMain() {
 	
 	#define initializeSkippedFrames(skippedF) \
 		skippedF.resize(_countof(PlayerFramebar::frames)); \
-		memset(skippedF.data(), 0, _countof(PlayerFramebar::frames) * sizeof SkippedFramesInfo);
+		memset(skippedF.data(), 0, _countof(PlayerFramebar::frames) * sizeof (SkippedFramesInfo));
 		
 	initializeSkippedFrames(skippedFrames)
 	initializeSkippedFrames(skippedFramesIdle)
@@ -5420,7 +5433,7 @@ void EndScene::prepareInputs() {
 		std::vector<InputsDrawingCommandRow>& result = drawDataPrepared.inputs[i];
 		if (result.size() != 100) result.resize(100);
 		drawDataPrepared.inputsSize[i] = 0;
-		memset(result.data(), 0, 100 * sizeof InputsDrawingCommandRow);
+		memset(result.data(), 0, 100 * sizeof (InputsDrawingCommandRow));
 		inputsDrawing.produceData(inputRingBuffersStored[i], result.data(), drawDataPrepared.inputsSize + i, i == 1, withDurations);
 		drawDataPrepared.inputsContainsDurations = withDurations;
 	}
@@ -6559,7 +6572,7 @@ static void modify6SH_changeInput(PlayerInfo& player, const char* name, bool cha
 				}
 				int elemsToMove = endPtr - foundPtr + 1;
 				if (elemsToMove > 0) {
-					memmove(foundPtr, foundPtr + 1, (endPtr - foundPtr + 1) * sizeof InputType);
+					memmove(foundPtr, foundPtr + 1, (endPtr - foundPtr + 1) * sizeof (InputType));
 				}
 			}
 		}
@@ -7488,8 +7501,8 @@ void EndScene::drawHitboxEditorHitboxes() {
 	aswOneScreenPixelHeight = 0;
 	HitboxEditorCameraValues& vals = hitboxEditorCameraValues;
 	if (vals.prepare(Entity{gifMode.editHitboxesEntity})) {
-		aswOneScreenPixelWidth = (int)std::ceilf(1.F / vals.vw * 2.F / vals.xCoeff);
-		aswOneScreenPixelHeight = (int)std::ceilf(1.F / vals.vh * 2.F / vals.yCoeff);
+		aswOneScreenPixelWidth = (int)std::ceil(1.F / vals.vw * 2.F / vals.xCoeff);
+		aswOneScreenPixelHeight = (int)std::ceil(1.F / vals.vh * 2.F / vals.yCoeff);
 	}
 	aswOneScreenPixelDiameter = max(aswOneScreenPixelWidth, aswOneScreenPixelHeight);
 	

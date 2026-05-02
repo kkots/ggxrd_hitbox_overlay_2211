@@ -6,6 +6,13 @@
 #include "logging.h"
 #include <cmath>
 
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
+
 bool loadPngResource(HINSTANCE hInstance, WORD resourceSymbolId, PngResource& pngResource) {
 
 	HRSRC resourceInfoHandle = FindResourceW(hInstance, MAKEINTRESOURCEW(resourceSymbolId), L"PNG");
@@ -181,13 +188,13 @@ void PngResource::stretchRect(const void* source, DWORD sourceStride, void* dest
 		for (DWORD row = 0; row < destinationHeight; ++row) {
 			left = leftStart;
 			right = rightStart;
-			areaTopStart = std::floorf(top);
+			areaTopStart = std::floor(top);
 			areaBottomStart = areaTopStart + 1.F;
 			srcRowStartInt = (int)top;
 			if (srcRowStartInt < 0) srcRowStartInt = 0;
 			srcRowStart = (DWORD)srcRowStartInt;
 			if (srcRowStart < sourceY) srcRowStart = sourceY;
-			srcRowEndInt = (int)std::ceilf(bottom);
+			srcRowEndInt = (int)std::ceil(bottom);
 			if (srcRowEndInt < 0) srcRowEndInt = 0;
 			srcRowEnd = (DWORD)srcRowEndInt;
 			if (srcRowEnd > sourceHeight) srcRowEnd = sourceHeight;
@@ -203,13 +210,13 @@ void PngResource::stretchRect(const void* source, DWORD sourceStride, void* dest
 				areaTop = areaTopStart;
 				areaBottom = areaBottomStart;
 				
-				areaLeftStart = std::floorf(left);
+				areaLeftStart = std::floor(left);
 				srcColumnStartInt = (int)areaLeftStart;
 				if (srcColumnStartInt < 0) srcColumnStartInt = 0;
 				srcColumnStart = (DWORD)srcColumnStartInt;
 				if (srcColumnStart < sourceX) srcColumnStart = sourceX;
 				areaRightStart = areaLeftStart + 1.F;
-				srcColumnEndInt = (int)std::ceilf(right);
+				srcColumnEndInt = (int)std::ceil(right);
 				if (srcColumnEndInt < 0) srcColumnEndInt = 0;
 				srcColumnEnd = (DWORD)srcColumnEndInt;
 				if (srcColumnEnd > sourceWidth) srcColumnEnd = sourceWidth;

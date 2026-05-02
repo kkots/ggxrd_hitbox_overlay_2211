@@ -36,6 +36,13 @@
 #include "ReadWholeFile.h"
 #include "EndSceneRepeatingStuff.h"
 
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
+
 static int __cdecl LifeTimeCounterCompare(void const* p1Ptr, void const* p2Ptr) {
 	const Entity* p1Ent = (const Entity*)p1Ptr;
 	const Entity* p2Ent = (const Entity*)p2Ptr;
@@ -2533,7 +2540,7 @@ void EndScene::prepareDrawDataInside() {
 				}
 				
 				if (superBallsCount) {
-					qsort(superBalls, superBallsCount, sizeof Entity, LifeTimeCounterCompare);
+					qsort(superBalls, superBallsCount, sizeof (Entity), LifeTimeCounterCompare);
 					for (int j = 0; j < superBallsCount; ++j) {
 						Entity superBall = superBalls[j];
 						if (superBall.lifeTimeCounter() == 0) {
@@ -4299,7 +4306,7 @@ void EndScene::prepareDrawDataInside() {
 					
 					framebar.advance(framebarPos, cs->framebarTotalFramesHitstopUnlimited + cs->framebarIdleHitstopFor);
 					Frame& currentFrame = framebar.makeSureFrameExists(framebarPos);
-					memset(&currentFrame, 0, sizeof Frame);
+					memset(&currentFrame, 0, sizeof (Frame));
 					currentFrame.title = prevTitle;
 					currentFrame.aswEngineTick = aswEngineTickCount;
 					

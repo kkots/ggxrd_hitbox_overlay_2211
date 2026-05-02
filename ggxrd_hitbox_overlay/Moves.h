@@ -605,10 +605,10 @@ public:
 		int firstOffset;
 		std::vector<VenomQvChargeSubelement> elements;
 		inline VenomQvChargeSubelement& getElem(int offset) {
-			return elements[(offset - firstOffset) / sizeof BBScrInstr_sprite];
+			return elements[(offset - firstOffset) / sizeof (BBScrInstr_sprite)];
 		}
 		inline const VenomQvChargeSubelement& getElem(int offset) const {
-			return elements[(offset - firstOffset) / sizeof BBScrInstr_sprite];
+			return elements[(offset - firstOffset) / sizeof (BBScrInstr_sprite)];
 		}
 		inline void clear() {
 			firstOffset = 0;
@@ -641,7 +641,8 @@ public:
 		SEMUKESUBANIM_WALK_FORWARD,
 		SEMUKESUBANIM_WALK_BACK,
 		SEMUKESUBANIM_EXIT
-	} parseSemukeSubanim(BYTE* func, BYTE* instr, const char* gotoLabelRequests, SemukeParseMode mode);
+	};
+	SemukeSubanim parseSemukeSubanim(BYTE* func, BYTE* instr, const char* gotoLabelRequests, SemukeParseMode mode);
 	SemukeSubanim parseSemukeSubanimWithCheck(Entity pawn, SemukeParseMode mode);
 	SemukeSubanim parseSemukeSubanim(Entity pawn, SemukeParseMode mode);
 	int johnnyTreasureHuntMaxCharge = 0;

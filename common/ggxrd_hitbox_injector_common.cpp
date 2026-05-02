@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "ggxrd_hitbox_injector_common.h"
-#include "Psapi.h"
+#include <psapi.h>
 #include <string>
 #include "WError.h"
 #include "InjectorCommonOut.h"
@@ -33,8 +33,10 @@ DWORD findOpenGgProcess();
 #define OBF_IMPORT_WITH_NAME(module, func, funcName) OBF_FUNC(func) = reinterpret_cast<decltype(&func)>(GetProcAddress(module, OBF_DATA(funcName)));
 
 #define OBF_VALUE(type, name, val) \
-	volatile const type name##ar[1] { val }; \
-	type name = *const_obfuscate::deobfuscate(const_obfuscate::deobfuscate(name##ar, __LINE__).data, __LINE__).data;
+	volatile type name##ar[1] { val }; \
+	type name##ar_step1[1]; \
+	memcpy(name##ar_step1, const_obfuscate::deobfuscate(name##ar, __LINE__).data, sizeof (type)); \
+	type name = *const_obfuscate::deobfuscate(name##ar_step1, __LINE__).data;
 
 wchar_t exe[18];
 wchar_t dll[25];
@@ -99,7 +101,7 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 	}
 	
 	OBF_IMPORT(kernel32, CloseHandle);
-	if (!(*OBF_FUNC_DOUBLE(EnumProcessModulesEx))(proc, &hModule, sizeof HMODULE, &bytesReturned, LIST_MODULES_32BIT)) {
+	if (!(*OBF_FUNC_DOUBLE(EnumProcessModulesEx))(proc, &hModule, sizeof (HMODULE), &bytesReturned, LIST_MODULES_32BIT)) {
 		WinError winErr;
 		outputObject << L"Failed to enum modules: " << winErr << std::endl;
 		(*CloseHandlePtr)(proc);
@@ -160,7 +162,7 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 	const ImageImportDescriptor* importPtrNext = (const ImageImportDescriptor*)(uintptr_t)(base + rva);
 	std::vector<char> foreignName;
 	size_t dllStrLen = strlen(dll);
-	for (; importsSize > 0; importsSize -= sizeof ImageImportDescriptor) {
+	for (; importsSize > 0; importsSize -= sizeof (ImageImportDescriptor)) {
 		const ImageImportDescriptor* importPtr = importPtrNext++;
 		DWORD ImportLookupTableRVA;
 		readDword((DWORD)(uintptr_t)&importPtr->ImportLookupTableRVA, ImportLookupTableRVA)
@@ -279,7 +281,7 @@ DWORD findModuleUsingEnumProcesses(DWORD procId, const wchar_t* name) {
 		return 0;
 	}
 	wchar_t baseName[1024] { L'\0' };
-	int maxI = bytesReturned / sizeof HMODULE;
+	int maxI = bytesReturned / sizeof (HMODULE);
 	
 	OBF_IMPORT_WITH_NAME(kernel32, GetModuleBaseNameW, "GetModuleBaseNameW");
 	if (!OBF_FUNC_DOUBLE(GetModuleBaseNameW)) {
@@ -302,7 +304,7 @@ DWORD findModuleUsingEnumProcesses(DWORD procId, const wchar_t* name) {
 		}
 		if (_wcsicmp(baseName, name) == 0) {
 			MODULEINFO info;
-			if (!(*OBF_FUNC_DOUBLE(GetModuleInformation))(proc, hMod[i], &info, sizeof MODULEINFO)) {
+			if (!(*OBF_FUNC_DOUBLE(GetModuleInformation))(proc, hMod[i], &info, sizeof (MODULEINFO))) {
 				WinError winErr;
 				outputObject << L"Failed to get module information: " << winErr << std::endl;
 				(*CloseHandlePtr)(proc);

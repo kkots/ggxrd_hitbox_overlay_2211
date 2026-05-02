@@ -42,7 +42,7 @@
     <ClInclude Include="..\common\ConsoleEmulator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\WinError.h">
+    <ClInclude Include="..\common\WError.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\common\const_obfuscate.h">
@@ -81,6 +81,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="prebuild.ps1" />
+    <None Include="prebuild.py" />
+    <None Include="GNUmakefile" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\launch_ggxrd_hitbox_injector_linux.sh" />

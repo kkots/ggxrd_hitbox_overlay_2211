@@ -96,7 +96,7 @@ RECT DrawHitboxArrayCallParams::getWorldBounds(const Hitbox& hitbox, int cos, in
 RECT DrawHitboxArrayCallParams::getWorldBounds() const {
 	RECT result;
 	if (data.empty()) {
-		memset(&result, 0, sizeof RECT);
+		memset(&result, 0, sizeof (RECT));
 		return result;
 	}
 	
@@ -123,6 +123,16 @@ RECT DrawHitboxArrayCallParams::getWorldBounds() const {
 	#pragma warning(suppress: 6001)  // ignore warning about uninitialized memory usage
 	return result;
 }
+
+// not defined on MinGW GCC
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+
+// not defined on MinGW GCC
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
 
 RECT combineBounds(const RECT& a, const RECT& b) {
 	return {
@@ -200,10 +210,10 @@ void DrawHitboxArrayCallParams::arenaToHitbox(const DrawHitboxArrayParams& param
 	topFloat += (float)(params.transformCenterY / 1000);
 	
 	outData->type = 0;
-	outData->offX = std::floorf(leftFloat);
-	outData->offY = std::floorf(-topFloat);
-	outData->sizeX = std::floorf((float)sizeX / (float)params.scaleX);
-	outData->sizeY = std::floorf((float)-sizeY / (float)params.scaleY);
+	outData->offX = std::floor(leftFloat);
+	outData->offY = std::floor(-topFloat);
+	outData->sizeX = std::floor((float)sizeX / (float)params.scaleX);
+	outData->sizeY = std::floor((float)-sizeY / (float)params.scaleY);
 	
 	if (outData->sizeY < 0.F) {
 		outData->offY += outData->sizeY;

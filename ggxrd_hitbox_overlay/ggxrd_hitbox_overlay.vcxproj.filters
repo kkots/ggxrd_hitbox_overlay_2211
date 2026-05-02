@@ -297,6 +297,9 @@
     <ClInclude Include="EndSceneRepeatingStuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="atlbase_mingw.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -485,6 +488,8 @@
     <None Include="README.md" />
     <None Include="prebuild.ps1" />
     <None Include="..\regenerate_ini_and_update_readme.ps1" />
+    <None Include="build.py" />
+    <None Include="..\regenerate_ini_and_update_readme.py" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\ggxrd_hitbox_overlay.ini" />

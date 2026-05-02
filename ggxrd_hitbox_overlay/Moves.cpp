@@ -8,6 +8,13 @@
 // this whole, entire file is hardcode
 #include "SpecificFramebarIds.h"
 
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
+
 Moves moves;
 
 unsigned short* Moves::bbscrInstructionSizes;
@@ -14570,7 +14577,7 @@ void Moves::fillMay6PElements(BYTE* func) {
 							newElement.attackData.pushback, '%')
 					}
 					if (!prevElement.attackData.wallstick && newElement.attackData.wallstick) {
-						appendString("Gives wallstick in the corner.")
+						appendString("%s", "Gives wallstick in the corner.")
 					}
 					newElement.powerupExplanation.resize(totalSize + 1);
 					memcpy(newElement.powerupExplanation.data(), strbuf, totalSize + 1);
@@ -14694,7 +14701,7 @@ void Moves::fillVenomQvCharges(BYTE* func, VenomQvChargeElement& data) {
 	if (!firstInstr || !lastInstr) return;
 	data.firstOffset = firstInstr - func;
 	
-	data.elements.resize((lastInstr - firstInstr) / sizeof BBScrInstr_sprite + 1);
+	data.elements.resize((lastInstr - firstInstr) / sizeof (BBScrInstr_sprite) + 1);
 	VenomQvChargeSubelement* firstPtr = data.elements.data();
 	VenomQvChargeSubelement* lastPtr = firstPtr - 1;
 	

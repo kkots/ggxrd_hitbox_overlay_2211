@@ -6,6 +6,7 @@
 #include "KeyDefinitions.h"
 #include "Detouring.h"
 #include "GifMode.h"
+#include <cmath>
 
 Keyboard keyboard;
 
@@ -39,9 +40,9 @@ extern "C" HRESULT __cdecl getJoyStateHook(
 			uintptr_t FWindowsViewport_as_FViewport) {  // defined here
 	typedef HRESULT (__stdcall*GetDeviceState_t)(void*,size_t,void*);
 	HRESULT result = ((GetDeviceState_t)getDeviceStatePtr)(directInputDevice, size, joyState);
-	memcpy(&keyboard.joy, joyState, sizeof DIJOYSTATE2);
+	memcpy(&keyboard.joy, joyState, sizeof (DIJOYSTATE2));
 	if (keyboard.captureJoyInput && !gifMode.modDisabled) {
-		memcpy(joyState, &JoystickInfo->PreviousState, sizeof DIJOYSTATE2);
+		memcpy(joyState, &JoystickInfo->PreviousState, sizeof (DIJOYSTATE2));
 	}
 	keyboard.FWindowsViewport_as_FViewport = FWindowsViewport_as_FViewport;
 	return result;

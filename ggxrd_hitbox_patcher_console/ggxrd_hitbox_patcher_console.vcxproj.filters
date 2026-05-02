@@ -52,5 +52,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="prebuild.ps1" />
+    <None Include="README.md" />
   </ItemGroup>
 </Project>

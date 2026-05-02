@@ -30,6 +30,9 @@
     <ClCompile Include="..\common\InjectorCommonOut.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GNUmakefile">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\WError.h">
@@ -60,6 +63,7 @@
   <ItemGroup>
     <None Include="README.md" />
     <None Include="prebuild.ps1" />
+    <None Include="prebuild.py" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ggxrd_hitbox_injector_console.rc">

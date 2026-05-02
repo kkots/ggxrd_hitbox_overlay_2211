@@ -8,6 +8,13 @@
 #include <stdexcept>
 #include "LayerIterator.h"
 
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
+
 static char reprbuf[128];
 
 int __cdecl CompareSortedSprites(void const* spriteLeft, void const* spriteRight) {
@@ -242,7 +249,7 @@ void FPACSecondaryData::parseAllSprites() {
 	
 	fpac->enumNames(MyNameEnumerator::callback);
 	
-	qsort(sortedSprites.data(), sortedSprites.size(), sizeof SortedSprite, CompareSortedSprites);
+	qsort(sortedSprites.data(), sortedSprites.size(), sizeof (SortedSprite), CompareSortedSprites);
 	
 	size_t sortedSpritesCount = sortedSprites.size();
 	for (DWORD i = 0; i < sortedSpritesCount; ++i) {

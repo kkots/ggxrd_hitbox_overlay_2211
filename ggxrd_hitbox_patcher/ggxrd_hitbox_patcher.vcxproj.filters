@@ -59,6 +59,9 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GNUmakefile">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ggxrd_hitbox_patcher.rc">
@@ -72,5 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="prebuild.ps1" />
+    <None Include="prebuild.py" />
+    <None Include="README.md" />
   </ItemGroup>
 </Project>

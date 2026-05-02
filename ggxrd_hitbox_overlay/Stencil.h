@@ -1,5 +1,5 @@
 #pragma once
-#include "atlbase.h"
+#include "atlbase_mingw.h"
 #include <d3d9.h>
 #include "BoundingRect.h"
 

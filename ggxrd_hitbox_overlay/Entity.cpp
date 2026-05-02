@@ -134,7 +134,7 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 		|| (
 			damageToAir()
 			|| setOnCmnActDownBoundEntry()
-		) && !(state->posY != 0 || speedY() != 0);
+		) && state->posY == 0;
 	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)state->throwInvuln));
 	state->superArmorActive = isSuperArmor
 		&& !(
@@ -915,7 +915,8 @@ int TMap<Key,Value>::find(const Key& key) const {
 		} else {
 			HashData = Pairs.Hash.InlineData;
 		}
-		typedef TSet<TMap<Key,Value>::FPair>::FElement unconfuseVisualStudio;  // if you write this in-place, the code won't compile, because ElementData: identifier not found. What the hell is happening inside the compiler or C++whatever-number specification??
+		// MinGW GCC spoke: error: need ‘typename’ before ‘TSet<TMap<KeyT, ValueT>::FPair>::FElement’ because ‘TSet<TMap<KeyT, ValueT>::FPair>’ is a dependent scope
+		typedef typename TSet<TMap<Key,Value>::FPair>::FElement unconfuseVisualStudio;  // if you write this in-place, the code won't compile, because ElementData: identifier not found. What the hell is happening inside the compiler or C++whatever-number specification??
 		unconfuseVisualStudio* ElementData = Pairs.Elements.Data.Data;
 		for (int HashNext = HashData[mask & hash(key)]; HashNext != -1; HashNext = ElementData[HashNext].HashNextId) {
 			if (ElementData[HashNext].Value.Key == key) {

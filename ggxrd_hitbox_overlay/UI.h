@@ -11,7 +11,7 @@
 #include "Moves.h"
 #include "characterTypes.h"
 #include <array>
-#include <atlbase.h>
+#include "atlbase_mingw.h"
 #include "PinnedWindowList.h"
 #include "EditedHitbox.h"
 #include <map>
@@ -22,6 +22,7 @@
 #include "LayerIterator.h"
 #include "UndoOperations.h"
 #include "ThreadUnsafeSharedPtr.h"
+#include <list>
 
 enum FrameMarkerType {
 	MARKER_TYPE_STRIKE_INVUL,

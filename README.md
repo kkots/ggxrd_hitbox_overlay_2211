@@ -48,7 +48,7 @@ For Ubuntu/Linux you need to be running the Windows version of Guilty Gear Xrd (
 
 4. Go to downloaded folder and launch `ggxrd_hitbox_injector.exe`.
 
-5. Start a match. Hitboxes should display.
+5. Start training mode. Hitboxes should display (they won't display in online matches by default).
 
 Read the [Hitboxes](#hitboxes) section to understand what the colors mean.  
 Read the [Default Hotkeys](#default-hotkeys) section to know what the default hotkeys are.  
@@ -1892,13 +1892,15 @@ The `ggxrd_hitbox_patcher_console` project is cross-platform, but is intended ex
 
 Each project should have its own separate README.md.
 
-The `libpng` series of projects is an outside repository that we depend on. The reason reason this is a fork and not the original repository is because I needed to retarget its Visual Studio projects since I didn't have the older build tools.
+The `libpng` series of projects is an outside repository that we depend on. The reason this is a fork and not the original repository is because I needed to retarget its Visual Studio projects since I didn't have the older build tools.
 
 `imgui` is an outside project that we depend on, it's included in this mod as a git submodule. Please do not modify anything there and try not to update it using git fetch or git pull, unless you're ready to make corresponding changes in our mod.
 
-`detours` is Microsoft Detours library, also included as a git submodule. The reason this is a fork and not the original repository is because I needed to remove samples from compilation: the were giving troubles to some people.
+`detours` is Microsoft Detours library, also included as a git submodule. The reason this is a fork and not the original repository is because I needed to remove samples from compilation: they were giving trouble to some people.
 
 `zlib` is a compression library needed for libpng. It is included as a git submodule here. Please also refrain from modifying it.
+
+`JWasm` is an x86 assembler that supports MASM syntax. It is only needed to compile the asmhooks.asm file for the DLL part of the mod on Linux. <https://github.com/JWasm/JWasm> You won't find it in the project structure on Windows, because it only gets downloaded by the DLL project's build.py script on Linux.
 
 The dependency projects are better described in [Development dependencies](#development-dependencies).
 
@@ -1921,6 +1923,8 @@ Dependencies are better described in each project's README.md. Short version is,
 
 - `D3DX9_43.dll` - used for matrix math. It is used by the project the exact same way as D3DCompiler_43.dll, and its .LIB file is d3dx9.lib.
 
+- `JWasm` - used to assemble the asmhooks.asm file for the DLL part of the mod on Linux. <https://github.com/JWasm/JWasm> This dependency is not used for running the mod (neither on Windows nor on Linux or Wine or otherwise), only building, and only on Linux.
+
 ## Mod compatibility
 
 If trying to use the mod with a game version that it doesn't fit, the game may crash. The version of the game it's meant for is 2211. This is the number that is displayed in the bottom right corner of the main menu screen after you launch the game.
@@ -1929,10 +1933,14 @@ The mod should be possible to combine with other mods, but there might be some m
 
 This mod is totally compatible with:
 
+- Loj's Replay Takeover: <https://github.com/ibrow19/GGXrdReplayTakeover>
 - PCvolt's Labtool: <https://github.com/PCvolt/rev2-Labtool>
 - Iquis' Wakeup Tool: <https://github.com/Iquis/rev2-wakeup-tool>
 - GGXrdMirrorColorSelect: <https://github.com/kkots/GGXrdMirrorColorSelect>
 - GGXrdAdjustConnectionTiers: <https://github.com/kkots/GGXrdAdjustConnectionTiers>
+- GGXrdFasterLoadingTimes: <https://github.com/kkots/GGXrdFasterLoadingTimes>
+- GGXrdAutomaticallyChangeAudioDevice: <https://github.com/kkots/GGXrdAutomaticallyChangeAudioDevice>
+- GGXrdChangeBorderlessWindowPos: <https://github.com/kkots/GGXrdChangeBorderlessWindowPos>
 - Worse Than You's delay mod patch and all of his other patches. If WorseThanYou's position reset patch is applied, then this mod's position reset mod will silently not work, and everything else will work fine, and WorseThanYou's patch will keep working together with all the other features of this mod.
 - Whatever you run on Cheat Engine (unless you patch the functions I need)
 - OBS, Windows Gamebar, Nvidia Shadowplay, other recording software
@@ -2218,3 +2226,6 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2026 April 6: Version 7.28: Added a display of distances to each Rose from Millia's center to Millia's 'Character Specific' panel. Roses now display startup frames on the projectile framebars.
 - 2026 April 10: Version 7.29: Fixed a rare freeze when injecting the mod while the game is booting (into fullscreen or windowed), caused by the mod suspending all threads but the injected thread, then trying to allocate some heap memory only to realize that the heap memory lock is already locked... by one of the suspended threads. This would cause a deadlock, or infinite freeze. This was solved by atomically hooking one of the functions that runs on the main thread, then proceeding to hook all the rest of the needed functions from there (they all are supposed to run on the main thread). There's no need to suspend any threads this way. Unfortunately, this also means that should any error arise while injecting the mod, it will no longer be reported by the injector application. In other words, in case of any error, the mod will now silently fail to inject while reporting success.
 - 2026 April 14: Version 7.30: Fixed an error introduced in 7.27 where the framebar and UI of the mod would not be possible to display if the `dodgeObsRecording` is set to `true` in the `GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32\ggxrd_hitbox_overlay.ini` file, if OBS is not currently working and hooked into the game. The framebar and UI will, however, work, if OBS is hooked into the game, or the `dodgeObsRecording` setting is `false`. The `dodgeObsRecording` setting has been shipped with the default value of `false` since version 6.28, but existing users who created their INI file before that version would still have the old (default) value of `true` (if they haven't changed it to `false`).
+- 2026 May 2: Version 7.31:
+1) Added throw invulnerability display to Burst's pre-landing frame. This change may affect other animations that utilize the damageToAir bbscript instruction, in that previously we were, in addition to the flag that the instruction sets, checking `not (Y != 0 or speedY != 0)`, but now we only check `Y == 0` (without the enclosing 'not'). The reasoning in the old condition was that, on the pre-landing frame you would have Y == 0 and speedY still < 0 (Y axis is pointed up), on the landing frame you'd have Y == 0 and speedY == 0, so to fully exclude airborne I'd go "Y == 0 and speedY == 0". But the pre-landing frame is considered grounded for the purposes of ground throw vs air throw checks. And the game checks damageToAir flag only in conjunction with Y, ignoring speedY. So what I did was correct the check to be more in line with how the game checks it.
+2) Added support for cross-compilation from Linux to Windows using MinGW GCC toolchain for all subprojects and dependencies.

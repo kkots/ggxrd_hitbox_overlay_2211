@@ -3,6 +3,13 @@
 #include "WError.h"
 #include <stdexcept>
 
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
+
 bool readWholeFile(std::vector<BYTE>& data, HANDLE file, bool addNullTerminator, char (&errorbuf)[1024],
 		void (*readWholeFileErrorHandler)(const char* errorStr),
 		const wchar_t* readWholeFilePath

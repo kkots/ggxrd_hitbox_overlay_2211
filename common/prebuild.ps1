@@ -1,4 +1,4 @@
-
+# if you modify this file, you must modify prebuild.py same way
 function parse_version($filename) {
 	$version_content = Get-Content $filename
 	$version_lines = $version_content -split $newline

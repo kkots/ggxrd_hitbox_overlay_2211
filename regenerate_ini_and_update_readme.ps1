@@ -1,8 +1,10 @@
+# If you modify this script, you must also modify regenerate_ini_and_update_readme.py
+
 # This script only regenerates the INI and updates README.md if the latest date of modification of any of the following files:
 # 1) ggxrd_hitbox_overlay\KeyDefinitions.h,
 # 2) ggxrd_hitbox_overlay\SettingsDefinitions.h,
 # 3) ggxrd_hitbox_overlay\SettingsTopCommentDefinition.cpp
-# is greater than the date recorded at regenerate_ini_and_update_readme__last_date.txt. This file is excluded from git.
+# is greater than the date of README.md or ggxrd_hitbox_overlay.ini
 
 # The README that we're going to update will be the root README of the entire solution.
 # The INI file is located in the root as well.
@@ -14,8 +16,6 @@ class ParseCStringResult {
     [int]$pos  # the encountered character that is after the string that isn't a comment or a ". May point to the end of the whole txt
     [string]$str  # the parsed string with everything unescaped and all outer quotes removed
 }
-
-$dtFormat = "yyyy-MM-ddThh:mm:ss";
 
 # $pos must point to an opening "
 # unescapes everything
@@ -102,55 +102,49 @@ function task() {
         return;
     }
 
-    $lastDate = $null;
-    if (Test-Path "regenerate_ini_and_update_readme__last_date.txt") {
-        $lastDate = Get-Content "regenerate_ini_and_update_readme__last_date.txt"
-        if ($null -eq $lastDate) {
-            // the file is empty
-        } elseif ($lastDate -is [array]) {
-            // the file has multiple lines
-            $lastDate = $lastDate[0];
-        } elseif (-not ($lastDate -is [string])) {
-            $lastDate = $null;
-        }
-        if ($null -ne $lastDate) {
-            $lastDate = [System.DateTime]$lastDate;
+    $destination_files_min_datetime = $null;
+    if (Test-Path "ggxrd_hitbox_overlay.ini") {
+        $destination_files_min_datetime = (Get-Item "ggxrd_hitbox_overlay.ini").LastWriteTime;
+    }
+    if ($null -ne $destination_files_min_datetime) {
+        $destination_files_min_datetime_candidate = (Get-Item "README.md").LastWriteTime;
+        if ($destination_files_min_datetime_candidate -lt $destination_files_min_datetime) {
+            $destination_files_min_datetime = $destination_files_min_datetime_candidate;
         }
     }
 
-    $currentDate = $null;
-    $currentDates = @($null, $null, $null);
-    $currentDates[0] = (Get-Item "ggxrd_hitbox_overlay\KeyDefinitions.h").LastWriteTime;
-    $currentDates[1] = (Get-Item "ggxrd_hitbox_overlay\SettingsDefinitions.h").LastWriteTime;
-    $currentDates[2] = (Get-Item "ggxrd_hitbox_overlay\SettingsTopCommentDefinition.cpp").LastWriteTime;
+    $source_files_max_datetime = $null;
+    $source_files_datetimes = @($null, $null, $null);
+    $source_files_datetimes[0] = (Get-Item "ggxrd_hitbox_overlay\KeyDefinitions.h").LastWriteTime;
+    $source_files_datetimes[1] = (Get-Item "ggxrd_hitbox_overlay\SettingsDefinitions.h").LastWriteTime;
+    $source_files_datetimes[2] = (Get-Item "ggxrd_hitbox_overlay\SettingsTopCommentDefinition.cpp").LastWriteTime;
     for ($i = 0; $i -lt 3; ++$i) {
-        $dt = $currentDates[$i];
-        if (($null -eq $currentDate) -or ($dt -gt $currentDate)) {
-            $currentDate = $dt;
+        $dt = $source_files_datetimes[$i];
+        if (($null -eq $source_files_max_datetime) -or ($dt -gt $source_files_max_datetime)) {
+            $source_files_max_datetime = $dt;
         }
     }
-    if ($null -ne $currentDate) {
-        $currentDate = $currentDate.AddMilliseconds(-$currentDate.Millisecond);
-    }
-    if (($null -ne $currentDate) -and ($null -ne $lastDate) -and (
-            [Math]::Floor([double]$lastDate.Ticks / [double]10000.0) -eq [Math]::Floor([double]$currentDate.Ticks / [double]10000.0)
-    ) -and (Test-Path "ggxrd_hitbox_overlay.ini")) {
+    if (($null -ne $source_files_max_datetime) -and (
+            $null -ne $destination_files_min_datetime
+    ) -and (
+            $destination_files_min_datetime -ge $source_files_max_datetime
+    )) {
         return;
     }
 
     # \r char gets removed
-	$keyDefinitions = [string]::Join("`n", (Get-Content "ggxrd_hitbox_overlay\KeyDefinitions.h"));
-	$settingsDefinitions = [string]::Join("`n", (Get-Content "ggxrd_hitbox_overlay\SettingsDefinitions.h"))
+    $keyDefinitions = [string]::Join("`n", (Get-Content "ggxrd_hitbox_overlay\KeyDefinitions.h"));
+    $settingsDefinitions = [string]::Join("`n", (Get-Content "ggxrd_hitbox_overlay\SettingsDefinitions.h"))
     $settingsTopComment = [string]::Join("`n", (Get-Content "ggxrd_hitbox_overlay\SettingsTopCommentDefinition.cpp"))
-	
-	$searchStr = "#define keyEnum \";
-	$pos = $keyDefinitions.IndexOf($searchStr)
-	if ($pos -eq -1) {
-		Write-Error ($searchStr + " not found in KeyDefinitions.h")
-		return;
-	}
-	
-	$pos += $searchStr.Length;
+    
+    $searchStr = "#define keyEnum \";
+    $pos = $keyDefinitions.IndexOf($searchStr)
+    if ($pos -eq -1) {
+        Write-Error ($searchStr + " not found in KeyDefinitions.h")
+        return;
+    }
+    
+    $pos += $searchStr.Length;
     
     $keyNames = [System.Collections.Generic.List[string]]::new();
 
@@ -195,31 +189,31 @@ function task() {
 
     $searchStr = "keyEnum";
     if (
-        (
-            ($parseCStringResult.pos + $searchStr.Length) -le $settingsTopComment.Length
-        ) -and ($settingsTopComment.Substring($parseCStringResult.pos, $searchStr.Length) -eq $searchStr)
+        -not (
+            (
+                ($parseCStringResult.pos + $searchStr.Length) -le $settingsTopComment.Length
+            ) -and ($settingsTopComment.Substring($parseCStringResult.pos, $searchStr.Length) -eq $searchStr)
+        )
     ) {
-        $pos = $parseCStringResult.pos + $searchStr.Length;
-        $pos = $settingsTopComment.IndexOf(34, $pos);  # "
-        if ($pos -eq -1) {
-            Write-Error "Couldn't find the continuation of the string declaration after the mention of keyEnum in settingsTopComment in SettingsTopCommentDefinition.cpp";
-            return;
-        } else {
-            $parseCStringResult = parseCString $settingsTopComment $pos
-            if ($parseCStringResult.pos -eq $settingsTopComment.Length) {
-                Write-Error "Couldn't find the end of the second part of settingsTopComment in SettingsTopCommentDefinition.cpp";
-                return;
-            } elseif ($settingsTopComment.Chars($parseCStringResult.pos) -ne 59) {  # ;
-                Write-Error "The end of the second part of settingsTopComment is not ; in SettingsTopCommentDefinition.cpp";
-                return;
-            } else {
-                $settingsTopComment = $settingsTopCommentPart1 + $keyNames + $parseCStringResult.str;
-            }
-        }
-    } else {
         Write-Error "Couldn't find the mention of keyEnum in settingsTopComment in SettingsTopCommentDefinition.cpp";
         return;
     }
+    $pos = $parseCStringResult.pos + $searchStr.Length;
+    $pos = $settingsTopComment.IndexOf(34, $pos);  # "
+    if ($pos -eq -1) {
+        Write-Error "Couldn't find the continuation of the string declaration after the mention of keyEnum in settingsTopComment in SettingsTopCommentDefinition.cpp";
+        return;
+    }
+    $parseCStringResult = parseCString $settingsTopComment $pos
+    if ($parseCStringResult.pos -eq $settingsTopComment.Length) {
+        Write-Error "Couldn't find the end of the second part of settingsTopComment in SettingsTopCommentDefinition.cpp";
+        return;
+    }
+    if ($settingsTopComment.Chars($parseCStringResult.pos) -ne 59) {  # ;
+        Write-Error "The end of the second part of settingsTopComment is not ; in SettingsTopCommentDefinition.cpp";
+        return;
+    }
+    $settingsTopComment = $settingsTopCommentPart1 + $keyNames + $parseCStringResult.str;
 
 
     [System.Collections.Generic.List[string]]$newIni = New-Object System.Collections.Generic.List[string];
@@ -345,7 +339,7 @@ function task() {
             # stop at the closing )
             $pos = $parseCStringResult.pos;
 
-        } elseif ($macroName -eq "settingsField") {
+        } elseif (($macroName -eq "settingsField") -or ($macroName -eq "settingsFieldWithInlineComment")) {
             # find the , that is after the type
             $pos = $settingsDefinitions.IndexOf(44, $pos + 1);  # ,
             if ($pos -eq -1) {
@@ -382,9 +376,9 @@ function task() {
 
             # find the , after the default value
             $pos = $settingsDefinitions.IndexOf(44, $pos + 1);  # ,
-			if ($pos -eq -1) {
-				continue;
-			}
+            if ($pos -eq -1) {
+                continue;
+            }
 
             # parse the value
             $value = $settingsDefinitions.Substring($valueStart, $pos - $valueStart);
@@ -422,9 +416,9 @@ function task() {
             } elseif ($typename -eq "HitboxList") {
             	$vPos = $value.IndexOf(34);  # "
             	if ($vPos -ne -1) {
-            		$parseCStringResult = parseCString $value $vPos
-				    $value = $parseCStringResult.str;
-			    }
+            	    $parseCStringResult = parseCString $value $vPos
+            	    $value = $parseCStringResult.str;
+            	}
             } elseif (
             	(
             		$typename -eq "MoveList"
@@ -567,8 +561,6 @@ function task() {
 
     Remove-Item "README.md"
     Rename-Item -Path "New_README.md" "README.md"
-
-    $currentDate.ToString($dtFormat) | Out-File -FilePath "regenerate_ini_and_update_readme__last_date.txt"
 
 }
 

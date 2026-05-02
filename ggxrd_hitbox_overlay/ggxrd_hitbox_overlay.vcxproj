@@ -177,6 +177,7 @@
     <ClInclude Include="..\imgui\imstb_truetype.h" />
     <ClInclude Include="..\imgui\texids.h" />
     <ClInclude Include="AltModes.h" />
+    <ClInclude Include="atlbase_mingw.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="characterTypes.h" />
     <ClInclude Include="CharInfo.h" />
@@ -272,6 +273,7 @@
     <ClCompile Include="..\imgui\imgui_demo.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\imgui\imgui_draw.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -351,6 +353,8 @@
       <FileType>Document</FileType>
     </MASM>
     <None Include="..\regenerate_ini_and_update_readme.ps1" />
+    <None Include="..\regenerate_ini_and_update_readme.py" />
+    <None Include="build.py" />
     <None Include="prebuild.ps1" />
     <None Include="README.md" />
   </ItemGroup>

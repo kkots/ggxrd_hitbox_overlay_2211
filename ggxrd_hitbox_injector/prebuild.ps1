@@ -1,4 +1,5 @@
-﻿$content = Get-Content "ggxrd_hitbox_injector.rc"
+﻿# if you modify this script, you must also modify prebuild.py in the same fashion
+$content = Get-Content "ggxrd_hitbox_injector.rc"
 $newline = "`
 "
 $tab = "	";
@@ -10,11 +11,11 @@ $VERSION = parse_version("InjectorVersion.h")
 $content_lines = $content -split $newline
 $need_write = $false
 
-if (replace_about_dlg($content_lines)) {
+if (replace_about_dlg $content_lines) {
 	$need_write = $true;
 }
 
-if (replace_app_title($content_lines)) {
+if (replace_app_title $content_lines) {
 	$need_write = $true;
 }
 

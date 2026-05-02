@@ -456,7 +456,11 @@ void meatOfTheProgram() {
 		"\xf6\xf6\x20\xf6\x24\xf6\x3b\xf6\x4e\xf6\x3b\xf6\xf6\xf6\xf6\xf6";
 	wchar_t filter[(sizeof scramble - 1) / sizeof (wchar_t)];
 	int offset = (int)(
+		#ifndef __MINGW32__
 		(GetTickCount64() & 0xF000000000000000ULL) >> (63 - 4)
+		#else
+		0
+		#endif
 	);
 	for (int i = 0; i < sizeof scramble - 1; ++i) {
 		char c = scramble[i] + offset + 10;
@@ -679,7 +683,11 @@ int patcherMain()
 	
 	#ifndef FOR_LINUX
 	int offset = (int)(
+		#ifndef __MINGW32__
 		(GetTickCount64() & 0xF000000000000000ULL) >> (63 - 4)
+		#else
+		0
+		#endif
 	);
 	#else
 	int offset = 0;

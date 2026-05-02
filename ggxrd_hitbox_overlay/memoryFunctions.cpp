@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "memoryFunctions.h"
-#include <Psapi.h>
+#include <psapi.h>
 #include "logging.h"
 #include <cstdarg>
 #include <unordered_map>
@@ -8,6 +8,13 @@
 #include "LineReaderFromString.h"
 #include "Settings.h"
 #include <mutex>
+
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
 
 std::vector<HMODULE> allModules;
 
@@ -156,9 +163,9 @@ void loadSigscanCache() {
 		static const char startStr[] = "start";
 		static const char endStr[] = "end";
 		#define assertStr(strAr) \
-			if (lineEnd - lineStart < sizeof strAr - 1) fileParsingErr("Not enough space to fit in the word '%s'.", strAr) \
-			if (strncmp(lineStart, strAr, sizeof strAr - 1) != 0) fileParsingErr("Word '%s' not found.", strAr) \
-			lineStart += sizeof strAr - 1;
+			if (lineEnd - lineStart < sizeof (strAr) - 1) fileParsingErr("Not enough space to fit in the word '%s'.", strAr) \
+			if (strncmp(lineStart, strAr, sizeof (strAr) - 1) != 0) fileParsingErr("Word '%s' not found.", strAr) \
+			lineStart += sizeof (strAr) - 1;
 		assertStr(startStr)
 		shrinkWhitespaceLeft
 		if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("%s", "Second line doesn't have '=' ('start').")
@@ -266,25 +273,25 @@ static void determineNameSection(uintptr_t start, const char** moduleNameResult,
 		}
 		
 		while (true) {
-			allModules.resize(cbNeeded / sizeof HMODULE);
-			DWORD cbSize = allModules.size() * sizeof HMODULE;
+			allModules.resize(cbNeeded / sizeof (HMODULE));
+			DWORD cbSize = allModules.size() * sizeof (HMODULE);
 			if (!EnumProcessModules(currentProc, allModules.data(), cbSize, &cbNeeded)) {
 				return;
 			}
 			if (cbNeeded <= cbSize) break;
 		}
-		allModules.resize(cbNeeded / sizeof HMODULE);
+		allModules.resize(cbNeeded / sizeof (HMODULE));
 	}
 	
 	MODULEINFO modInfo;
 	DWORD hModCount = (DWORD)allModules.size();
 	for (DWORD i = 0; i < hModCount; ++i) {
 		HMODULE hMod = allModules[i];
-		if (!GetModuleInformation(currentProc, hMod, &modInfo, sizeof MODULEINFO)) {
+		if (!GetModuleInformation(currentProc, hMod, &modInfo, sizeof (MODULEINFO))) {
 			continue;
 		}
 		if (start >= (uintptr_t)modInfo.lpBaseOfDll && start < (uintptr_t)modInfo.lpBaseOfDll + modInfo.SizeOfImage) {
-			if (!GetModuleBaseNameA(currentProc, hMod, nameBuf, sizeof nameBuf)) {
+			if (!GetModuleBaseNameA(currentProc, hMod, nameBuf, sizeof (nameBuf))) {
 				return;
 			}
 			const IMAGE_DOS_HEADER* dosHeader = (const IMAGE_DOS_HEADER*)modInfo.lpBaseOfDll;
@@ -318,7 +325,7 @@ static uintptr_t fillInEntry(const char* logname, const char* name, const char* 
 		HMODULE moduleHandle = GetModuleHandleA(name);
 		if (moduleHandle) {
 			MODULEINFO moduleInfo;
-			if (GetModuleInformation(GetCurrentProcess(), moduleHandle, &moduleInfo, sizeof MODULEINFO)) {
+			if (GetModuleInformation(GetCurrentProcess(), moduleHandle, &moduleInfo, sizeof (MODULEINFO))) {
 				wholeModuleBegin = (uintptr_t)moduleInfo.lpBaseOfDll;
 			}
 		}
@@ -496,8 +503,8 @@ size_t byteSpecificationToSigMask(const char* byteSpecification, std::vector<cha
 				size_t oldSize = maskForCaching->size();
 				if (moduleNameEnd - nibbleSequenceStart == 3 && strncmp(nibbleSequenceStart, "rel", 3) == 0) {
 					static const char additionString[] = "rel_GuiltyGearXrd.exe(????)";
-					maskForCaching->resize(oldSize + sizeof additionString - 1);
-					memcpy(maskForCaching->data() + oldSize, additionString, sizeof additionString - 1);
+					maskForCaching->resize(oldSize + sizeof (additionString) - 1);
+					memcpy(maskForCaching->data() + oldSize, additionString, sizeof (additionString) - 1);
 				} else {
 					maskForCaching->resize(oldSize + 4 + (moduleNameEnd - nibbleSequenceStart) + 6);
 					char* dataPtr = maskForCaching->data() + oldSize;
@@ -1167,7 +1174,7 @@ uintptr_t findImportedFunction(const char* module, const char* dll, const char* 
 	};
 	DWORD importsSize = importsDataDirectoryRvaAndSize->size;  // in bytes
 	const ImageImportDescriptor* importPtrNext = (const ImageImportDescriptor*)(base + importsDataDirectoryRvaAndSize->rva);
-	for (; importsSize > 0; importsSize -= sizeof ImageImportDescriptor) {
+	for (; importsSize > 0; importsSize -= sizeof (ImageImportDescriptor)) {
 		const ImageImportDescriptor* importPtr = importPtrNext++;
 		if (!importPtr->ImportLookupTableRVA) break;
 		const char* dllName = (const char*)(base + importPtr->NameRVA);
@@ -1269,7 +1276,7 @@ void SigscanCacheEntry::applyMaskForCachingToSig() {
 			HMODULE hMod = GetModuleHandleA(moduleLookup.data());
 			if (hMod) {
 				MODULEINFO moduleInfo;
-				if (GetModuleInformation(GetCurrentProcess(), hMod, &moduleInfo, sizeof MODULEINFO)) {
+				if (GetModuleInformation(GetCurrentProcess(), hMod, &moduleInfo, sizeof (MODULEINFO))) {
 					DWORD addr;
 					memcpy(&addr, sigPtr, 4);
 					DWORD offset = addr - (DWORD)moduleInfo.lpBaseOfDll;
@@ -1344,7 +1351,7 @@ void finishedSigscanning() {
 		}
 		#define writeStr(name, literal) \
 			static const char name[] = literal; \
-			if (!WriteFile(file, name, sizeof name - 1, &bytesWritten, NULL)) failWrite
+			if (!WriteFile(file, name, sizeof (name) - 1, &bytesWritten, NULL)) failWrite
 		writeNewline
 		writeStr(startStr, "start=")
 		int result;
@@ -1429,7 +1436,7 @@ PANGAEA_MOD_VERSION getPangaeaModVersion() {
 	if (pangaeaModVersion == PANGAEA_MOD_NOT_CHECKED_YET) {
 		HMODULE stackMem[80];
 		std::vector<HMODULE> heapMem;
-		DWORD myCb = sizeof stackMem;
+		DWORD myCb = sizeof (stackMem);
 		DWORD yourCb = 0xFFFFFFFF;
 		HANDLE currentProcessHandle = GetCurrentProcess();
 		WCHAR guiltyGearXrdExePath[MAX_PATH];
@@ -1500,7 +1507,7 @@ PANGAEA_MOD_VERSION getPangaeaModVersion() {
 			}
 			if (error) break;
 			myCb = yourCb;
-			if (myCb > sizeof stackMem) {
+			if (myCb > sizeof (stackMem)) {
 				heapMem.resize(myCb / sizeof (HMODULE));
 			}
 		} while (yourCb > myCb);

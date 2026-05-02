@@ -748,7 +748,7 @@ bool parseJson(const BYTE* data, size_t* dataSizePtr, std::vector<JSONParsedSpri
 								hitbox.offY = (float)box.y;
 								hitbox.sizeX = (float)box.w;
 								hitbox.sizeY = (float)box.h;
-								jonbin += sizeof Hitbox;
+								jonbin += sizeof (Hitbox);
 							}
 						}
 					}

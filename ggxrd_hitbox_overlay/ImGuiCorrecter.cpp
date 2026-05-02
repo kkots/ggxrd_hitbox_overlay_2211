@@ -30,10 +30,10 @@ void ImGuiCorrecter::adjustMousePosition() {
 			ImGuiInputEvent* e = &g->InputEventsQueue[i];
 			if (e->Type == ImGuiInputEventType_MousePos && !eventProcessed(e->EventId)) {
 				if (widthsDiffer) {
-					e->MousePos.PosX = std::floorf(e->MousePos.PosX * keyboard.screenWidth / presentRectWF);
+					e->MousePos.PosX = std::floor(e->MousePos.PosX * keyboard.screenWidth / presentRectWF);
 				}
 				if (heightsDiffer) {
-					e->MousePos.PosY = std::floorf(e->MousePos.PosY * keyboard.screenHeight / presentRectHF);
+					e->MousePos.PosY = std::floor(e->MousePos.PosY * keyboard.screenHeight / presentRectHF);
 				}
 				addProcessedEvent(e->EventId);
 			}
@@ -55,10 +55,10 @@ void ImGuiCorrecter::adjustMousePosition() {
 		ImGuiInputEvent* e = &g->InputEventsQueue[i];
 		if (e->Type == ImGuiInputEventType_MousePos && !eventProcessed(e->EventId)) {
 			if (widthsDiffer) {
-				e->MousePos.PosX = std::floorf(e->MousePos.PosX * keyboard.screenWidth / oldDisplaySize.x);
+				e->MousePos.PosX = std::floor(e->MousePos.PosX * keyboard.screenWidth / oldDisplaySize.x);
 			}
 			if (heightsDiffer) {
-				e->MousePos.PosY = std::floorf(e->MousePos.PosY * keyboard.screenHeight / oldDisplaySize.y);
+				e->MousePos.PosY = std::floor(e->MousePos.PosY * keyboard.screenHeight / oldDisplaySize.y);
 			}
 			addProcessedEvent(e->EventId);
 		}

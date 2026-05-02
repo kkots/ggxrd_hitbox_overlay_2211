@@ -13,9 +13,17 @@
 #include "UI.h"
 #include "resource.h"
 #include "WError.h"
+#if __MINGW32__
+#define __in
+#define __out
+#endif
 #include <d3dcompiler.h>
+#if __MINGW32__
+#undef __in
+#undef __out
+#endif
 #include "resource.h"
-#include <D3DX9Shader.h>
+#include <d3dx9shader.h>
 #ifdef PERFORMANCE_MEASUREMENT
 #include <chrono>
 #endif
@@ -23,7 +31,7 @@
 #include "Direct3DVTable.h"
 #include "Game.h"
 #include "InputsIcon.h"
-#include <WinError.h>
+#include "WError.h"
 #include "HandleWrapper.h"
 #include "Keyboard.h"
 #include "GifMode.h"
@@ -245,7 +253,7 @@ bool Graphics::onDllMain() {
 	//if (!checkAndHookBeginSceneAndPresent(true)) error = true;
 	
 	static const int sinArrayStart[] = { 0,1,3,5,6,8,10,12,13,15,17,19,20,22,24,26 };
-	sinTable = (const int*)sigscan("GuiltyGearXrd.exe:.rdata", (const char*)sinArrayStart, sizeof sinArrayStart, "sineTable", nullptr);
+	sinTable = (const int*)sigscan("GuiltyGearXrd.exe:.rdata", (const char*)sinArrayStart, sizeof (sinArrayStart), "sineTable", nullptr);
 	if (!sinTable) {
 		logwrap(fputs("sinTable not found", logfile));
 		error = true;
@@ -660,9 +668,9 @@ void Graphics::sendAllPreparedVertices() {
 	vertexBufferSent = true;
 	Vertex* buffer = nullptr;
 	if (FAILED(vertexBuffer->Lock(0, 0, (void**)&buffer, D3DLOCK_DISCARD))) return;
-	size_t offset = sizeof Vertex * vertexBufferLength;
+	size_t offset = sizeof (Vertex) * vertexBufferLength;
 	if (preparingTextureVertexBuffer) {
-		size_t textureOffset = sizeof TextureVertex * textureVertexBufferLength;
+		size_t textureOffset = sizeof (TextureVertex) * textureVertexBufferLength;
 		if (textureOffset > offset) offset = textureOffset;
 	}
 	memcpy(buffer, vertexArena.data(), offset);
@@ -953,17 +961,17 @@ void Graphics::drawAllPrepared() {
 		drawAllPoints();
 	}
 	
-	int maxBufferPositionBytes = vertexBufferPosition * sizeof Vertex;
-	int otherBufferPositionBytes = textureVertexBufferPosition * sizeof TextureVertex;
+	int maxBufferPositionBytes = vertexBufferPosition * sizeof (Vertex);
+	int otherBufferPositionBytes = textureVertexBufferPosition * sizeof (TextureVertex);
 	if (otherBufferPositionBytes > maxBufferPositionBytes) maxBufferPositionBytes = otherBufferPositionBytes;
 	
 	
 	if (maxBufferPositionBytes != 0) {
 		int bufferLengthBytes;
 		if (preparingTextureVertexBuffer) {
-			bufferLengthBytes = textureVertexBufferLength * sizeof TextureVertex;
+			bufferLengthBytes = textureVertexBufferLength * sizeof (TextureVertex);
 		} else {
-			bufferLengthBytes = vertexBufferLength * sizeof Vertex;
+			bufferLengthBytes = vertexBufferLength * sizeof (Vertex);
 		}
 		if (maxBufferPositionBytes != bufferLengthBytes) {
 			memmove(vertexArena.data(), vertexArena.data() + maxBufferPositionBytes, bufferLengthBytes - maxBufferPositionBytes);
@@ -972,16 +980,16 @@ void Graphics::drawAllPrepared() {
 		int remainder;
 		int roundDown;
 		if (preparingTextureVertexBuffer) {
-			remainder = maxBufferPositionBytes % sizeof TextureVertex;
-			roundDown = maxBufferPositionBytes / sizeof TextureVertex;
+			remainder = maxBufferPositionBytes % sizeof (TextureVertex);
+			roundDown = maxBufferPositionBytes / sizeof (TextureVertex);
 			if (remainder) ++roundDown;
 			if (roundDown > (int)textureVertexBufferLength) roundDown = textureVertexBufferLength;
 			textureVertexBufferLength -= roundDown;
 			textureVertexIt = (TextureVertex*)vertexArena.data() + textureVertexBufferLength;
 			textureVertexBufferRemainingSize = textureVertexBufferSize - textureVertexBufferLength;
 		} else {
-			remainder = maxBufferPositionBytes % sizeof Vertex;
-			roundDown = maxBufferPositionBytes / sizeof Vertex;
+			remainder = maxBufferPositionBytes % sizeof (Vertex);
+			roundDown = maxBufferPositionBytes / sizeof (Vertex);
 			if (remainder) ++roundDown;
 			if (roundDown > (int)vertexBufferLength) roundDown = vertexBufferLength;
 			vertexBufferLength -= roundDown;
@@ -1246,7 +1254,7 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 		size_t totalCount = rectCombinerOutlines.size();
 		size_t counter = 0;
 		std::vector<HatchesCallParams::HatchPoints>* pointStarts = nullptr;
-		unsigned long long pointStartsMem[sizeof *pointStarts / 8 + ((sizeof *pointStarts % 8) != 0 ? 1 : 0)];
+		unsigned long long pointStartsMem[sizeof (*pointStarts) / 8 + ((sizeof (*pointStarts) % 8) != 0 ? 1 : 0)];
 		if (params.hatched) {
 			pointStarts = new (pointStartsMem) std::vector<HatchesCallParams::HatchPoints>();
 			pointStarts->reserve(totalCount);
@@ -2420,7 +2428,7 @@ bool Graphics::initializeVertexBuffers() {
 		failedToCreateVertexBuffers = true;
 		return false;
 	}
-	vertexArena.resize(vertexBufferSize * sizeof Vertex);
+	vertexArena.resize(vertexBufferSize * sizeof (Vertex));
 
 	return true;
 }
@@ -3189,23 +3197,23 @@ void Graphics::stopPreparingTextureVertexBuffer() {
 
 void Graphics::switchToRenderingTextureVertices() {
 	if (renderingTextureVertices) return;
-	int positionBytes = vertexBufferPosition * sizeof Vertex;
-	int remainder = positionBytes % sizeof TextureVertex;
+	int positionBytes = vertexBufferPosition * sizeof (Vertex);
+	int remainder = positionBytes % sizeof (TextureVertex);
 	if (remainder) {
-		positionBytes += sizeof TextureVertex - remainder;
+		positionBytes += sizeof (TextureVertex) - remainder;
 	}
-	textureVertexBufferPosition = positionBytes / sizeof TextureVertex;
+	textureVertexBufferPosition = positionBytes / sizeof (TextureVertex);
 	renderingTextureVertices = true;
 }
 
 void Graphics::switchToRenderingNonTextureVertices() {
 	if (!renderingTextureVertices) return;
-	int positionBytes = textureVertexBufferPosition * sizeof TextureVertex;
-	int remainder = positionBytes % sizeof Vertex;
+	int positionBytes = textureVertexBufferPosition * sizeof (TextureVertex);
+	int remainder = positionBytes % sizeof (Vertex);
 	if (remainder) {
-		positionBytes += sizeof Vertex - remainder;
+		positionBytes += sizeof (Vertex) - remainder;
 	}
-	vertexBufferPosition = positionBytes / sizeof Vertex;
+	vertexBufferPosition = positionBytes / sizeof (Vertex);
 	renderingTextureVertices = false;
 }
 
@@ -3345,10 +3353,10 @@ void Graphics::prepareDrawInputs() {
 }
 
 int Graphics::calculateStartingTextureVertexBufferLength() {
-	size_t lengthBytes = vertexBufferLength * sizeof Vertex;
-	size_t remainder = lengthBytes % sizeof TextureVertex;
-	if (remainder) lengthBytes += sizeof TextureVertex - remainder;
-	size_t result = lengthBytes == 0 ? 0 : lengthBytes / sizeof TextureVertex;
+	size_t lengthBytes = vertexBufferLength * sizeof (Vertex);
+	size_t remainder = lengthBytes % sizeof (TextureVertex);
+	if (remainder) lengthBytes += sizeof (TextureVertex) - remainder;
+	size_t result = lengthBytes == 0 ? 0 : lengthBytes / sizeof (TextureVertex);
 	
 	if (result > textureVertexBufferSize) {
 		return textureVertexBufferSize;
@@ -3357,10 +3365,10 @@ int Graphics::calculateStartingTextureVertexBufferLength() {
 }
 
 int Graphics::calculateStartingVertexBufferLength() {
-	size_t lengthBytes = textureVertexBufferLength * sizeof TextureVertex;
-	size_t remainder = lengthBytes % sizeof Vertex;
-	if (remainder) lengthBytes += sizeof Vertex - remainder;
-	size_t result = lengthBytes == 0 ? 0 : lengthBytes / sizeof Vertex;
+	size_t lengthBytes = textureVertexBufferLength * sizeof (TextureVertex);
+	size_t remainder = lengthBytes % sizeof (Vertex);
+	if (remainder) lengthBytes += sizeof (Vertex) - remainder;
+	size_t result = lengthBytes == 0 ? 0 : lengthBytes / sizeof (Vertex);
 	
 	if (result > vertexBufferSize) {
 		return vertexBufferSize;
@@ -3410,7 +3418,7 @@ void Graphics::prepareCircle(const DrawCircleCallParams& params) {
 			consumeVertexBufferSpace(remainingVertices + 1);
 			*vertexIt = firstVertex;
 			++vertexIt;
-			memcpy(vertexIt, lastSourceVtx, remainingVertices * sizeof Vertex);
+			memcpy(vertexIt, lastSourceVtx, remainingVertices * sizeof (Vertex));
 			vertexIt += remainingVertices;
 			lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 			
@@ -3426,7 +3434,7 @@ void Graphics::prepareCircle(const DrawCircleCallParams& params) {
 		consumeVertexBufferSpace(oldSize);
 		*vertexIt = firstVertex;
 		++vertexIt;
-		memcpy(vertexIt, lastSourceVtx, (oldSize - 1) * sizeof Vertex);
+		memcpy(vertexIt, lastSourceVtx, (oldSize - 1) * sizeof (Vertex));
 		vertexIt += oldSize - 1;
 		lastSourceVtx += oldSize - 2;
 		remainingVertices -= oldSize - 2;
@@ -3461,7 +3469,7 @@ void Graphics::prepareCircleOutline(const DrawCircleCallParams& params) {
 		}
 		if (vertexBufferRemainingSize >= (unsigned int)remainingVertices) {
 			consumeVertexBufferSpace(remainingVertices);
-			memcpy(vertexIt, lastSourceVtx, remainingVertices * sizeof Vertex);
+			memcpy(vertexIt, lastSourceVtx, remainingVertices * sizeof (Vertex));
 			vertexIt += remainingVertices;
 			lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 			

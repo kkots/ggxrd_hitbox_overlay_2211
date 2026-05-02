@@ -35,6 +35,14 @@
 #include <list>
 #include "JSON.h"
 #include "ReadWholeFile.h"
+#include <stdexcept>
+
+#ifndef min
+#define min(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))
+#endif
 
 UI ui;
 
@@ -8973,7 +8981,7 @@ void UI::drawSearchableWindows() {
 				}
 				for (std::vector<SortedMovesEntry>& vec : sortedMoves) {
 					if (vec.empty()) continue;
-					qsort(vec.data(), vec.size(), sizeof SortedMovesEntry, CompareMoveInfo);
+					qsort(vec.data(), vec.size(), sizeof (SortedMovesEntry), CompareMoveInfo);
 				}
 			}
 			
@@ -9383,9 +9391,9 @@ void UI::initialize() {
 												 // So we must swap out the pointers every time imGui D3D9 implementation interacts with them.
 	
 	
-	framebarHorizontalScrollbarDrawDataCopy.resize(sizeof ImDrawListBackup);
-	framebarWindowDrawDataCopy.resize(sizeof ImDrawListBackup);
-	framebarTooltipDrawDataCopy.resize(sizeof ImDrawListBackup);
+	framebarHorizontalScrollbarDrawDataCopy.resize(sizeof (ImDrawListBackup));
+	framebarWindowDrawDataCopy.resize(sizeof (ImDrawListBackup));
+	framebarTooltipDrawDataCopy.resize(sizeof (ImDrawListBackup));
 	new (framebarHorizontalScrollbarDrawDataCopy.data()) ImDrawListBackup();
 	new (framebarWindowDrawDataCopy.data()) ImDrawListBackup();
 	new (framebarTooltipDrawDataCopy.data()) ImDrawListBackup();
@@ -9789,23 +9797,23 @@ void UI::copyDrawDataTo(std::vector<BYTE>& destinationBuffer) {
 	ImDrawData* oldData = (ImDrawData*)drawData;
 	if (!oldData->Valid) return;
 	
-	size_t requiredSize = sizeof ImDrawData
-		+ (sizeof (CustomImDrawList*) + sizeof CustomImDrawList) * oldData->CmdListsCount;
+	size_t requiredSize = sizeof (ImDrawData)
+		+ (sizeof (CustomImDrawList*) + sizeof (CustomImDrawList)) * oldData->CmdListsCount;
 	
 	for (int i = 0; i < oldData->CmdListsCount; ++i) {
 		const ImDrawList* cmdList = oldData->CmdLists[i];
-		requiredSize += cmdList->CmdBuffer.Size * sizeof ImDrawCmd
-			+ cmdList->IdxBuffer.Size * sizeof ImDrawIdx
-			+ cmdList->VtxBuffer.Size * sizeof ImDrawVert
+		requiredSize += cmdList->CmdBuffer.Size * sizeof (ImDrawCmd)
+			+ cmdList->IdxBuffer.Size * sizeof (ImDrawIdx)
+			+ cmdList->VtxBuffer.Size * sizeof (ImDrawVert)
 		;
 	}
 	
 	destinationBuffer.resize(requiredSize);
 	BYTE* p = destinationBuffer.data();
 	
-	memcpy(p, oldData, sizeof ImDrawData);
+	memcpy(p, oldData, sizeof (ImDrawData));
 	ImDrawData* newData = (ImDrawData*)p;
-	p += sizeof ImDrawData;
+	p += sizeof (ImDrawData);
 	
 	newData->CmdLists.Data = (ImDrawList**)p;
 	
@@ -9820,20 +9828,20 @@ void UI::copyDrawDataTo(std::vector<BYTE>& destinationBuffer) {
 		newCmdList->CmdBuffer.Size = oldDrawList->CmdBuffer.Size;
 		newCmdList->IdxBuffer.Size = oldDrawList->IdxBuffer.Size;
 		newCmdList->VtxBuffer.Size = oldDrawList->VtxBuffer.Size;
-		p += sizeof CustomImDrawList;
+		p += sizeof (CustomImDrawList);
 		
 		newCmdList->CmdBuffer.Data = (ImDrawCmd*)p;
-		size_t cmdsSize = oldDrawList->CmdBuffer.Size * sizeof ImDrawCmd;
+		size_t cmdsSize = oldDrawList->CmdBuffer.Size * sizeof (ImDrawCmd);
 		memcpy(p, oldDrawList->CmdBuffer.Data, cmdsSize);
 		p += cmdsSize;
 		
 		newCmdList->IdxBuffer.Data = (ImDrawIdx*)p;
-		size_t idxSize = oldDrawList->IdxBuffer.Size * sizeof ImDrawIdx;
+		size_t idxSize = oldDrawList->IdxBuffer.Size * sizeof (ImDrawIdx);
 		memcpy(p, oldDrawList->IdxBuffer.Data, idxSize);
 		p += idxSize;
 		
 		newCmdList->VtxBuffer.Data = (ImDrawVert*)p;
-		size_t vtxSize = oldDrawList->VtxBuffer.Size * sizeof ImDrawVert;
+		size_t vtxSize = oldDrawList->VtxBuffer.Size * sizeof (ImDrawVert);
 		memcpy(p, oldDrawList->VtxBuffer.Data, vtxSize);
 		p += vtxSize;
 	}
@@ -9845,8 +9853,8 @@ void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawDat
 	
 	if (!referenceDrawData->Valid) return;
 	
-	size_t requiredSize = sizeof ImDrawData
-		+ (sizeof (CustomImDrawList*) + sizeof CustomImDrawList) * drawListsCount;
+	size_t requiredSize = sizeof (ImDrawData)
+		+ (sizeof (CustomImDrawList*) + sizeof (CustomImDrawList)) * drawListsCount;
 	
 	int totalIdxCount = 0;
 	int totalVtxCount = 0;
@@ -9860,9 +9868,9 @@ void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawDat
 	destination.resize(requiredSize);
 	BYTE* p = destination.data();
 	
-	memcpy(p, referenceDrawData, sizeof ImDrawData);
+	memcpy(p, referenceDrawData, sizeof (ImDrawData));
 	ImDrawData* newData = (ImDrawData*)p;
-	p += sizeof ImDrawData;
+	p += sizeof (ImDrawData);
 	
 	newData->CmdListsCount = drawListsCount;
 	newData->CmdLists.Size = drawListsCount;
@@ -9883,7 +9891,7 @@ void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawDat
 		newCmdList->CmdBuffer.Data = drawList->CmdBuffer.data();
 		newCmdList->IdxBuffer.Data = drawList->IdxBuffer.data();
 		newCmdList->VtxBuffer.Data = drawList->VtxBuffer.data();
-		p += sizeof CustomImDrawList;
+		p += sizeof (CustomImDrawList);
 	}
 	
 }
@@ -9893,9 +9901,9 @@ void copyDrawList(ImDrawListBackup& destination, const ImDrawList* drawList) {
 	destination.CmdBuffer.resize(drawList->CmdBuffer.Size);
 	destination.IdxBuffer.resize(drawList->IdxBuffer.Size);
 	destination.VtxBuffer.resize(drawList->VtxBuffer.Size);
-	memcpy(destination.CmdBuffer.data(), drawList->CmdBuffer.Data, sizeof ImDrawCmd * drawList->CmdBuffer.Size);
-	memcpy(destination.IdxBuffer.data(), drawList->IdxBuffer.Data, sizeof ImDrawIdx * drawList->IdxBuffer.Size);
-	memcpy(destination.VtxBuffer.data(), drawList->VtxBuffer.Data, sizeof ImDrawVert * drawList->VtxBuffer.Size);
+	memcpy(destination.CmdBuffer.data(), drawList->CmdBuffer.Data, sizeof (ImDrawCmd) * drawList->CmdBuffer.Size);
+	memcpy(destination.IdxBuffer.data(), drawList->IdxBuffer.Data, sizeof (ImDrawIdx) * drawList->IdxBuffer.Size);
+	memcpy(destination.VtxBuffer.data(), drawList->VtxBuffer.Data, sizeof (ImDrawVert) * drawList->VtxBuffer.Size);
 }
 
 // Runs on the graphics thread
@@ -14160,7 +14168,7 @@ inline void drawFirstFramesUniversal(FramebarT& framebar, UI::FrameDims* prepped
 			}
 			
 			ImVec2 artStart {
-				dims.x - std::floorf(drawFramebars_innerBorderThicknessHalf + firstFrameArt.framebar.size.x * 0.5F),
+				dims.x - std::floor(drawFramebars_innerBorderThicknessHalf + firstFrameArt.framebar.size.x * 0.5F),
 				firstFrameTopY
 			};
 			ImVec2 artEnd {
@@ -14205,7 +14213,7 @@ void drawDigit(char digit, const UI::FrameDims& dims, float frameNumberYTop, flo
 	float digitX = dims.x;
 	float digitWidth = digitImg.framebar.size.x;
 	
-	digitX += std::floorf((dims.width - digitWidth) * 0.5F);
+	digitX += std::floor((dims.width - digitWidth) * 0.5F);
 	
 	drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 		{ digitX, frameNumberYTop },
@@ -14917,7 +14925,7 @@ void drawMarkers(FramebarT& framebar,
 				isFlipped);
 		
 		if (frame.powerupForMarkers()) {
-			float powerupWidthOffset = std::floorf((dims.width - powerupWidthUse) * 0.5F + 0.001F);
+			float powerupWidthOffset = std::floor((dims.width - powerupWidthUse) * 0.5F + 0.001F);
 			drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 				{
 						dims.x + powerupWidthOffset,
@@ -16691,7 +16699,7 @@ void UI::drawFramebars() {
 	
 	static const float outerBorderThicknessUnscaled = 2.F;
 	const float outerBorderThicknessScaledBeforeFloor = outerBorderThicknessUnscaled * scale;
-	float outerBorderThickness = std::floorf(outerBorderThicknessScaledBeforeFloor + 0.001F);
+	float outerBorderThickness = std::floor(outerBorderThicknessScaledBeforeFloor + 0.001F);
 	if (outerBorderThickness < 1.F - 0.001F) {
 		if (outerBorderThicknessScaledBeforeFloor > 0.66F) {
 			outerBorderThickness = 2.F;
@@ -16710,7 +16718,7 @@ void UI::drawFramebars() {
 	static const float frameNumberHeightOriginal = 11.F;
 	static const float markerPaddingHeightUnscaled = -1.F;
 	const float markerPaddingHeightScaledBeforeFloor = -markerPaddingHeightUnscaled * scale;
-	float markerPaddingHeight = -std::floorf(markerPaddingHeightScaledBeforeFloor + 0.001F);
+	float markerPaddingHeight = -std::floor(markerPaddingHeightScaledBeforeFloor + 0.001F);
 	if (markerPaddingHeight > -1.F && markerPaddingHeightScaledBeforeFloor < -0.3F) {
 		markerPaddingHeight = -1.F;
 	}
@@ -16732,7 +16740,7 @@ void UI::drawFramebars() {
 	static const float framebarCurrentPositionHighlighterStickoutDistanceUnscaled = 2.F;
 	const float framebarCurrentPositionHighlighterStickoutDistance = std::roundf(framebarCurrentPositionHighlighterStickoutDistanceUnscaled * scale);
 	static const float framedataBottomPadding = 0.F;
-	drawFramebars_innerBorderThickness = std::floorf(innerBorderThicknessUnscaled * scale + 0.001F);
+	drawFramebars_innerBorderThickness = std::floor(innerBorderThicknessUnscaled * scale + 0.001F);
 	if (drawFramebars_innerBorderThickness < 1.F) drawFramebars_innerBorderThickness = 1.F;
 	drawFramebars_innerBorderThicknessHalf = drawFramebars_innerBorderThickness * 0.5F;
 	
@@ -16766,7 +16774,7 @@ void UI::drawFramebars() {
 		const float totalVisibleFramesWidth = framesXEnd - framesX;
 		const float totalVisibleFramesWidthWithoutInnerBorders = totalVisibleFramesWidth - framesCountFloat * drawFramebars_innerBorderThickness;
 		const float singleFrameWidthUnroundedWithoutInnerBorder = totalVisibleFramesWidthWithoutInnerBorders / framesCountFloat;
-		const float widthFloor = std::floorf(singleFrameWidthUnroundedWithoutInnerBorder + 0.001F);
+		const float widthFloor = std::floor(singleFrameWidthUnroundedWithoutInnerBorder + 0.001F);
 		const float widthFraction = singleFrameWidthUnroundedWithoutInnerBorder - widthFloor;
 		
 		PackTextureSizes newSizes;
@@ -16790,7 +16798,7 @@ void UI::drawFramebars() {
 	
 	const float powerupHeight = powerupFrameArt.framebar.size.y;
 	const float firstFrameHeightScaled = firstFrameArt.framebar.size.y;
-	const float firstFrameHeightOffset = std::ceilf(firstFrameHeightScaled * 0.5F - 0.001F);
+	const float firstFrameHeightOffset = std::ceil(firstFrameHeightScaled * 0.5F - 0.001F);
 	static const float frameMarkerSideHeightOriginal = 2.F;  // does not include outline
 	const FrameMarkerArt* frameMarkerArtArray = settings.useColorblindHelp ? frameMarkerArtColorblind : frameMarkerArtNonColorblind;
 	const FrameMarkerArt& strikeInvulMarker = frameMarkerArtArray[MARKER_TYPE_STRIKE_INVUL];
@@ -16812,7 +16820,7 @@ void UI::drawFramebars() {
 	if (!showFirstFrames) {
 		topPaddingFirstFrameOnly = maxTopPadding = 0.F;
 	} else {
-		topPaddingFirstFrameOnly = maxTopPadding = std::floorf(firstFrameHeightOffset * 0.5F + 0.001F);
+		topPaddingFirstFrameOnly = maxTopPadding = std::floor(firstFrameHeightOffset * 0.5F + 0.001F);
 	}
 	float topPaddingMarkerOnly;
 	if (showStrikeInvulOnFramebar || showSuperArmorOnFramebar) {
@@ -17104,8 +17112,8 @@ void UI::drawFramebars() {
 		+ 1.F
 		+ 2.F  // imgui window padding
 	};
-	float initialWindowPosXForFirstUseEver = std::floorf((displaySize.x - nextWindowSize.x) * 0.5F);
-	ImGui::SetNextWindowPos({ initialWindowPosXForFirstUseEver, std::floorf(85.F * displaySize.y / 720.F)
+	float initialWindowPosXForFirstUseEver = std::floor((displaySize.x - nextWindowSize.x) * 0.5F);
+	ImGui::SetNextWindowPos({ initialWindowPosXForFirstUseEver, std::floor(85.F * displaySize.y / 720.F)
 		- 1.F  // when testing on my 1920x1080 monitor with the game set to windowed with same resolution, with the default scaling and position,
 		// it skips the row of pixels that coincides with the bottom outline of the throw invulnerability marker, which makes it look weird and cut off.
 		// Hopefully, -1 offset will resolve this
@@ -17327,13 +17335,13 @@ void UI::drawFramebars() {
 				drawFramebars_windowPos.y + windowHeight
 			}, false);
 		const float lineHeight = std::roundf(ImGui::GetTextLineHeightWithSpacing());
-		const float textPaddingYPlayer = std::floorf((onePlayerFramebarHeight - lineHeight) * 0.5F);
-		const float textPaddingYProjectile = std::floorf((oneProjectileFramebarHeight - lineHeight) * 0.5F);
+		const float textPaddingYPlayer = std::floor((onePlayerFramebarHeight - lineHeight) * 0.5F);
+		const float textPaddingYProjectile = std::floor((oneProjectileFramebarHeight - lineHeight) * 0.5F);
 		const bool dontTruncateFramebarTitles = settings.dontTruncateFramebarTitles;
 		const bool allFramebarTitlesDisplayToTheLeft = settings.allFramebarTitlesDisplayToTheLeft;
 		const bool useSlang = settings.useSlangNames;
 		Frame emptyFrame;
-		memset(&emptyFrame, 0, sizeof Frame);
+		memset(&emptyFrame, 0, sizeof (Frame));
 		for (const QueuedFramebar& queuedFramebar : framebars) {
 			const EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
 			const EntityFramebar& entityFramebar = *entityFramebarPtr;
@@ -18616,7 +18624,7 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 		int firstFrameHeight = (int)std::roundf(frameScaleVert * originalFirstFrameHeight);
 		if (firstFrameHeight < 1) firstFrameHeight = 1;
 		if (firstFrameHeight > originalFirstFrameHeightInt) {
-			firstFrameHeight -= (int)std::ceilf((frameScaleVert * originalFirstFrameHeight - originalFirstFrameHeight) * 0.5F);
+			firstFrameHeight -= (int)std::ceil((frameScaleVert * originalFirstFrameHeight - originalFirstFrameHeight) * 0.5F);
 		}
 		
 		firstFrame.resize(1 + firstFrameWidth + 1, 1 + firstFrameHeight + 1);
@@ -18940,7 +18948,7 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 			if (digitHeight < 3) digitHeight = 3;
 			int w = sizes->frameWidth;
 			if (frameScaleHoriz >= 1.F) {
-				w -= (int)std::ceilf(frameScaleHoriz - 1.F);
+				w -= (int)std::ceil(frameScaleHoriz - 1.F);
 			}
 			if (w > (int)drawFramebars_frameWidthScaled) w = (int)drawFramebars_frameWidthScaled;
 			// commented out to allow text to upscale on 3K resolution: https://github.com/kkots/ggxrd_hitbox_overlay_2211/issues/6
@@ -19004,7 +19012,7 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 	
 	if (miniCount == 2) {
 		const float coeff = sizesFrameHeightMaxFloat == 0.F ? 1.F : sizesFrameHeightMinFloat / sizesFrameHeightMaxFloat;
-		memcpy(frameArtArrayMini, frameArtArrays[0], FT_LAST * sizeof FrameArt);
+		memcpy(frameArtArrayMini, frameArtArrays[0], FT_LAST * sizeof (FrameArt));
 		for (int i = 1; i < FT_LAST; ++i) {
 			FrameArt& art = frameArtArrayMini[i];
 			art.framebar.end.y = art.framebar.start.y
@@ -21122,11 +21130,11 @@ bool drawIconButton(const char* buttonName, const PinIcon* icon, bool toolActive
 	float padY = 0.F;
 	
 	if (sizeUse.x < drawIconButton_minSize.x) {
-		padX = std::floorf((drawIconButton_minSize.x - sizeUse.x) * 0.5F);
+		padX = std::floor((drawIconButton_minSize.x - sizeUse.x) * 0.5F);
 		sizeUse.x = drawIconButton_minSize.x;
 	}
 	if (sizeUse.y < drawIconButton_minSize.y) {
-		padY = std::floorf((drawIconButton_minSize.y - sizeUse.y) * 0.5F);
+		padY = std::floor((drawIconButton_minSize.y - sizeUse.y) * 0.5F);
 		sizeUse.y = drawIconButton_minSize.y;
 	}
 	
@@ -21144,12 +21152,12 @@ bool drawIconButton(const char* buttonName, const PinIcon* icon, bool toolActive
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.19f, 0.30f, 0.56f, 0.75f));
 		float outlineThickness = 4.F;
 		ImVec2 buttonToolOutlineStart {
-			std::floorf(windowPos.x + buttonPos.x - outlineThickness * 0.5F),
-			std::floorf(windowPos.y - scrollY + buttonPos.y - outlineThickness * 0.5F)
+			std::floor(windowPos.x + buttonPos.x - outlineThickness * 0.5F),
+			std::floor(windowPos.y - scrollY + buttonPos.y - outlineThickness * 0.5F)
 		};
 		drawList->AddRectFilled(buttonToolOutlineStart, {
-			std::ceilf(buttonToolOutlineStart.x + buttonSize.x + outlineThickness),
-			std::ceilf(buttonToolOutlineStart.y + buttonSize.y + outlineThickness)
+			std::ceil(buttonToolOutlineStart.x + buttonSize.x + outlineThickness),
+			std::ceil(buttonToolOutlineStart.y + buttonSize.y + outlineThickness)
 		}, 0xFFFFFFFF, 0.F);
 	}
 	
@@ -21845,8 +21853,8 @@ void UI::hitboxEditorBoxSelect() {
 			
 		}
 		
-		aswOneScreenPixelWidth = (int)std::ceilf(1.F / vals.vw * 2.F / vals.xCoeff);
-		aswOneScreenPixelHeight = (int)std::ceilf(1.F / vals.vh * 2.F / vals.yCoeff);
+		aswOneScreenPixelWidth = (int)std::ceil(1.F / vals.vw * 2.F / vals.xCoeff);
+		aswOneScreenPixelHeight = (int)std::ceil(1.F / vals.vh * 2.F / vals.yCoeff);
 		
 	} else if (boxMouseDown) {
 		if (io.MouseClicked[0]) {
@@ -22858,7 +22866,7 @@ static bool anythingDiffersExceptBounds(const std::vector<UI::BoxSelectBox>& lef
 	const UI::BoxSelectBox* boxLeft = left.data();
 	const UI::BoxSelectBox* boxRight = right.data();
 	for (int i = 0; i < count; ++i) {
-		if (memcmp(boxLeft, boxRight, sizeof EditedHitbox) != 0) return true;
+		if (memcmp(boxLeft, boxRight, sizeof (EditedHitbox)) != 0) return true;
 		++boxLeft;
 		++boxRight;
 	}

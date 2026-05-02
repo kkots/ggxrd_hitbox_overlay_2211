@@ -93,7 +93,7 @@ void UndoOperationBase::restoreView() {
 		game.allowTickForActor(newEntity.pawnWorld());
 	}
 	
-	memcpy(&settings.hitboxList, &hitboxList, sizeof hitboxList);
+	memcpy(&settings.hitboxList, &hitboxList, sizeof (hitboxList));
 	
 	ui.setSelectedHitboxes(selectedHitboxes);
 }
@@ -278,7 +278,7 @@ UndoOperationBase::UndoOperationBase(const UndoOperationBase& other) {
 	bbscrFunc = other.bbscrFunc;
 	animSeqName = other.animSeqName;
 	currentFrame = other.currentFrame;
-	memcpy(&hitboxList, &other.hitboxList, sizeof hitboxList);
+	memcpy(&hitboxList, &other.hitboxList, sizeof (hitboxList));
 	extern unsigned int getUE3EngineTick();
 	engineTick = getUE3EngineTick();
 }
@@ -303,7 +303,7 @@ void UndoOperationBase::fillFromEnt(Entity ent, UndoOperationType type) {
 	animSeqName.high = 0;
 	currentFrame = 0;
 	memcpy(spriteName, ent.spriteName(), 32);
-	memcpy(&hitboxList, &settings.hitboxList, sizeof hitboxList);
+	memcpy(&hitboxList, &settings.hitboxList, sizeof (hitboxList));
 	REDPawn* pawnWorld = ent.pawnWorld();
 	if (pawnWorld) {
 		REDAnimNodeSequence* animSeq = pawnWorld->getFirstAnimSeq();

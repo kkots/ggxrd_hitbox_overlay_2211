@@ -159,8 +159,10 @@ public:
 	static const char* const SETTINGS_MODDING;
 	bool keyCombosBegin;
 	#define settingsKeyCombo(name, displayName, defaultValue, description) std::vector<int> name;
-	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment)
+	#define settingsField(type, name, defaultValue, displayName, section, description)
+	#define settingsFieldWithInlineComment(type, name, defaultValue, displayName, section, description, inlineComment)
 	#include "SettingsDefinitions.h"
+	#undef settingsFieldWithInlineComment
 	#undef settingsField
 	#undef settingsKeyCombo
 	bool keyCombosEnd;
@@ -170,8 +172,10 @@ public:
 	typedef std::string ScreenshotPath;
 	typedef DWORD color;
 	#define settingsKeyCombo(name, displayName, defaultValue, description) 
-	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) type name = defaultValue;
+	#define settingsField(type, name, defaultValue, displayName, section, description) type name = defaultValue;
+	#define settingsFieldWithInlineComment(type, name, defaultValue, displayName, section, description, inlineComment) type name = defaultValue;
 	#include "SettingsDefinitions.h"
+	#undef settingsFieldWithInlineComment
 	#undef settingsField
 	#undef settingsKeyCombo
 	bool settingsMembersEnd = false;
