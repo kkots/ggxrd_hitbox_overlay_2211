@@ -3882,7 +3882,7 @@ void Moves::addMoves() {
 	move.considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = true;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.replacementInputs = "46S. S must be either on the same frame as 6 or on the frame after";
-	move.replacementBufferTime = 1;
+	move.replacementWindowDuration = 1;
 	move.powerup = powerup_rifle;
 	move.ignoreJumpInstalls = true;
 	move.isMove = true;

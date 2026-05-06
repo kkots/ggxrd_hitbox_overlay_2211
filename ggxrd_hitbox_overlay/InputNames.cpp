@@ -149,8 +149,8 @@ void fillInInputNames() {
 	inputNames[/*0xfd*/INPUT_CHARGE_BACK_FORWARD_45F] = { "charge back 45f -> forward", MULTIWORD_MOTION, 10 };
 	inputNames[/*0xfe*/INPUT_CHARGE_DOWN_UP_45F] = { "charge down 45f -> up", MULTIWORD_MOTION, 10 };
 	inputNames[/*0xff*/INPUT_236236236] = { "236236236", MOTION, 12 };
-	inputNames[/*0x100*/INPUT_623_WITHIN_LAST_3F] = { "623 (3f buffer)", MULTIWORD_MOTION, 3 };
-	inputNames[/*0x101*/INPUT_5_ANYBACK_ANYFORWARD_WITHIN_LAST_2F] = { "5(7/4/1)(9/6/3) (2f buffer)", MULTIWORD_MOTION, 2 };
+	inputNames[/*0x100*/INPUT_623_WITHIN_LAST_3F] = { "623 (3f window)", MULTIWORD_MOTION, 3 };
+	inputNames[/*0x101*/INPUT_5_ANYBACK_ANYFORWARD_WITHIN_LAST_2F] = { "5(7/4/1)(9/6/3) (2f window)", MULTIWORD_MOTION, 2 };
 	inputNames[/*0x102*/INPUT_NOTANYDOWN_2] = { "(not 1/2/3) -> 2", MULTIWORD_MOTION, 5 };
 	inputNames[/*0x103*/INPUT_46_WITHIN_LAST_1F] = { "46 (no buffer)", MULTIWORD_MOTION, 1 };
 	inputNames[/*0x104*/INPUT_CHARGE_DOWN_10F] = { "charge down 10f", MULTIWORD_MOTION, -1 };
@@ -158,7 +158,7 @@ void fillInInputNames() {
 	inputNames[/*0x106*/INPUT_5_ANYBACK_ANYFORWARD_LENIENT] = { "5(7/4/1)(9/6/3)", MOTION, 8 };
 	inputNames[/*0x10c*/INPUT_BURST] = { "Burst", BUTTON, 3 };
 	inputNames[/*0x10d*/INPUT_HOLD_TWO_OR_MORE_OF_PKSH] = { "hold two or more of PKSH", MULTIWORD_BUTTON, -1 };
-	inputNames[/*0x10e*/INPUT_PRESS_TWO_OR_MORE_OF_PKSH_GLITCHED] = { "press two or more of PKSH (obsolete)", MULTIWORD_BUTTON, 3 };  // why it's glitched? I think it relies on a 2f buttonpress buffer. Rn it's 3. So it gets its flag set on f1 of press and then on f2 it's unset and on f3 it's set again and then you need to press the button again to continue it switching on and off each frame. Activating twice from one press on frames 1 and 3 is a glitch thank you for reading this far I hope you're happy and all is well
+	inputNames[/*0x10e*/INPUT_PRESS_TWO_OR_MORE_OF_PKSH_GLITCHED] = { "press two or more of PKSH (obsolete)", MULTIWORD_BUTTON, 3 };  // why it's glitched? I think it relies on a 2f buttonpress windows. Rn it's 3. So it gets its flag set on f1 of press and then on f2 it's unset and on f3 it's set again and then you need to press the button again to continue it switching on and off each frame. Activating twice from one press on frames 1 and 3 is a glitch thank you for reading this far I hope you're happy and all is well
 	inputNames[/*0x10f*/INPUT_PRESS_ANYBACK_WITHIN_LAST_8F_NO_MASH_ALLOWED] = { "7/4/1 within last 8f no mash allowed", MULTIWORD_BUTTON, 8 };
 	inputNames[/*0x110*/INPUT_P_OR_K_OR_S_OR_H] = { "P/K/S/H", BUTTON, 3 };
 	inputNames[/*0x111*/INPUT_BOOLEAN_OR] = { "or", BUTTON, -1 };
@@ -173,8 +173,8 @@ void fillInInputNames() {
 	inputNames[/*0x11d*/INPUT_ANY_TWO_OF_PKSH] = { "any two of PKSH", MULTIWORD_BUTTON, 3 };
 	inputNames[/*0x11e*/INPUT_ROMAN_CANCEL_DUPLICATE] = { "Roman Cancel", MULTIWORD_BUTTON, 3 };
 	inputNames[/*0x11f*/INPUT_MOM_TAUNT] = { "MOM Taunt", MULTIWORD_BUTTON, -1 };
-	inputNames[/*0x120*/INPUT_FORWARD_DASH_WITHIN_LAST_2F] = { "66 (2f buffer)", MULTIWORD_MOTION, 2 };
-	inputNames[/*0x121*/INPUT_BACKDASH_WITHIN_LAST_2F] = { "44 (2f buffer)", MULTIWORD_MOTION, 2 };
+	inputNames[/*0x120*/INPUT_FORWARD_DASH_WITHIN_LAST_2F] = { "66 (2f window)", MULTIWORD_MOTION, 2 };
+	inputNames[/*0x121*/INPUT_BACKDASH_WITHIN_LAST_2F] = { "44 (2f window)", MULTIWORD_MOTION, 2 };
 	inputNames[/*0x122*/INPUT_P_OR_K_OR_S_OR_H_OR_D_STRICT_PRESS] = { "P/K/S/H/D (no buffer)", BUTTON, 1 };
 	inputNames[/*0x123*/INPUT_ALWAYS_FALSE] = { "nullptr", MULTIWORD_MOTION, -1 };
 	inputNames[/*0x124*/INPUT_PRESS_TAUNT_DUPLICATE] = { "Taunt", BUTTON, 3 };

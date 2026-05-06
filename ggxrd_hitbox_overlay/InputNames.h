@@ -10,7 +10,7 @@ enum InputNameType {
 struct InputName {
 	const char* name;
 	InputNameType type;
-	int bufferTime;
+	int windowDuration;  // includes the first actionable frame, or the frame on which the thing that you're buffering would get performed
 };
 void fillInInputNames();
 extern std::vector<InputName> inputNames;

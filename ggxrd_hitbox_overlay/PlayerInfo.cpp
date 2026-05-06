@@ -4157,7 +4157,7 @@ bool GatlingOrWhiffCancelInfoStored::operator==(const GatlingOrWhiffCancelInfoSt
 	return name == other.name
 		&& replacementInputs == other.replacementInputs
 		&& move == other.move
-		&& bufferTime == other.bufferTime
+		&& windowDuration == other.windowDuration
 		&& nameIncludesInputs == nameIncludesInputs;
 }
 

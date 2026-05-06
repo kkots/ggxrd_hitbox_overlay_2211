@@ -10912,7 +10912,7 @@ int printCancels(const T& cancels, float maxY) {
 			result = sprintf_s(buf, bufSize, ")");
 			advanceBuf
 		}
-		result = sprintf_s(buf, bufSize, " (%df buffer)", cancel.bufferTime);
+		result = sprintf_s(buf, bufSize, " (%df window)", cancel.windowDuration);
 		advanceBuf
 		ImGui::Text("%d) %s;", counter++, strbuf);
 	}

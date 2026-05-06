@@ -4728,14 +4728,15 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 	}
 	cancel.move = move;
 	cancel.replacementInputs = obtainedInfo.replacementInputs;
-	if (obtainedInfo.replacementBufferTime) {
-		cancel.bufferTime = obtainedInfo.replacementBufferTime;
+	if (obtainedInfo.replacementWindowDuration) {
+		cancel.windowDuration = obtainedInfo.replacementWindowDuration;
 	} else {
-		int bufferTime = move->bufferTime;
+		// bufferTime includes the first actionable frame, or the frame on which the thing that we're buffering would get performed
+		int windowDuration = move->bufferTime;
 		if (move->type == MOVE_TYPE_BACKWARD_SUPER_JUMP
 				|| move->type == MOVE_TYPE_FORWARD_SUPER_JUMP
 				|| move->type == MOVE_TYPE_NEUTRAL_SUPER_JUMP) {
-			bufferTime += 2;
+			windowDuration += 2;
 		}
 		if ((player.pawn.clashOrRCBufferTimer() != 0
 				|| player.pawn.dustHomingJump1BufferTimer() != 0
@@ -4743,23 +4744,23 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 				&& move->type != MOVE_TYPE_FORWARD_WALK
 				&& move->type != MOVE_TYPE_BACKWARD_WALK) {
 			// we can read bufferTimeFromRC here, because if clashOrRCBufferTimer is 0, then it has already been reset to 0 (we run this hook after the original)
-			bufferTime += player.pawn.bufferTimeFromRC() + 13;
+			windowDuration += player.pawn.bufferTimeFromRC() + 13;
 		}
 		if (player.pawn.ensureAtLeast3fBufferForNormalsWhenJumping() != 0
 				&& move->type == MOVE_TYPE_NORMAL
 				&& move->characterState == MOVE_CHARACTER_STATE_JUMPING
-				&& bufferTime < 3) {
-			bufferTime = 3;
+				&& windowDuration < 3) {
+			windowDuration = 3;
 		}
 		
-		int minBufTime = getMinBufferTime(move->inputs);
-		if (minBufTime != -1) {
-			bufferTime += minBufTime;
+		int minWindow = getMinWindow(move->inputs);
+		if (minWindow != -1) {
+			windowDuration += minWindow;
 		} else {
-			bufferTime += 1;
+			windowDuration += 1;
 		}
 		
-		cancel.bufferTime = bufferTime;
+		cancel.windowDuration = windowDuration;
 	}
 }
 
@@ -5719,7 +5720,7 @@ GameModeFast EndScene::getGameModeFast() const {
 	return GAME_MODE_FAST_NORMAL;
 }
 
-int EndScene::getMinBufferTime(const InputType* inputs) {
+int EndScene::getMinWindow(const InputType* inputs) {
 	int minLength = -1;
 	int currentLength = -1;
 	for (int i = 0; i < 16; ++i) {
@@ -5734,9 +5735,10 @@ int EndScene::getMinBufferTime(const InputType* inputs) {
 			}
 			currentLength = -1;
 		}
-		int bufferTime = inputNames[inputType].bufferTime;
-		if (bufferTime != -1 && (currentLength == -1 || bufferTime < currentLength)) {
-			currentLength = bufferTime;
+		// windowDuration includes the first actionable frame, or the frame on which the thing that we're buffering would get performed
+		int windowDuration = inputNames[inputType].windowDuration;
+		if (windowDuration != -1 && (currentLength == -1 || windowDuration < currentLength)) {
+			currentLength = windowDuration;
 		}
 	}
 	return minLength;

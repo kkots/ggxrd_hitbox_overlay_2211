@@ -301,7 +301,7 @@ struct GatlingOrWhiffCancelInfoStored {
 	const NamePair* name;
 	const char* replacementInputs;
 	const AddedMoveData* move;
-	int bufferTime;
+	int windowDuration;  // includes the first actionable frame, or the frame on which the thing that we're buffering would get performed
 	bool nameIncludesInputs:1;
 	// the below fields are actually for GatlingOrWhiffCancelInfo
 	bool wasAddedDuringHitstopFreeze:1;  // if framesBeenAvailableFor/framesBeenAvailableForNotIncludingHitstopFreeze says 1, should we increment it next time we leave hitstop and freeze?

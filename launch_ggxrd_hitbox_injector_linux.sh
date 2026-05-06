@@ -68,6 +68,17 @@ GUILTYGEAR_WINELOADER=$(
     | sed -r 's/^WINELOADER=//'
 )
 if [ "$GUILTYGEAR_WINELOADER" == "" ]; then
+    # Proton 10 and 11 don't have the WINELOADER variable, instead they leak their wine directory path in their first element of PATH
+    GUILTYGEAR_WINELOADER=$(
+        cat /proc/$GUILTYGEAR_PID/environ          \
+        | tr '\0' '\n'                             \
+        | sed -n -E -e 's/^PATH=([^:]*):.*/\1/p'
+    )
+    if [ ! -f $GUILTYGEAR_WINELOADER/wine ]; then
+        GUILTYGEAR_WINELOADER=
+    fi
+fi
+if [ "$GUILTYGEAR_WINELOADER" == "" ]; then
     echo "Couldn't determine Guilty Gear Xrd's WINELOADER."
     exit 1
 fi

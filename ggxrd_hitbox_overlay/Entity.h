@@ -591,7 +591,7 @@ struct AddedMoveData {
 	int padding6;
 	BOOL passedMoveChecksOfSomeKind;
 	int padding7;
-	int bufferTime;
+	int bufferTime;  // does not include the first actionable frame, or does not include the frame on which the thing that we're buffering would get performed. bufferTime 0 would mean it must be inputted on the exact frame where you need it
 	int padding8;
 	inline bool hasCondition(MoveCondition condition) const { return conditions.getBit(condition); }
 	inline void addCondition(MoveCondition condition) { conditions.setBit(condition); }

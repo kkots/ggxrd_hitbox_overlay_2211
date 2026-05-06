@@ -235,7 +235,7 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(BOOL, boolValue, faustPogo, false) \
 	MOVE_INFO_EXEC(BOOL, boolValue, butForFramebarDontCombineWithPreviousMove, false) \
 	MOVE_INFO_EXEC(const char*, strValue, replacementInputs, nullptr) \
-	MOVE_INFO_EXEC(int, intValue, replacementBufferTime, 0) \
+	MOVE_INFO_EXEC(int, intValue, replacementWindowDuration, 0) \
 	MOVE_INFO_EXEC(const char*, strValue, whiffCancelsNote, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, secondaryStartup, nullptr) \
 	MOVE_INFO_EXEC(BOOL, boolValue, forceLandingRecovery, false) \

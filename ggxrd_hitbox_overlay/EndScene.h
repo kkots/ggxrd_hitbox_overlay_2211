@@ -599,7 +599,7 @@ private:
 	GameModeFast* gameModeFast = nullptr;
 	int* drawTrainingHudInputHistoryVal2 = nullptr;
 	int* drawTrainingHudInputHistoryVal3 = nullptr;
-	int getMinBufferTime(const InputType* inputs);
+	int getMinWindow(const InputType* inputs);
 	hitDetection_t hitDetectionFunc = nullptr;
 	void checkVenomBallActivations();
 	void checkSelfProjectileHarmInflictions();
