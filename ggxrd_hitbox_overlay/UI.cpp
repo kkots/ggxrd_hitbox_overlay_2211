@@ -2893,7 +2893,7 @@ void UI::drawSearchableWindows() {
 			
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Negative Penalty Time Left"));
-			AddTooltip(searchTooltip("Timer that counts down how much time is remaining until Negative Penalty wears off."));
+			AddTooltip(searchTooltip("Timer that counts down how much time is remaining until Negative Penalty wears off. The timer only decrements when not in hitstop, which includes superfreeze and slowdown frames caused by RC."));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.currentState->players[i];
 				ImGui::TableNextColumn();
