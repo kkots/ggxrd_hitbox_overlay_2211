@@ -22,10 +22,12 @@ spec = importlib.util.spec_from_file_location(
  os.path.join("..", "regenerate_ini_and_update_readme.py")
 )
 regenerate_ini_and_update_readme = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(regenerate_ini_and_update_readme)
-
 cwd = os.getcwd()
 solution_folder = os.path.dirname(cwd)
+os.chdir(os.path.dirname(cwd))
+spec.loader.exec_module(regenerate_ini_and_update_readme)
+os.chdir(cwd)
+
 
 is_debug = False
 is_clean = False
@@ -344,7 +346,10 @@ if not os.path.isfile("../Detours/lib.X86/detours.a"):
   new_env["CFLAGS"] += " -D_WIN32_WINNT=0x501"  # this define wrecks std::thread and std::mutex
  
  subprocess.run(
-  ["make"],
+  [
+   "make",
+   "CFLAGS="+CFLAGS
+  ],
   cwd = detours_folder,
   env = new_env
  ).check_returncode()
@@ -367,21 +372,28 @@ if not os.path.isfile("../libpng/libpng.a"):
  print("Building libpng...")
  
  new_env = os.environ.copy()
- new_env["CC"] = CHOST + "-gcc"
- new_env["AR"] = CHOST + "-ar"
- new_env["RANLIB"] = CHOST + "-ranlib"
-
+ 
+ libpng_CFLAGS = CFLAGS
  has_optimization = False
- if "CFLAGS" in new_env:
-  for flag in new_env["CFLAGS"].split(" "):
-   if flag.strip().startswith("-O"):
-    has_optimization = True
+ for flag in CFLAGS.split(" "):
+  if flag.strip().startswith("-O"):
+   has_optimization = True
  
  if not has_optimization:
-  new_env["CFLAGS"] = CFLAGS + " -O2"
+  libpng_CFLAGS += " -O2"
  
  subprocess.run(
-  ["make", "-f", "scripts/makefile.gcc"],
+  [
+   "make",
+   "-f",
+   "scripts/makefile.gcc",
+   "CC=" + CHOST + "-gcc",
+   "AR=" + CHOST + "-ar",
+   "RANLIB=" + CHOST + "-ranlib",
+   "EXEEXT=.exe",
+   "LIB=../zlib/zlib.a",
+   "CFLAGS=" + libpng_CFLAGS
+  ],
   cwd = os.path.join(solution_folder, "libpng"),
   env = new_env
  ).check_returncode()
