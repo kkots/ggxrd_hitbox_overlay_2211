@@ -62,6 +62,17 @@ if is_clean:
  if os.path.isdir(build_folder):
   for name in os.listdir(build_folder):
    os.remove(os.path.join(build_folder, name))
+ 
+ subprocess.run(
+  ["make", "clean"],
+  cwd = os.path.join(solution_folder, "Detours")
+ ).check_returncode()
+ 
+ subprocess.run(
+  ["make", "-f", "scripts/makefile.gcc", "clean"],
+  cwd = os.path.join(solution_folder, "libpng")
+ ).check_returncode()
+ 
  exit(0)
 
 print(f"Will build a {build_folder} build.")

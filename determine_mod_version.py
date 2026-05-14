@@ -47,8 +47,76 @@ def read_hitbox_injector_version(injector_exe_path):
 # the patch to actually work.
 def is_patched_exe(guilty_gear_exe_path):
   with open(guilty_gear_exe_path, "rb") as file:
-    file.seek(0x970126)
-    return file.read(1) == b'\xe9'
+    hardcoded_patch_place_raw = 0x970126
+    file.seek(hardcoded_patch_place_raw)
+    if file.read(1) != b'\xe9':
+      return False
+    # this patch could be either hitbox overlay, or freecam
+    file.seek(0)
+    if file.read(2) != b"MZ":
+      raise Exception("Not a valid EXE.")
+    file.seek(0x3c)
+    nt_header_off = struct.unpack("<I", file.read(4))[0]
+    file.seek(nt_header_off)
+    if file.read(4) != b"PE\x00\x00":
+      raise Exception("Not a valid EXE.")
+    file.seek(nt_header_off + 0x34)
+    image_base = struct.unpack("<I", file.read(4))[0]
+    file.seek(nt_header_off + 6)
+    num_sections = struct.unpack("<H", file.read(2))[0]
+    file.seek(nt_header_off + 0x14)
+    size_of_optional_header = struct.unpack("<H", file.read(2))[0]
+    section_header_off = nt_header_off + 0x18 + size_of_optional_header
+    sections = []
+    
+    class Section:
+      def __init__(self, start_rva, start_raw):
+        self.start_rva = start_rva
+        self.start_raw = start_raw
+        
+        def __repr__(self):
+          return "(RVA: " + hex(self.start_rva) + "; RAW: " + hex(self.start_raw) + ")"
+    
+    def va_to_raw(va):
+      rva = va - image_base
+      for section in reversed(sections):
+        if rva >= section.start_rva:
+          return section.start_raw + rva - section.start_rva
+      return 0
+    
+    def raw_to_va(raw):
+      for section in reversed(sections):
+        if raw >= section.start_raw:
+          return image_base + section.start_rva + raw - section.start_raw
+      return 0
+    
+    for section_ind in range(0, num_sections):
+      file.seek(section_header_off + 0xc)
+      section_rva = struct.unpack("<I", file.read(4))[0]
+      file.seek(section_header_off + 0x14)
+      section_raw = struct.unpack("<I", file.read(4))[0]
+      sections.append(Section(section_rva, section_raw))
+      section_header_off += 0x28
+    
+    file.seek(hardcoded_patch_place_raw + 1)
+    offset = struct.unpack("<i", file.read(4))[0]
+    new_addr = va_to_raw(raw_to_va(hardcoded_patch_place_raw) + 5 + offset)
+    file.seek(new_addr)
+    if file.read(1) != b'\xe8':
+      return False  # this is some other patcher that did its work differently
+    file.seek(new_addr + 5)  # skip the call
+    if file.read(1) != b'\x68':  # PUSH StringAddr instruction
+      return False  # this is some other patcher that did its work differently
+    offset = va_to_raw(struct.unpack("<I", file.read(4))[0])
+    file.seek(offset)
+    byte_array = []
+    while True:
+      next_byte = file.read(1)[0]
+      if next_byte == 0:
+        break
+      byte_array.append(next_byte)
+    mod_name = bytearray(byte_array).decode("utf-8")
+    return mod_name == "ggxrd_hitbox_overlay.dll"
 
 # bat_path - the full path to the BootGGXrd.bat
 # This function does not determine the correctness of patching, only whether
