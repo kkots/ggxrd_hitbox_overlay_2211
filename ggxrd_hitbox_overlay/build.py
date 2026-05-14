@@ -69,6 +69,11 @@ if is_clean:
  ).check_returncode()
  
  subprocess.run(
+  ["make", "clean"],
+  cwd = os.path.join(solution_folder, "zlib")
+ ).check_returncode()
+ 
+ subprocess.run(
   ["make", "-f", "scripts/makefile.gcc", "clean"],
   cwd = os.path.join(solution_folder, "libpng")
  ).check_returncode()
