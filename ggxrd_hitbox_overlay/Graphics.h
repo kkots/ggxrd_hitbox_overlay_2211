@@ -26,6 +26,7 @@
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
 using FSuspendRenderingThreadDestructor_t = void(__thiscall*)(char* thisArg);
+using appSleep_t = void(__cdecl*)(float sleepAmount);
 
 class Graphics
 {
@@ -123,6 +124,9 @@ public:
 	bool isFullscreen() const { return fullscreen; }
 	float viewportW = 0.F;
 	float viewportH = 0.F;
+	appSleep_t appSleep = nullptr;
+	DWORD UpdateD3DDeviceFromViewports_sleepLoop_numConsecutiveSleeps = 0;
+	static void __cdecl UpdateD3DDeviceFromViewports_sleepLoop_Hook(float sleepAmount);
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;

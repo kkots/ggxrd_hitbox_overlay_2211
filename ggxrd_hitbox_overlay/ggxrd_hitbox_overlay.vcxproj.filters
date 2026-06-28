@@ -300,6 +300,9 @@
     <ClInclude Include="atlbase_mingw.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MomentScript.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -483,6 +486,9 @@
     <ClCompile Include="EndSceneInside.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MomentScript.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
@@ -490,6 +496,7 @@
     <None Include="..\regenerate_ini_and_update_readme.ps1" />
     <None Include="build.py" />
     <None Include="..\regenerate_ini_and_update_readme.py" />
+    <None Include="moment_script.py" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\ggxrd_hitbox_overlay.ini" />

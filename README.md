@@ -2235,3 +2235,10 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2026 June 2: Version 7.33:
 1) Fixed wallstick value on the framebar being incorrect on the frame a hit connects during wallstick.
 2) All code pertaining to the "Dodge OBS Recording" function has been hidden behind a WITH_OBS_DODGING macro that must now be set to a defined value (something that returns positive with #ifdef) in order to include such code in the compilation.
+- 2026 ?? ??: Version 7.34:
+1) Modified the infinite loop where the game keeps trying to call IDirect3DDevice9::Reset, sleeping for 1 second after each attempt, until it succeeds. I think that loop is very dumb, and the game was observed to freeze on it indefinitely with some error code that is part of Direct3D9 error codes. Now, if the number of tries exceeds 10, the game quits forcefully. There is no setting to disable this change, and it gets applied by default when the mod is loaded.
+2) Fixed a problem when the 'Settings - Framebar Settings - Each Projectile On A Separate Framebar' settings is checked and the framebar is scrolled back that caused projectile framebar titles to display "???" instead of whatever the projectile name is.
+3) Fixed a crash when framebar is attempting to draw with -1 frames if the mod was injected on the Rematch screen and then a match proceeds to start.
+4) Fixed framebar emptying instantly when a round was finished by Dead on Time in online and Versus modes (was not emptying in Training Mode).
+5) Now able to scroll the framebar on the Rematch screen. (Previously, the scrollbar would move around, but the framebar would not be redrawn.)
+6) Fixed the last move being displayed twice in the Startup field's tooltip if there's a chain of moves that were canceled into each other, like Slayer Backdash + Super jump prejump + K Dandy Step + Crosswise Heel (previously would display an exta '+ Crosswise Heel' at the end, duplicating it).

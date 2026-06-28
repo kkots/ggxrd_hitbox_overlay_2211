@@ -1155,12 +1155,28 @@ void Game::clearInputHistory() {
 bool Game::is0xa8PreparingCamera() const {
 	char* aswEngVal = *aswEngine;
 	if (!aswEngVal || !aswEng0x1c710cOffset) return false;
-	char* aswEng0x11c710c_ac = *(char**)(aswEngVal + 4 + aswEng0x1c710cOffset + 0xac);
-	if (!aswEng0x11c710c_ac) return false;
-	if (!aswEng0x11c710c_ac) return false;
-	uintptr_t vtable = *(uintptr_t*)aswEng0x11c710c_ac;
-	return vtable == normal0xa8ElementVtable
-		&& *(int*)(aswEng0x11c710c_ac + 0x24) != 0;
+	int aswEng0x11c710c_command = *(int*)(aswEngVal + 4 + aswEng0x1c710cOffset + 0xdc);
+	entityList.populate();
+	return (aswEng0x11c710c_command == 10 || aswEng0x11c710c_command == 7)
+		&& (
+			entityList.slots[0].hp() == 0 || entityList.slots[1].hp() == 0
+			|| getMatchTimer() == 0
+		);
+	// aswEngVal + 4 + aswEng0x1c710cOffset + 0xac is a pointer to a vtable + data object that controls the camera, hud and animations, but
+	// there's some kind of delay in switching these out. For example, there's at least one frame after someone died when the camera
+	// isn't spinning yet, and spinning will not start when a superfreeze is in progress, so dying during a superfreeze, like by a DoT,
+	// is a great way to confuse us on whether the match is still "running."
+	// Luckily, 0xdc stores the index that corresponds to the 0xac, and here're values of 0xdc gathered via debugging Training and Versus:
+	// 3 entry versus (intro for both playters)
+	// 4 briefly before 6
+	// 6 zoom in before battle
+	// 7 battle in versus
+	// 10 normal in training
+	// 13 death in both training mode and versus
+	// 14 round win
+	// 15 victory cutscene
+	// 18 one lying on the floor the other reading victory quote
+	// 23 (briefly) I pressed rematch on the versus rematch screen
 }
 
 const char* Game::formatGameMode(GameMode gameMode) {

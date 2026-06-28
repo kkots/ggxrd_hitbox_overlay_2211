@@ -9255,7 +9255,7 @@ void UI::drawSearchableWindows() {
 			" landing, normally there's 1 frame upon landing during which normals can't be used but blocking is possible."
 			" This frame is not included in the total frames as it is not considered part of the move.\n"
 			"\n"
-			"If the move recovery lets you attack first and then some times passes and then it lets you block, or vice versa"
+			"If the move recovery lets you attack first and then some time passes and then it lets you block, or vice versa"
 			" the display will say either 'X can't block+Y can't attack' or 'X can't attack+Y can't block'. In this case"
 			" the first part is the number of frames during which you were unable to block/attack and the second part is"
 			" the number of frames during which you were unable to attack/block.\n"
@@ -10805,12 +10805,9 @@ int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
 bool UI::needShowFramebar() const {
 	if (settings.showFramebar
 			&& (!settings.closingModWindowAlsoHidesFramebar || windowShowMode != WindowShowMode_None)
-			&& !(
-				#ifdef WITH_OBS_DODGING
-				drawingPostponed &&
-				#endif
-				pauseMenuOpen
-			)
+			#ifdef WITH_OBS_DODGING
+			&& !(drawingPostponed && pauseMenuOpen)
+			#endif
 			&& !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn
 			&& !gifMode.mostModDisabled) {
 		GameMode mode = game.getGameMode();
@@ -16686,7 +16683,7 @@ void UI::onFramebarAdvanced() {
 
 // runs on the main thread
 void UI::drawFramebars() {
-	if (endScene.playerFramebars.size() != 2) return;
+	if (endScene.playerFramebars.size() != 2 || framebarSettings.framesCount == -1) return;
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
 	const bool showStrikeInvulOnFramebar = settings.showStrikeInvulOnFramebar;
 	const bool showSuperArmorOnFramebar = settings.showSuperArmorOnFramebar;
@@ -17379,22 +17376,25 @@ void UI::drawFramebars() {
 						idleTimeRemaining = 0;
 						realTimeRewound = ui.framebarSettings.scrollXInFrames - idleTimeRewound;
 					}
+					int posRel = framebar->stateHead->framesCount;
 					if (realTimeRewound == 0) {
-						int posRel = framebar->toRelative(EntityFramebar::confinePos(drawFramebars_framebarPosition - framebar->stateHead->idleTime));
-						if (posRel < framebar->stateHead->framesCount) {
-							frame = &framebar->frames[posRel];
-						} else {
-							frame = &emptyFrame;
-						}
-					} else if (framebar->stateHead->framesCount - realTimeRewound <= 0) {
-						frame = &emptyFrame;
+						posRel = framebar->toRelative(EntityFramebar::confinePos(
+							drawFramebars_framebarPosition
+								+ ui.framebarSettings.scrollXInFrames
+								- framebar->stateHead->idleTime
+						));
+					} else if (realTimeRewound < framebar->stateHead->framesCount) {
+						posRel = framebar->toRelative(EntityFramebar::confinePos(
+							drawFramebars_framebarPosition
+								+ ui.framebarSettings.scrollXInFrames
+								- framebar->stateHead->idleTime
+								- realTimeRewound
+						));
+					}
+					if (posRel < framebar->stateHead->framesCount) {
+						frame = &framebar->frames[posRel];
 					} else {
-						int posRel = framebar->toRelative(EntityFramebar::confinePos(drawFramebars_framebarPosition - framebar->stateHead->idleTime - realTimeRewound));
-						if (posRel < framebar->stateHead->framesCount) {
-							frame = &framebar->frames[posRel];
-						} else {
-							frame = &emptyFrame;
-						}
+						frame = &emptyFrame;
 					}
 				} else {
 					const CombinedProjectileFramebar& combinedProjectileFramebar = (const CombinedProjectileFramebar&)entityFramebar;

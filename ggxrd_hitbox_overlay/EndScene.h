@@ -763,6 +763,9 @@ private:
 	aMenuIsOpen_t aMenuIsOpen = nullptr;
 	openBattleChatWithoutMenu_t openBattleChatWithoutMenu = nullptr;
 	IsIMEFormOpen_t IsIMEFormOpen = nullptr;
+	bool needTickFramebar = false;
+	bool frameHasChangedForTickingFramebar = false;
+	void tickFramebar();
 };
 
 extern EndScene endScene;

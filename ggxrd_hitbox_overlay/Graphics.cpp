@@ -101,6 +101,15 @@ bool Graphics::onDllMain() {
 	if (!UpdateD3DDeviceFromViewportsCallPlace) return false;
 	orig_UpdateD3DDeviceFromViewports = (UpdateD3DDeviceFromViewports_t)followRelativeCall(UpdateD3DDeviceFromViewportsCallPlace);
 	if (orig_UpdateD3DDeviceFromViewports) {
+		uintptr_t sleepLoop = sigscanForward((uintptr_t)orig_UpdateD3DDeviceFromViewports, "51 f3 0f 11 04 24 >e8 ?? ?? ?? ?? 83 c4 04 eb d4", 0x30d);
+		if (sleepLoop) {
+			appSleep = (appSleep_t)followRelativeCall(sleepLoop);
+			std::vector<char> newBytes(5);
+			newBytes[0] = '\xe9';
+			*(int*)(newBytes.data() + 1) = calculateRelativeCallOffset(sleepLoop, (uintptr_t)UpdateD3DDeviceFromViewports_sleepLoop_Hook);
+			detouring.patchPlace(sleepLoop, newBytes);
+		}
+		
 		auto UpdateD3DDeviceFromViewportsHookPtr = &HookHelp::UpdateD3DDeviceFromViewportsHook;
 		if (!detouring.attach(
 			&(PVOID&)(orig_UpdateD3DDeviceFromViewports),
@@ -415,6 +424,7 @@ void Graphics::beginSceneHook(IDirect3DDevice9* device) {
 // This function is called from the main thread.
 // It 'initializes the D3D device for the current viewport state.'
 void Graphics::HookHelp::UpdateD3DDeviceFromViewportsHook() {
+	graphics.UpdateD3DDeviceFromViewports_sleepLoop_numConsecutiveSleeps = 0;
 	graphics.suspenderThreadId = GetCurrentThreadId();
 	// This function will call the constructor of class FSuspendRenderingThread, which we hooked.
 	// That constructor stops the rendering thread, so that this function could manipulate graphics
@@ -424,6 +434,17 @@ void Graphics::HookHelp::UpdateD3DDeviceFromViewportsHook() {
 	graphics.orig_UpdateD3DDeviceFromViewports((char*)this);
 	graphics.suspenderThreadId = NULL;
 	return;
+}
+
+// runs on the main thread
+void Graphics::UpdateD3DDeviceFromViewports_sleepLoop_Hook(float sleepAmount) {
+	++graphics.UpdateD3DDeviceFromViewports_sleepLoop_numConsecutiveSleeps;
+	if (graphics.UpdateD3DDeviceFromViewports_sleepLoop_numConsecutiveSleeps > 10) {
+		// game is frozen, there is no fix, just end it all
+		SendMessageW(keyboard.thisProcessWindow, WM_QUIT, 0, 0);
+	} else {
+		graphics.appSleep(sleepAmount);
+	}
 }
 
 void Graphics::resetHook() {

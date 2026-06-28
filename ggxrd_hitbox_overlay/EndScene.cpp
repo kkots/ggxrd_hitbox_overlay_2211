@@ -1025,6 +1025,7 @@ void EndScene::sendText(const wchar_t* text) {
 
 // Runs on the main thread. Called once every frame when a match is running, including freeze mode or when Pause menu is open
 void EndScene::logic() {
+	
 	actUponKeyStrokesThatAlreadyHappened();
 	
 	performBattleChat();
@@ -1044,6 +1045,7 @@ void EndScene::logic() {
 		
 		bool isRunning = EndScene::isRunning();
 		entityList.populate();
+		
 		needDrawInputs = false;
 		if (requestedInputHistoryDraw) needDrawInputs = true;
 		if (gifMode.showInputHistory && !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
@@ -1141,6 +1143,7 @@ void EndScene::logic() {
 		if (!*aswEngine || currentState->startedNewRound && gifMode.editHitboxes || gifMode.mostModDisabled) {
 			ui.stopHitboxEditMode();
 		}
+		frameHasChangedForTickingFramebar = false;
 		DWORD aswEngineTickCount = getAswEngineTick();
 		bool areAnimationsNormal = entityList.areAnimationsNormal();
 		if (isNormalMode) {
@@ -1151,14 +1154,14 @@ void EndScene::logic() {
 				prepareDrawData(&needToClearHitDetection);
 			}
 		}
-		if (!gifMode.mostModDisabled) {
-			if (currentState->prevAswEngineTickCountForInputs != aswEngineTickCount) {
-				prepareInputs();
-				currentState->prevAswEngineTickCountForInputs = aswEngineTickCount;
-			}
-			
-			drawHitboxEditorHitboxes();
+		if (currentState->prevAswEngineTickCountForInputs != aswEngineTickCount) {
+			prepareInputs();
+			currentState->prevAswEngineTickCountForInputs = aswEngineTickCount;
 		}
+		
+		drawHitboxEditorHitboxes();
+		
+		tickFramebar();
 	}
 	if (needToClearHitDetection && !gifMode.mostModDisabled) {
 		currentState->attackHitboxes.clear();
@@ -1195,6 +1198,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		previousTimeOfTakingScreen = ~0;
 	}
 	bool frameHasChanged = prevAswEngineTickCountMain != aswEngineTickCount && !game.isRoundend();
+	frameHasChangedForTickingFramebar = frameHasChanged;
 	prevAswEngineTickCountMain = aswEngineTickCount;
 	
 	if (frameHasChanged && !gifMode.mostModDisabled) {
@@ -1557,160 +1561,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
 		throws.drawThrows();
 		logOnce(fputs("throws.drawThrows() call successful\n", logfile));
-		
-		bool combinedFramebarsSettingsChanged = false;
-		bool eachProjectileOnSeparateFramebarChanged = false;
-		#define trackSetting(name) \
-			if (name != settings.name) { \
-				name = settings.name; \
-				combinedFramebarsSettingsChanged = true; \
-			}
-		trackSetting(combineProjectileFramebarsWhenPossible)
-		if (eachProjectileOnSeparateFramebar != settings.eachProjectileOnSeparateFramebar) {
-			eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
-			combinedFramebarsSettingsChanged = true;
-			eachProjectileOnSeparateFramebarChanged = true;
-		}
-		trackSetting(condenseIntoOneProjectileFramebar)
-		trackSetting(neverIgnoreHitstop)
-		#undef trackSetting
-		
-		
-		int newFramesCount = settings.framebarDisplayedFramesCount;
-		int newStoredFramesCount = settings.framebarStoredFramesCount;
-		if (newStoredFramesCount < 1) {
-			newStoredFramesCount = 1;
-		}
-		if (newStoredFramesCount > (int)FRAMES_MAX) {
-			newStoredFramesCount = FRAMES_MAX;
-		}
-		if (newFramesCount > newStoredFramesCount) {
-			newFramesCount = newStoredFramesCount;
-		}
-		if (newFramesCount < 1) {
-			newFramesCount = 1;
-		}
-		
-		if (newFramesCount != framesCount) {
-			framesCount = newFramesCount;
-			combinedFramebarsSettingsChanged = true;
-		}
-		
-		if (newStoredFramesCount != storedFramesCount) {
-			storedFramesCount = newStoredFramesCount;
-			combinedFramebarsSettingsChanged = true;
-		}
-		
-		int framebarTotalFramesUnlimitedUse = neverIgnoreHitstop
-			? endScene.getTotalFramesHitstopUnlimited()
-			: endScene.getTotalFramesUnlimited();
-		
-		// Capped between 0 and framebarSettings.storedFramesCount, inclusive
-		int framebarTotalFramesCapped;
-		if (framebarTotalFramesUnlimitedUse > storedFramesCount) {
-			framebarTotalFramesCapped = storedFramesCount;
-		} else {
-			framebarTotalFramesCapped = framebarTotalFramesUnlimitedUse;
-		}
-		
-		bool newFramebarAutoScroll = ui.getFramebarAutoScroll();
-		if (newFramebarAutoScroll != framebarAutoScroll) {
-			framebarAutoScroll = newFramebarAutoScroll;
-			combinedFramebarsSettingsChanged = true;
-		}
-		
-		int newScrollXInFrames;
-		if (framebarTotalFramesCapped > framesCount) {
-			
-			int totalScrollableFrames = framebarTotalFramesCapped  // total number of frames
-				- framesCount;  // number of visible frames
-			
-			if (framebarAutoScroll) {
-				newScrollXInFrames = 0;
-			} else {
-				newScrollXInFrames = std::lroundf(
-					(float)(totalScrollableFrames + 1)  // adding one to give an even chance to frames that are on the edges
-						* ui.getFramebarScrollX() / ui.getFramebarMaxScrollX()  // scroll ratio: from 0.F to 1.F
-					- 0.5F
-				);
-				if (newScrollXInFrames < 0) {
-					newScrollXInFrames = 0;
-				}
-				if (newScrollXInFrames > totalScrollableFrames) {
-					newScrollXInFrames = totalScrollableFrames;
-				}
-			}
-			
-		} else {
-			newScrollXInFrames = 0;
-		}
-		
-		if (newScrollXInFrames != scrollXInFrames) {
-			scrollXInFrames = newScrollXInFrames;
-			combinedFramebarsSettingsChanged = true;
-		}
-		
-		
-		// Let UI know which settings we actually used, because UI may change them before drawing the framebar
-		ui.framebarSettings.neverIgnoreHitstop = settings.neverIgnoreHitstop;
-		ui.framebarSettings.eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
-		ui.framebarSettings.condenseIntoOneProjectileFramebar = settings.condenseIntoOneProjectileFramebar;
-		ui.framebarSettings.framesCount = framesCount;
-		ui.framebarSettings.storedFramesCount = storedFramesCount;
-		ui.framebarSettings.scrollXInFrames = scrollXInFrames;
-		
-		if (combinedFramebarsSettingsChanged || frameHasChanged) {
-			
-			int framebarPositionUse;
-			int framesTotalUse;
-			if (neverIgnoreHitstop) {
-				framebarPositionUse = cs->framebarPositionHitstop;
-				framesTotalUse = cs->framebarTotalFramesHitstopUnlimited;
-			} else {
-				framebarPositionUse = cs->framebarPosition;
-				framesTotalUse = cs->framebarTotalFramesUnlimited;
-			}
-			int framebarPositionUseWithoutScroll = framebarPositionUse;
-			framebarPositionUse -= scrollXInFrames;
-			if (framebarPositionUse < 0) {
-				framebarPositionUse += _countof(PlayerFramebar::frames);
-			}
-			framesTotalUse -= scrollXInFrames;
-			int lastNFramesToCheck = min(framesCount, framesTotalUse);
-			const bool recheckCompletelyEmpty = lastNFramesToCheck != FRAMES_MAX;
-			
-			combinedFramebars.clear();
-			if (!eachProjectileOnSeparateFramebar) {
-				combinedFramebars.reserve(projectileFramebars.size());
-				const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop;
-				for (ThreadUnsafeSharedPtr<ProjectileFramebar>& source : projectileFramebars) {
-					if (aswEngineTickCount >= source->creationTick && aswEngineTickCount < source->deletionTick) {
-						Framebar& from = combinedFramebarMustIncludeHitstop ? source->hitstop : source->main;
-						if (!(from.stateHead->completelyEmpty || recheckCompletelyEmpty && from.lastNFramesCompletelyEmpty(framebarPositionUse, lastNFramesToCheck))) {
-							CombinedProjectileFramebar& entityFramebar = findCombinedFramebar(
-								*source, combinedFramebarMustIncludeHitstop,
-								scrollXInFrames, framebarPositionUse, framesTotalUse);
-							entityFramebar.combineFramebar(framebarPositionUse, framebarPositionUseWithoutScroll, scrollXInFrames, framesTotalUse,
-								from, &*source);
-						}
-					}
-				}
-				for (CombinedProjectileFramebar& entityFramebar : combinedFramebars) {
-					entityFramebar.determineName(framebarPositionUse, scrollXInFrames, combinedFramebarMustIncludeHitstop);
-				}
-			} else if (eachProjectileOnSeparateFramebarChanged) {
-				for (ThreadUnsafeSharedPtr<ProjectileFramebar>& source : projectileFramebars) {
-					int iEnd = source->hitstop.stateHead->framesCount;
-					for (int i = 0; i < iEnd; ++i) {
-						source->hitstop.frames[i].next = nullptr;
-					}
-					iEnd = source->main.stateHead->framesCount;
-					for (int i = 0; i < iEnd; ++i) {
-						source->main.frames[i].next = nullptr;
-					}
-				}
-			}
-		}
 	}
 	
 #ifdef LOG_PATH
@@ -8296,6 +8146,10 @@ void EndScene::cloneState(EndSceneStoredState* dest, EndSceneStoredState* src) {
 	// framebars leave trace states, since they clone a new state out each time they advance
 }
 
+// This was originally used to decide whether to draw hitboxes.
+// Boxes would only be drawn after the round starts and when the camera spins.
+// Boxes would not be drawn on round start, when the screen is black, when the camera is panning in on roundstart,
+// before roundstart and on round end animations and match end animations.
 bool EndScene::isRunning() {
 	return (
 		game.isMatchRunning()
@@ -8563,6 +8417,166 @@ void EndScene::performBattleChat() {
 			auto it = battleTextsToSend.begin();
 			sendText(it->c_str());
 			battleTextsToSend.erase(it);
+		}
+	}
+}
+
+void EndScene::tickFramebar() {
+	
+	bool combinedFramebarsSettingsChanged = false;
+	bool eachProjectileOnSeparateFramebarChanged = false;
+	
+	#define trackSetting(name) \
+		if (name != settings.name) { \
+			name = settings.name; \
+			combinedFramebarsSettingsChanged = true; \
+		}
+	trackSetting(combineProjectileFramebarsWhenPossible)
+	if (eachProjectileOnSeparateFramebar != settings.eachProjectileOnSeparateFramebar) {
+		eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+		combinedFramebarsSettingsChanged = true;
+		eachProjectileOnSeparateFramebarChanged = true;
+	}
+	trackSetting(condenseIntoOneProjectileFramebar)
+	trackSetting(neverIgnoreHitstop)
+	#undef trackSetting
+	
+	int newFramesCount = settings.framebarDisplayedFramesCount;
+	int newStoredFramesCount = settings.framebarStoredFramesCount;
+	if (newStoredFramesCount < 1) {
+		newStoredFramesCount = 1;
+	}
+	if (newStoredFramesCount > (int)FRAMES_MAX) {
+		newStoredFramesCount = FRAMES_MAX;
+	}
+	if (newFramesCount > newStoredFramesCount) {
+		newFramesCount = newStoredFramesCount;
+	}
+	if (newFramesCount < 1) {
+		newFramesCount = 1;
+	}
+	
+	if (newFramesCount != framesCount) {
+		framesCount = newFramesCount;
+		combinedFramebarsSettingsChanged = true;
+	}
+	
+	if (newStoredFramesCount != storedFramesCount) {
+		storedFramesCount = newStoredFramesCount;
+		combinedFramebarsSettingsChanged = true;
+	}
+	
+	int framebarTotalFramesUnlimitedUse = neverIgnoreHitstop
+		? endScene.getTotalFramesHitstopUnlimited()
+		: endScene.getTotalFramesUnlimited();
+	
+	// Capped between 0 and framebarSettings.storedFramesCount, inclusive
+	int framebarTotalFramesCapped;
+	if (framebarTotalFramesUnlimitedUse > storedFramesCount) {
+		framebarTotalFramesCapped = storedFramesCount;
+	} else {
+		framebarTotalFramesCapped = framebarTotalFramesUnlimitedUse;
+	}
+	
+	bool newFramebarAutoScroll = ui.getFramebarAutoScroll();
+	if (newFramebarAutoScroll != framebarAutoScroll) {
+		framebarAutoScroll = newFramebarAutoScroll;
+		combinedFramebarsSettingsChanged = true;
+	}
+	
+	int newScrollXInFrames;
+	if (framebarTotalFramesCapped > framesCount) {
+		
+		int totalScrollableFrames = framebarTotalFramesCapped  // total number of frames
+			- framesCount;  // number of visible frames
+		
+		if (framebarAutoScroll) {
+			newScrollXInFrames = 0;
+		} else {
+			newScrollXInFrames = std::lroundf(
+				(float)(totalScrollableFrames + 1)  // adding one to give an even chance to frames that are on the edges
+					* ui.getFramebarScrollX() / ui.getFramebarMaxScrollX()  // scroll ratio: from 0.F to 1.F
+				- 0.5F
+			);
+			if (newScrollXInFrames < 0) {
+				newScrollXInFrames = 0;
+			}
+			if (newScrollXInFrames > totalScrollableFrames) {
+				newScrollXInFrames = totalScrollableFrames;
+			}
+		}
+		
+	} else {
+		newScrollXInFrames = 0;
+	}
+	
+	if (newScrollXInFrames != scrollXInFrames) {
+		scrollXInFrames = newScrollXInFrames;
+		combinedFramebarsSettingsChanged = true;
+	}
+	
+	// Let UI know which settings we actually used, because UI may change them before drawing the framebar
+	ui.framebarSettings.neverIgnoreHitstop = settings.neverIgnoreHitstop;
+	ui.framebarSettings.eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+	ui.framebarSettings.condenseIntoOneProjectileFramebar = settings.condenseIntoOneProjectileFramebar;
+	ui.framebarSettings.framesCount = framesCount;
+	ui.framebarSettings.storedFramesCount = storedFramesCount;
+	ui.framebarSettings.scrollXInFrames = scrollXInFrames;
+	
+	EndSceneStoredState* cs = currentState;
+	
+	if (combinedFramebarsSettingsChanged || frameHasChangedForTickingFramebar) {
+		
+		int framebarPositionUse;
+		int framesTotalUse;
+		if (neverIgnoreHitstop) {
+			framebarPositionUse = cs->framebarPositionHitstop;
+			framesTotalUse = cs->framebarTotalFramesHitstopUnlimited;
+		} else {
+			framebarPositionUse = cs->framebarPosition;
+			framesTotalUse = cs->framebarTotalFramesUnlimited;
+		}
+		int framebarPositionUseWithoutScroll = framebarPositionUse;
+		framebarPositionUse -= scrollXInFrames;
+		if (framebarPositionUse < 0) {
+			framebarPositionUse += _countof(PlayerFramebar::frames);
+		}
+		framesTotalUse -= scrollXInFrames;
+		int lastNFramesToCheck = min(framesCount, framesTotalUse);
+		const bool recheckCompletelyEmpty = lastNFramesToCheck != FRAMES_MAX;
+		
+		DWORD aswEngineTickCount = getAswEngineTick();
+		
+		combinedFramebars.clear();
+		if (!eachProjectileOnSeparateFramebar) {
+			combinedFramebars.reserve(projectileFramebars.size());
+			const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop;
+			for (ThreadUnsafeSharedPtr<ProjectileFramebar>& source : projectileFramebars) {
+				if (aswEngineTickCount >= source->creationTick && aswEngineTickCount < source->deletionTick) {
+					Framebar& from = combinedFramebarMustIncludeHitstop ? source->hitstop : source->main;
+					if (!(from.stateHead->completelyEmpty || recheckCompletelyEmpty && from.lastNFramesCompletelyEmpty(framebarPositionUse, lastNFramesToCheck))) {
+						CombinedProjectileFramebar& entityFramebar = findCombinedFramebar(
+							*source, combinedFramebarMustIncludeHitstop,
+							scrollXInFrames, framebarPositionUse, framesTotalUse);
+						entityFramebar.combineFramebar(framebarPositionUse, framebarPositionUseWithoutScroll, scrollXInFrames, framesTotalUse,
+							from, &*source);
+					}
+				}
+			}
+			for (CombinedProjectileFramebar& entityFramebar : combinedFramebars) {
+				entityFramebar.determineName(framebarPositionUse, scrollXInFrames, combinedFramebarMustIncludeHitstop);
+			}
+		} else if (eachProjectileOnSeparateFramebarChanged) {
+			for (ThreadUnsafeSharedPtr<ProjectileFramebar>& source : projectileFramebars) {
+				int iEnd = source->hitstop.stateHead->framesCount;
+				for (int i = 0; i < iEnd; ++i) {
+					source->hitstop.frames[i].next = nullptr;
+				}
+				iEnd = source->main.stateHead->framesCount;
+				for (int i = 0; i < iEnd; ++i) {
+					source->main.frames[i].next = nullptr;
+				}
+			}
 		}
 	}
 }

@@ -109,7 +109,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>DIRECTINPUT_VERSION=0x0800;_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;_CRT_SECURE_NO_WARNINGS;IMGUI_DISABLE_DEBUG_TOOLS;IMGUI_IMPL_WIN32_DISABLE_GAMEPAD;WIN32;NDEBUG;GGXRDHITBOXOVERLAY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WITH_OBS_DODGING=1;DIRECTINPUT_VERSION=0x0800;_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;_CRT_SECURE_NO_WARNINGS;IMGUI_DISABLE_DEBUG_TOOLS;IMGUI_IMPL_WIN32_DISABLE_GAMEPAD;WIN32;NDEBUG;GGXRDHITBOXOVERLAY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -227,6 +227,7 @@
     <ClInclude Include="LineReader.h" />
     <ClInclude Include="LineReaderFromString.h" />
     <ClInclude Include="EndSceneStoredState.h" />
+    <ClInclude Include="MomentScript.h" />
     <ClInclude Include="NamePairManager.h" />
     <ClInclude Include="PackTextureSizes.h" />
     <ClInclude Include="PinAtlas.h" />
@@ -318,6 +319,7 @@
     <ClCompile Include="LineReader.cpp" />
     <ClCompile Include="LineReaderFromString.cpp" />
     <ClCompile Include="logging.cpp" />
+    <ClCompile Include="MomentScript.cpp" />
     <ClCompile Include="Moves.cpp" />
     <ClCompile Include="NamePairManager.cpp" />
     <ClCompile Include="pch.cpp">
@@ -355,6 +357,7 @@
     <None Include="..\regenerate_ini_and_update_readme.ps1" />
     <None Include="..\regenerate_ini_and_update_readme.py" />
     <None Include="build.py" />
+    <None Include="moment_script.py" />
     <None Include="prebuild.ps1" />
     <None Include="README.md" />
   </ItemGroup>

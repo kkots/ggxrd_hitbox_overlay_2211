@@ -1013,18 +1013,18 @@ void PlayerInfo::printStartup(char* buf, size_t bufSize, std::vector<NameDuratio
 	for (int i = 0; ; ++i) {
 		int charsPrinted = -1;
 		if (uhh == 0) {
-			if (elems) {
+			if (elems && i == 0) {
 				elems->push_back({ lastMoveNameBeforeSuperfreeze.c_str(), superfreezeStartup });
 				elems->push_back({ lastMoveNameAfterSuperfreeze.c_str(), startupDisp - superfreezeStartup });
 			}
 			charsPrinted = sprintf_s(buf, bufSize, "%d+%d", superfreezeStartup, startupDisp - superfreezeStartup);
 		} else if (uhh == 1) {
-			if (elems) {
+			if (elems && i == 0) {
 				elems->push_back({ lastName, superfreezeStartup });
 			}
 			charsPrinted = sprintf_s(buf, bufSize, "%d", superfreezeStartup);
 		} else if (uhh == 2) {
-			if (elems) {
+			if (elems && i == 0) {
 				elems->push_back({ lastName, startupDisp });
 			}
 			if (prevStartupsDisp.count && superfreezeStartup) {
