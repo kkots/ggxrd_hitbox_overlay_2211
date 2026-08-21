@@ -1780,6 +1780,15 @@ Transparency in the game is actually inverted, meaning the background is fully o
 
 To turn off `Post-Effect` automatically whenever you make the background black, you could set the `turnOffPostEffectWhenMakingBackgroundBlack` setting in the INI file to true (is true by default) or tick the 'Settings - Hitbox Settings - Turn Off Post-Effect When Making Background Black' checkbox (ticked by default). Or, alternatively, you could use the `togglePostEffectOnOff` keyboard shortcut, which is set in the INI file, to turn the Post-Effect on or off manually using a hotkey (the default hotkey is not set) (in UI, it's located in Settings - Keyboard Shortcuts - Toggle Post-Effect On/Off). Turning Post-Effect on/off this way does not require reloading the match! This is much faster than going to the main menu and changing it there!
 
+### Screenshotting just the special effect or just the character
+
+In mod's UI - Hitboxes, there's a bunch of checkboxes you can use to alter what's displayed on the screen and what gets hidden:
+1) Hide Opponent (INI setting gifModeToggleHideOpponentOnly to set up key combo) - hides the dummy model (and effects; depends on 3);
+2) Hide Player (INI setting toggleHidePlayer to set up key combo) - hides the player model (and effects; depends on 4);
+3) Don't Hide Opponent's Effects (no INI setting; if you don't have access to the mod's UI, this feature is inaccessible to you) - when hiding the dummy, don't hide their effects;
+4) Don't Hide Player's Effects (no INI setting) - when hiding the player, don't hide their effects;
+5) Allow Creation Of Particles (no INI setting) - checked by default. When it is unchecked, special effects don't get created. This includes projectiles, like Roman Cancel effect, and particles, like tension sparkles and clouds of dust. The effects don't reappear once you check the checkbox, if you already missed the point of their creation, and they don't disappear once you uncheck the box, if they were already created.
+
 ### Screenshot saving location
 
 By default the mod saves the screenshot into clipboard buffer, meaning you can paste it afterwards into a graphics program which supports transparency. In order to save screenshots to a file or directory you can either specify it in the mod's UI window in its Settings, or you can add the `ggxrd_hitbox_overlay.ini` file into the same folder as the game executable and write the path into the `screenshotPath` setting in it, without quotes. Now when you save multiple screenshots in a row, each consecutive one will get a number in its name, increasing from 1 to infinity. Screenshots are never cleaned up, so if you never clean them up yourself, you might fill up your hard drive.  
@@ -2242,3 +2251,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 4) Fixed framebar emptying instantly when a round was finished by Dead on Time in online and Versus modes (was not emptying in Training Mode).
 5) Now able to scroll the framebar on the Rematch screen. (Previously, the scrollbar would move around, but the framebar would not be redrawn.)
 6) Fixed the last move being displayed twice in the Startup field's tooltip if there's a chain of moves that were canceled into each other, like Slayer Backdash + Super jump prejump + K Dandy Step + Crosswise Heel (previously would display an exta '+ Crosswise Heel' at the end, duplicating it).
+7) Added display for Jam's Renhoukyaku YRC window.
