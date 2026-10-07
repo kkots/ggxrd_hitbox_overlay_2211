@@ -238,7 +238,7 @@ def inject_multiple_dlls(list_of_dll_paths, /, uninject=False):
      IMAGE_NT_SIGNATURE = 0x4550
      nt_header = f.read(0xf8)  # sizeof(IMAGE_NT_HEADERS32)
      if read_dword(nt_header, 0) != IMAGE_NT_SIGNATURE:
-      return
+      return 0
      
      number_of_sections = read_ushort(nt_header, 4 + 2)  # IMAGE_NT_HEADER32::.FileHeader::NumberOfSections
      OFFSET_OF_OPTIONAL_HEADER = 0x18
@@ -290,7 +290,7 @@ def inject_multiple_dlls(list_of_dll_paths, /, uninject=False):
       + 4
      )
      if dir_size_remaining == 0:
-      return
+      return 0
      SIZE_OF_IMAGE_EXPORT_DIRECTORY = 0x28
      export_dir = f.read(SIZE_OF_IMAGE_EXPORT_DIRECTORY)
      OFFSET_OF_NUMBER_OF_FUNCTIONS = 0x14
