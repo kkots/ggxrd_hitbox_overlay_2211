@@ -200,7 +200,7 @@ def inject_multiple_dlls(list_of_dll_paths, /, uninject=False):
     if exit_code != 0:
      retval = True
     else:
-     retval = "Failed to uninject {Path(dll_path).name}."
+     retval = f"Failed to uninject {Path(dll_path).name}."
    else:
     found_addr = find_module(Path(dll_path).name)
     if exit_code == found_addr:
