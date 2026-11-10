@@ -486,9 +486,6 @@
     <ClCompile Include="EndSceneInside.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MomentScript.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

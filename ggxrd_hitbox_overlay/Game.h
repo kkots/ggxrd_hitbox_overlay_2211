@@ -56,6 +56,7 @@ enum ButtonCodeMenu {
 	BUTTON_CODE_MENU_RIGHT = 0x2,
 	BUTTON_CODE_MENU_DOWN = 0x4,
 	BUTTON_CODE_MENU_LEFT = 0x8,
+	BUTTON_CODE_MENU_LIST_OF_MEMBERS = 0x400,
 	BUTTON_CODE_MENU_RCODE = 0x1000,
 	BUTTON_CODE_MENU_MENU = 0x2000,
 	BUTTON_CODE_MENU_DECIDE = 0x4000,
@@ -106,6 +107,7 @@ using trainingStructProcessPlayRecordReset_t = void (__thiscall*)(void* thisArg)
 using functionInIsPlayInsideProcessPlayRecordReset_t = void* (__cdecl*)();
 using appRealloc_t = void*(__cdecl*)(void* Ptr, int NewSize, int Alignment_unused);  // just pass 8 into alignment. Passing 0 for Ptr allocates new memory. Non-0 reallocates. Passing NewSize 0 frees the memory.
 extern appRealloc_t appRealloc;
+using isButtonPressed_t = BOOL(__cdecl*)(int padID, int code);
 
 class Game {
 public:
@@ -308,6 +310,8 @@ private:
 	bool attemptedToFindFNameNames = false;
 	bool attemptedToSwapOutFPS = false;
 	bool swapOutFPS();
+	isButtonPressed_t orig_isButtonPressed = nullptr;
+	static BOOL isButtonPressedHook(int padID, ButtonCodeMenu code);
 };
 
 extern Game game;

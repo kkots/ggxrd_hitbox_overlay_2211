@@ -2545,6 +2545,7 @@ void UI::drawSearchableWindows() {
 				floatSettingPreset(settings.stickSpeedMultiplier, FLT_MIN, FLT_MAX, 0.1F, 0.2F);
 				keyComboControl(settings.quickBattleChat_sendImmediately);
 				keyComboControl(settings.openBattleChatPrompt);
+				keyComboControl(settings.showListOfMembers);
 			}
 			popSearchStack();
 			if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {

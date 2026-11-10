@@ -348,7 +348,27 @@ bool Game::onDllMain() {
 	
 	onConnectionTierChanged();
 	
+	// ghidra sig: b8 01 00 00 00 84 05 ?? ?? ?? ?? 75 06 09 05 ?? ?? ?? ?? 8b 44 24 04 8b 0d ?? ?? ?? ?? 56 50 33 f6 e8 ?? ?? ?? ?? 85 c0 74 0c 8b 48 08 8b 41 0c 23 44 24 0c 5e c3 8b c6 5e c3
+	orig_isButtonPressed = (isButtonPressed_t)sigscanOffset(GUILTY_GEAR_XRD_EXE,
+		"b8 01 00 00 00 84 05 rel(?? ?? ?? ??) 75 06 09 05 rel(?? ?? ?? ??) 8b 44 24 04 8b 0d rel(?? ?? ?? ??)"
+		" 56 50 33 f6 e8 rel(?? ?? ?? ??) 85 c0 74 0c 8b 48 08 8b 41 0c 23 44 24 0c 5e c3 8b c6 5e c3",
+		&error,
+		"isButtonPressed");
+	if (orig_isButtonPressed) {
+		detouring.attach(&(PVOID&)(orig_isButtonPressed),
+			isButtonPressedHook,
+			"isButtonPressed");
+	}
+	
 	return !error;
+}
+
+BOOL Game::isButtonPressedHook(int padID, ButtonCodeMenu code) {
+	BOOL result = game.orig_isButtonPressed(padID, (int)code);
+	if (code == BUTTON_CODE_MENU_LIST_OF_MEMBERS && !result) {
+		result = endScene.shouldShowListOfMembers();
+	}
+	return result;
 }
 
 bool Game::sigscanAfterHitDetector() {

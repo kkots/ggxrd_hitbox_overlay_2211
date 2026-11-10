@@ -1585,4 +1585,9 @@ settingsField(bool, allowFastForwardOfSupersRoundstartsEtc, true,
 	"; supers, 5D6/8, IK, roundends, round outros in replay mode and observer mode.\n"
 	"; Since the solution works by simply setting FPS to a higher value, it may not work well on older computers.")
 	
+settingsKeyCombo(showListOfMembers, "Show List of Members", "",
+	"; A keyboard shortcut.\n"
+	"; Holding this shortcut will show the \"List of Members\" menu. This isn't a custom made menu, it is in the game.\n"
+	"; It should only be available in lobbies and online matches.")
+	
 #pragma warning(pop)

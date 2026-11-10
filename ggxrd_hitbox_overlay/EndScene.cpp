@@ -8580,3 +8580,7 @@ void EndScene::tickFramebar() {
 		}
 	}
 }
+
+bool EndScene::shouldShowListOfMembers() {
+	return keyboard.isHeld(settings.showListOfMembers);
+}

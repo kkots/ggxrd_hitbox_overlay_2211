@@ -418,6 +418,7 @@ public:
 	int nextFramebarId = 0;
 	// returns ticks to perform
 	int isGameModeNetworkHookWhenDecidingStepCountHook(BOOL pauseMenuActorIsActive);
+	bool shouldShowListOfMembers();
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
